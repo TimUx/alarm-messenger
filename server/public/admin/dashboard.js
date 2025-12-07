@@ -14,6 +14,20 @@ window.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('username-display').textContent = username;
     
+    // Setup event listeners
+    document.getElementById('logout-btn').addEventListener('click', logout);
+    document.getElementById('generate-qr-btn').addEventListener('click', generateQRCode);
+    document.getElementById('copy-token-btn').addEventListener('click', copyToken);
+    document.getElementById('download-qr-btn').addEventListener('click', downloadQRCode);
+    document.getElementById('refresh-devices-btn').addEventListener('click', refreshDevices);
+    document.getElementById('close-modal-btn').addEventListener('click', closeEditModal);
+    document.getElementById('cancel-modal-btn').addEventListener('click', closeEditModal);
+    document.getElementById('edit-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'edit-modal') {
+            closeEditModal();
+        }
+    });
+    
     // Load devices
     refreshDevices();
 });
@@ -108,17 +122,6 @@ async function refreshDevices() {
     }
 }
 
-function displayDevices(devices) {
-    const container = document.getElementById('devices-list');
-    
-    if (devices.length === 0) {
-        container.innerHTML = '<p class="loading">Keine registrierten Geräte gefunden.</p>';
-        return;
-    }
-    
-    container.innerHTML = devices.map(device => createDeviceCard(device)).join('');
-}
-
 function createDeviceCard(device) {
     const registeredDate = new Date(device.registeredAt).toLocaleString('de-DE');
     const deviceName = device.responderName || 'Nicht zugewiesen';
@@ -131,7 +134,7 @@ function createDeviceCard(device) {
     if (qualifications.thVu) qualBadges.push('TH-VU');
     if (qualifications.thBau) qualBadges.push('TH-BAU');
     
-    return `
+    const cardHtml = `
         <div class="device-card">
             <div class="device-header">
                 <div class="device-name">${escapeHtml(deviceName)}</div>
@@ -157,11 +160,39 @@ function createDeviceCard(device) {
             ` : ''}
             ${device.isSquadLeader ? '<div class="leader-badge">⭐ Gruppenführer</div>' : ''}
             <div class="device-actions">
-                <button class="btn btn-secondary" onclick="editDevice('${device.id}')">Bearbeiten</button>
-                <button class="btn btn-secondary" onclick="deactivateDevice('${device.id}')">Deaktivieren</button>
+                <button class="btn btn-secondary" data-action="edit" data-device-id="${device.id}">Bearbeiten</button>
+                <button class="btn btn-secondary" data-action="deactivate" data-device-id="${device.id}">Deaktivieren</button>
             </div>
         </div>
     `;
+    
+    return cardHtml;
+}
+
+function displayDevices(devices) {
+    const container = document.getElementById('devices-list');
+    
+    if (devices.length === 0) {
+        container.innerHTML = '<p class="loading">Keine registrierten Geräte gefunden.</p>';
+        return;
+    }
+    
+    container.innerHTML = devices.map(device => createDeviceCard(device)).join('');
+    
+    // Add event listeners to device action buttons
+    container.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const deviceId = e.target.getAttribute('data-device-id');
+            editDevice(deviceId);
+        });
+    });
+    
+    container.querySelectorAll('[data-action="deactivate"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const deviceId = e.target.getAttribute('data-device-id');
+            deactivateDevice(deviceId);
+        });
+    });
 }
 
 function escapeHtml(text) {
@@ -250,10 +281,3 @@ async function deactivateDevice(deviceId) {
         alert('Fehler: ' + error.message);
     }
 }
-
-// Close modal when clicking outside
-document.getElementById('edit-modal').addEventListener('click', (e) => {
-    if (e.target.id === 'edit-modal') {
-        closeEditModal();
-    }
-});
