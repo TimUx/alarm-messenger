@@ -39,7 +39,7 @@ The Alarm Messenger system is a complete emergency notification solution consist
   - Sanitäter (Paramedic)
   - TH-VU (Technical Rescue - Traffic Accidents)
   - TH-BAU (Technical Rescue - Construction)
-- ✅ Leadership role designation (Gruppenführer - Squad Leader)
+- ✅ Leadership role designation (Fahrzeugführer - Vehicle Commander)
 
 ### Mobile App
 - ✅ QR code scanner for device registration
@@ -228,7 +228,7 @@ The admin interface is accessible at `http://your-server:3000/admin/` and provid
 ![QR Code Generation](https://github.com/user-attachments/assets/4c3b4cc3-fedd-4f6b-9892-d95aabc55f2d)
 
 ### Responder Information Management
-![Edit Responder](https://github.com/user-attachments/assets/45270344-c2e5-45c5-8f38-eaf31e101d18)
+![Edit Responder](https://github.com/user-attachments/assets/14457c74-b918-44e3-aba2-8e22532ae3e0)
 
 ### Initial Admin Setup
 

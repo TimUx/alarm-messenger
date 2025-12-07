@@ -170,7 +170,7 @@ function createDeviceCard(device) {
                     </div>
                 </div>
             ` : ''}
-            ${device.isSquadLeader ? '<div class="leader-badge">⭐ Gruppenführer</div>' : ''}
+            ${device.isSquadLeader ? '<div class="leader-badge">⭐ Fahrzeugführer</div>' : ''}
             <div class="device-actions">
                 <button class="btn btn-secondary" data-action="edit" data-device-id="${escapedDeviceId}">Bearbeiten</button>
                 <button class="btn btn-secondary" data-action="deactivate" data-device-id="${escapedDeviceId}">Deaktivieren</button>
