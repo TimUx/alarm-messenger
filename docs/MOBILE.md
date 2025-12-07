@@ -1,54 +1,45 @@
-# Mobile App Setup Guide
+# Mobile App - Build und Installation Guide
 
-## Prerequisites
+Dieses Dokument erklärt detailliert, wie die Android und iOS Apps kompiliert, installiert und über GitHub Actions als Release bereitgestellt werden können.
 
-### For Both Platforms
-- Node.js 18 or higher
-- npm or yarn
-- React Native CLI (`npm install -g react-native-cli`)
-- Firebase project with Cloud Messaging enabled
+## Übersicht
 
-### For iOS Development
-- macOS
-- Xcode 14 or higher
+Die Alarm Messenger Mobile App ist eine React Native Anwendung, die:
+- **Keine externen Dienste** wie Firebase benötigt
+- Über **WebSocket** direkt mit dem Server kommuniziert
+- Vollständig **lokal kompilierbar** ist
+- Auf iOS und Android läuft
+
+## Voraussetzungen
+
+### Für beide Plattformen
+- Node.js 18 oder höher
+- npm oder yarn
+- Git
+
+### Für iOS Development
+- **macOS** (iOS Apps können nur auf macOS entwickelt werden)
+- Xcode 14 oder höher
 - CocoaPods (`sudo gem install cocoapods`)
-- iOS Simulator or physical device
-- Apple Developer Account (for physical devices)
+- iOS Simulator (in Xcode enthalten) oder physisches iOS-Gerät
+- Apple Developer Account (nur für physische Geräte und App Store)
 
-### For Android Development
+### Für Android Development
 - Android Studio
-- Android SDK (API Level 33 or higher)
-- Android Emulator or physical device
-- Java Development Kit (JDK) 11 or higher
+- Android SDK (API Level 33 oder höher)
+- Android Emulator (in Android Studio enthalten) oder physisches Android-Gerät
+- Java Development Kit (JDK) 11 oder höher
 
-## Step 1: Install Dependencies
+## Installation der Dependencies
 
 ```bash
 cd mobile
 npm install
 ```
 
-## Step 2: Configure Firebase
+## iOS Build und Installation
 
-### Create Firebase Project
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create a new project or use existing one
-3. Add an iOS app and/or Android app to your project
-
-### iOS Configuration
-
-1. Download `GoogleService-Info.plist` from Firebase Console
-2. Place it in `mobile/ios/` directory
-3. Open `mobile/ios/AlarmMessenger.xcworkspace` in Xcode
-4. Add `GoogleService-Info.plist` to your project
-
-### Android Configuration
-
-1. Download `google-services.json` from Firebase Console
-2. Place it in `mobile/android/app/` directory
-
-## Step 3: Setup iOS
+### Schritt 1: iOS Dependencies installieren
 
 ```bash
 cd ios
@@ -56,398 +47,562 @@ pod install
 cd ..
 ```
 
-### Configure iOS Capabilities
+### Schritt 2: Berechtigungen konfigurieren
 
-1. Open `ios/AlarmMessenger.xcworkspace` in Xcode
-2. Select your project in the navigator
-3. Select the target "AlarmMessenger"
-4. Go to "Signing & Capabilities"
-5. Add "Push Notifications" capability
-6. Add "Background Modes" capability
-   - Check "Remote notifications"
-
-### Info.plist Configuration
-
-Add camera permission to `ios/AlarmMessenger/Info.plist`:
+Die App benötigt Kamera-Zugriff für den QR-Code-Scanner. Dies ist bereits in `ios/AlarmMessenger/Info.plist` konfiguriert:
 
 ```xml
 <key>NSCameraUsageDescription</key>
-<string>This app requires camera access to scan QR codes for device registration.</string>
+<string>Diese App benötigt Kamerazugriff zum Scannen von QR-Codes für die Geräteregistrierung.</string>
 ```
 
-## Step 4: Setup Android
+### Schritt 3: Development Build
 
-### Update build.gradle
-
-Add to `android/app/build.gradle`:
-
-```gradle
-dependencies {
-    // ... other dependencies
-    implementation 'com.google.firebase:firebase-messaging'
-}
-
-apply plugin: 'com.google.gms.google-services'
+**Option A: Via React Native CLI**
+```bash
+npm run ios
 ```
 
-Add to `android/build.gradle`:
+**Option B: Via Xcode**
+1. Öffne `ios/AlarmMessenger.xcworkspace` in Xcode (NICHT .xcodeproj!)
+2. Wähle einen Simulator oder verbinde ein iPhone
+3. Klicke auf Run (⌘R) oder Product > Run
 
-```gradle
-buildscript {
-    dependencies {
-        // ... other dependencies
-        classpath 'com.google.gms:google-services:4.4.0'
-    }
-}
+### Schritt 4: Auf physischem iPhone installieren
+
+1. Verbinde dein iPhone per USB
+2. Öffne Xcode
+3. Wähle dein iPhone als Ziel aus
+4. Unter "Signing & Capabilities":
+   - Team: Wähle dein Apple Developer Team (oder erstelle ein kostenloses Personal Team)
+   - Bundle Identifier: Ändere bei Bedarf (z.B. `com.deinname.alarmmessenger`)
+5. Klicke Run (⌘R)
+6. Auf dem iPhone: Einstellungen > Allgemein > VPN & Geräteverwaltung > Vertraue dem Entwickler
+
+**Hinweis:** Ohne Apple Developer Account (99€/Jahr) läuft die App nur 7 Tage auf dem Gerät.
+
+### Schritt 5: Production Build für App Store
+
+```bash
+# In Xcode:
+1. Product > Scheme > Edit Scheme > Run > Build Configuration > Release
+2. Product > Archive
+3. Window > Organizer > Wähle dein Archiv > Distribute App
+4. Wähle "App Store Connect" oder "Ad Hoc" für Test-Distribution
 ```
 
-### AndroidManifest.xml
+Für Ad-Hoc Distribution (ohne App Store):
+```bash
+# IPA-Datei wird erstellt, die per E-Mail/Link verteilt werden kann
+# Empfänger müssen ihre UDID in deinem Developer Account registrieren
+```
 
-Add permissions to `android/app/src/main/AndroidManifest.xml`:
+## Android Build und Installation
+
+### Schritt 1: Berechtigungen prüfen
+
+Die erforderlichen Berechtigungen sind bereits in `android/app/src/main/AndroidManifest.xml` konfiguriert:
 
 ```xml
 <uses-permission android:name="android.permission.CAMERA" />
 <uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.VIBRATE" />
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-<application>
-    <!-- ... other configurations -->
-    
-    <meta-data
-        android:name="com.google.firebase.messaging.default_notification_channel_id"
-        android:value="emergency_alerts" />
-</application>
 ```
 
-## Step 5: Add Alarm Sound
+### Schritt 2: Development Build
 
-### iOS
-1. Add `alarm.mp3` file to `ios/AlarmMessenger/`
-2. Open Xcode
-3. Right-click on project > Add Files to "AlarmMessenger"
-4. Select `alarm.mp3`
-5. Ensure "Copy items if needed" is checked
-6. Add to target "AlarmMessenger"
-
-### Android
-1. Create directory: `android/app/src/main/res/raw/`
-2. Add `alarm.mp3` to this directory
-
-You can download a free alarm sound from:
-- https://freesound.org/
-- https://www.zapsplat.com/
-
-## Step 6: Configure Server URL
-
-In `mobile/src/services/api.ts`, update the default server URL:
-
-```typescript
-const API_BASE_URL = 'https://your-server-url.com/api';
-```
-
-Or configure it dynamically through QR code scanning.
-
-## Step 7: Run the App
-
-### iOS
-
-```bash
-npm run ios
-```
-
-Or in Xcode:
-1. Open `ios/AlarmMessenger.xcworkspace`
-2. Select a simulator or device
-3. Click Run (⌘R)
-
-### Android
-
+**Option A: Via React Native CLI**
 ```bash
 npm run android
 ```
 
-Or in Android Studio:
-1. Open `android` folder
-2. Select an emulator or device
-3. Click Run
+**Option B: Via Android Studio**
+1. Öffne den `android` Ordner in Android Studio
+2. Wähle einen Emulator oder verbinde ein Android-Gerät
+3. Klicke Run
+
+### Schritt 3: Debug APK erstellen
+
+```bash
+cd android
+./gradlew assembleDebug
+```
+
+Die APK findest du unter:
+```
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Diese APK kannst du direkt auf Android-Geräten installieren:
+```bash
+# Per USB verbundenes Gerät
+adb install android/app/build/outputs/apk/debug/app-debug.apk
+
+# Oder APK-Datei per E-Mail/Cloud teilen und auf Gerät öffnen
+# (Erlaube "Installation aus unbekannten Quellen" in den Einstellungen)
+```
+
+### Schritt 4: Release APK erstellen (signiert)
+
+#### Signing Key generieren (einmalig)
+
+```bash
+keytool -genkey -v -keystore android/app/alarm-messenger.keystore \
+  -alias alarm-messenger \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 10000
+```
+
+**WICHTIG:** Bewahre das Keystore-Passwort sicher auf! Es wird für alle zukünftigen Updates benötigt.
+
+#### Signing konfigurieren
+
+Erstelle `android/gradle.properties` (lokal, nicht committen!):
+```properties
+MYAPP_RELEASE_STORE_FILE=alarm-messenger.keystore
+MYAPP_RELEASE_KEY_ALIAS=alarm-messenger
+MYAPP_RELEASE_STORE_PASSWORD=dein-passwort
+MYAPP_RELEASE_KEY_PASSWORD=dein-passwort
+```
+
+Oder setze Umgebungsvariablen:
+```bash
+export MYAPP_RELEASE_STORE_FILE=alarm-messenger.keystore
+export MYAPP_RELEASE_KEY_ALIAS=alarm-messenger
+export MYAPP_RELEASE_STORE_PASSWORD=dein-passwort
+export MYAPP_RELEASE_KEY_PASSWORD=dein-passwort
+```
+
+In `android/app/build.gradle` ist bereits konfiguriert:
+```gradle
+android {
+    signingConfigs {
+        release {
+            if (project.hasProperty('MYAPP_RELEASE_STORE_FILE')) {
+                storeFile file(MYAPP_RELEASE_STORE_FILE)
+                storePassword MYAPP_RELEASE_STORE_PASSWORD
+                keyAlias MYAPP_RELEASE_KEY_ALIAS
+                keyPassword MYAPP_RELEASE_KEY_PASSWORD
+            }
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+}
+```
+
+#### Release APK bauen
+
+```bash
+cd android
+./gradlew assembleRelease
+```
+
+Die signierte Release-APK findest du unter:
+```
+android/app/build/outputs/apk/release/app-release.apk
+```
+
+#### APK direkt installieren
+
+```bash
+# Per USB
+adb install android/app/build/outputs/apk/release/app-release.apk
+
+# Oder Datei teilen und auf Gerät installieren
+```
+
+### Schritt 5: Android App Bundle (AAB) für Play Store
+
+```bash
+cd android
+./gradlew bundleRelease
+```
+
+Die AAB-Datei findest du unter:
+```
+android/app/build/outputs/bundle/release/app-release.aab
+```
+
+Diese Datei wird für den Upload zum Google Play Store verwendet.
+
+## Alarm-Sound hinzufügen
+
+Die App benötigt eine `alarm.mp3` Datei für den Alarmton.
+
+### iOS
+```bash
+# 1. Füge alarm.mp3 zu ios/AlarmMessenger/ hinzu
+# 2. Öffne Xcode
+# 3. Rechtsklick auf Projekt > Add Files to "AlarmMessenger"
+# 4. Wähle alarm.mp3
+# 5. Aktiviere "Copy items if needed"
+# 6. Wähle Target "AlarmMessenger"
+```
+
+### Android
+```bash
+# Erstelle Verzeichnis und füge Datei hinzu
+mkdir -p android/app/src/main/res/raw/
+cp /pfad/zu/alarm.mp3 android/app/src/main/res/raw/
+```
+
+Kostenlose Alarm-Sounds:
+- https://freesound.org/
+- https://www.zapsplat.com/
+
+## App-Anpassungen
+
+### App-Name ändern
+
+**iOS:** `ios/AlarmMessenger/Info.plist`
+```xml
+<key>CFBundleDisplayName</key>
+<string>Dein App Name</string>
+```
+
+**Android:** `android/app/src/main/res/values/strings.xml`
+```xml
+<string name="app_name">Dein App Name</string>
+```
+
+### App-Icon ändern
+
+Nutze einen Generator wie [App Icon Generator](https://appicon.co/).
+
+**iOS:** Ersetze Icons in `ios/AlarmMessenger/Images.xcassets/AppIcon.appiconset/`
+
+**Android:** Ersetze Icons in `android/app/src/main/res/mipmap-*/`
+
+### Bundle Identifier / Package Name ändern
+
+**iOS:** In Xcode unter "General" > "Identity" > "Bundle Identifier"
+
+**Android:** In `android/app/build.gradle`:
+```gradle
+defaultConfig {
+    applicationId "com.deinname.alarmmessenger"
+}
+```
+
+## GitHub Actions für automatische Releases
+
+### Ja, es ist möglich! Hier ist die Lösung:
+
+Erstelle `.github/workflows/mobile-release.yml`:
+
+```yaml
+name: Mobile App Release
+
+on:
+  push:
+    tags:
+      - 'mobile-v*'
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+          
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+        
+      - name: Decode Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > mobile/android/app/alarm-messenger.keystore
+          
+      - name: Build Release APK
+        working-directory: mobile/android
+        env:
+          MYAPP_RELEASE_STORE_FILE: alarm-messenger.keystore
+          MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
+        
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release.apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: mobile/android/app/build/outputs/apk/release/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+        
+      - name: Install CocoaPods
+        working-directory: mobile/ios
+        run: pod install
+        
+      - name: Build iOS App
+        working-directory: mobile/ios
+        run: |
+          xcodebuild -workspace AlarmMessenger.xcworkspace \
+            -scheme AlarmMessenger \
+            -configuration Release \
+            -archivePath $PWD/build/AlarmMessenger.xcarchive \
+            archive
+            
+      - name: Export IPA
+        working-directory: mobile/ios
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath $PWD/build/AlarmMessenger.xcarchive \
+            -exportPath $PWD/build \
+            -exportOptionsPlist ExportOptions.plist
+            
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlarmMessenger.ipa
+          path: mobile/ios/build/AlarmMessenger.ipa
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: mobile/ios/build/AlarmMessenger.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### GitHub Secrets einrichten
+
+Für Android in Repository Settings > Secrets:
+
+1. **ANDROID_KEYSTORE_BASE64**: 
+   ```bash
+   base64 -i android/app/alarm-messenger.keystore | pbcopy
+   # Oder unter Linux:
+   base64 -w 0 android/app/alarm-messenger.keystore
+   ```
+   
+2. **ANDROID_KEY_ALIAS**: `alarm-messenger`
+3. **ANDROID_STORE_PASSWORD**: Dein Keystore-Passwort
+4. **ANDROID_KEY_PASSWORD**: Dein Key-Passwort
+
+### Release erstellen
+
+```bash
+# Tag erstellen und pushen
+git tag mobile-v1.0.0
+git push origin mobile-v1.0.0
+
+# GitHub Actions baut automatisch APK/IPA und erstellt einen Release
+```
+
+Die Apps werden dann unter "Releases" zum Download bereitgestellt!
+
+### iOS Code Signing in GitHub Actions
+
+Für iOS ist es komplexer wegen Code Signing. Optionen:
+
+1. **Fastlane Match**: Zertifikate in privatem Git-Repo speichern
+2. **App Store Connect API**: Vollautomatischer Upload
+3. **Ad-Hoc Distribution**: Für interne Tests ohne App Store
+
+Beispiel mit Fastlane Match:
+```yaml
+- name: Setup Fastlane
+  run: gem install fastlane
+
+- name: Fastlane Build & Sign
+  env:
+    MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+    FASTLANE_USER: ${{ secrets.APPLE_ID }}
+    FASTLANE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+  working-directory: mobile/ios
+  run: fastlane beta
+```
 
 ## Testing
 
-### Test Device Registration
+### Test auf Simulator/Emulator
 
-1. Start the backend server
-2. Generate a QR code:
+**iOS Simulator:**
+```bash
+npm run ios
+# Oder wähle einen spezifischen Simulator:
+npm run ios -- --simulator="iPhone 14 Pro"
+```
+
+**Android Emulator:**
+```bash
+npm run android
+# Stelle sicher, dass ein Emulator läuft
+```
+
+### Test auf physischem Gerät
+
+1. Backend Server starten
+2. QR-Code generieren:
    ```bash
-   curl -X POST http://localhost:3000/api/devices/registration-token
+   curl -X POST http://DEINE-SERVER-IP:3000/api/devices/registration-token
    ```
-3. Open the mobile app
-4. Tap "Start Scanning"
-5. Display the QR code on another device or print it
-6. Scan the QR code
-
-### Test Emergency Notification
-
-1. Create an emergency via API:
+3. App öffnen und QR-Code scannen
+4. Test-Alarm senden:
    ```bash
-   curl -X POST http://localhost:3000/api/emergencies \
+   curl -X POST http://DEINE-SERVER-IP:3000/api/emergencies \
      -H "Content-Type: application/json" \
+     -H "X-API-Key: your-api-key" \
      -d '{
        "emergencyNumber": "TEST-001",
        "emergencyDate": "2024-12-07T19:00:00Z",
-       "emergencyKeyword": "TEST",
-       "emergencyDescription": "Test notification",
-       "emergencyLocation": "Test location"
+       "emergencyKeyword": "TEST ALARM",
+       "emergencyDescription": "Test Benachrichtigung",
+       "emergencyLocation": "Test Standort"
      }'
-   ```
-2. The app should display an alert with alarm sound
-
-### Test Response Submission
-
-1. Tap "TEILNEHMEN" or "NICHT VERFÜGBAR"
-2. Check the response in the database:
-   ```bash
-   curl http://localhost:3000/api/emergencies/{emergency-id}/responses
    ```
 
 ## Troubleshooting
 
-### iOS Issues
+### iOS
 
-**CocoaPods errors:**
+**"pod install" schlägt fehl:**
 ```bash
 cd ios
 pod deintegrate
-pod install
-cd ..
+pod install --repo-update
 ```
 
-**Build fails:**
-- Clean build folder: Xcode > Product > Clean Build Folder
-- Delete `ios/Pods` and `ios/Podfile.lock`, then run `pod install`
+**Build-Fehler in Xcode:**
+```bash
+# Build Folder löschen
+Product > Clean Build Folder (⇧⌘K)
 
-**Push notifications not working:**
-- Verify push notification capability is enabled
-- Check APNs authentication key in Firebase
-- Test on physical device (push notifications don't work in simulator)
+# Derived Data löschen
+rm -rf ~/Library/Developer/Xcode/DerivedData
+```
 
-### Android Issues
+**App startet nicht auf physischem Gerät:**
+- Prüfe Bundle Identifier
+- Prüfe Signing & Capabilities
+- Vertraue dem Entwickler in iOS-Einstellungen
 
-**Gradle sync fails:**
+### Android
+
+**Gradle Build schlägt fehl:**
 ```bash
 cd android
 ./gradlew clean
-cd ..
+./gradlew assembleDebug --stacktrace
 ```
 
-**Firebase not working:**
-- Verify `google-services.json` is in correct location
-- Check Firebase configuration in `build.gradle`
-- Ensure Google Services plugin is applied
-
-**Camera not working:**
-- Verify camera permission in AndroidManifest.xml
-- Check runtime permissions are requested
-
-### Common Issues
-
-**Metro bundler errors:**
+**"Unable to load script":**
 ```bash
 npm start -- --reset-cache
 ```
 
-**Module not found:**
+**App installiert, aber startet nicht:**
 ```bash
+# Prüfe Logs
+adb logcat *:E
+```
+
+### Allgemein
+
+**Metro Bundler Fehler:**
+```bash
+# Cache löschen
+npm start -- --reset-cache
+
+# Node Modules neu installieren
 rm -rf node_modules
 npm install
 ```
 
-**React Native CLI issues:**
-```bash
-npm install -g react-native-cli
-```
+## Distribution
 
-## Building for Production
+### Ad-Hoc Distribution (empfohlen für Tests)
 
-### iOS
+**Android:**
+- APK per E-Mail, Cloud oder eigener Website verteilen
+- Nutzer müssen "Installation aus unbekannten Quellen" erlauben
 
-1. Open `ios/AlarmMessenger.xcworkspace` in Xcode
-2. Select "Any iOS Device" or your connected device
-3. Product > Archive
-4. Follow Xcode's distribution workflow
-5. Submit to App Store or distribute ad-hoc
+**iOS:**
+- TestFlight (kostenlos, bis zu 10.000 Tester)
+- Ad-Hoc IPA (max. 100 Geräte, UDIDs müssen registriert sein)
 
-### Android
+### App Stores
 
-1. Generate signing key:
-   ```bash
-   keytool -genkey -v -keystore alarm-messenger.keystore -alias alarm-messenger -keyalg RSA -keysize 2048 -validity 10000
-   ```
+**Google Play Store:**
+- Einmalig 25$ Registrierungsgebühr
+- AAB-Upload erforderlich
+- Review-Zeit: 1-3 Tage
 
-2. Configure signing in `android/app/build.gradle`:
-   ```gradle
-   android {
-       signingConfigs {
-           release {
-               storeFile file('alarm-messenger.keystore')
-               storePassword 'your-password'
-               keyAlias 'alarm-messenger'
-               keyPassword 'your-password'
-           }
-       }
-       buildTypes {
-           release {
-               signingConfig signingConfigs.release
-           }
-       }
-   }
-   ```
+**Apple App Store:**
+- 99€/Jahr Apple Developer Program
+- IPA-Upload via Xcode oder Transporter
+- Review-Zeit: 1-3 Tage
 
-3. Build release APK:
-   ```bash
-   cd android
-   ./gradlew assembleRelease
-   ```
+### Enterprise Distribution
 
-4. Find APK at: `android/app/build/outputs/apk/release/app-release.apk`
+Für interne Firmen-Apps ohne Store:
+- **Android**: MDM (Mobile Device Management)
+- **iOS**: Apple Enterprise Program (299€/Jahr)
 
-5. For Play Store, build AAB:
-   ```bash
-   ./gradlew bundleRelease
-   ```
+## Best Practices
 
-## Customization
+✅ Versionsnummer in `package.json` erhöhen
+✅ Changelogs pflegen
+✅ Apps auf mehreren Geräten testen
+✅ Performance mit React Native Profiler prüfen
+✅ App-Größe optimieren
+✅ Keystore sicher aufbewahren (Backup!)
+✅ Unterschiedliche Signing Keys für Debug/Release
+✅ Server-URL über QR-Code konfigurieren (nicht hardcoden)
 
-### Change App Name
+## Weitere Ressourcen
 
-**iOS:** Edit `ios/AlarmMessenger/Info.plist`
-```xml
-<key>CFBundleDisplayName</key>
-<string>Your App Name</string>
-```
-
-**Android:** Edit `android/app/src/main/res/values/strings.xml`
-```xml
-<string name="app_name">Your App Name</string>
-```
-
-### Change App Icon
-
-Use a tool like [App Icon Generator](https://appicon.co/) to generate icons for both platforms.
-
-**iOS:** Replace icons in `ios/AlarmMessenger/Images.xcassets/AppIcon.appiconset/`
-
-**Android:** Replace icons in `android/app/src/main/res/mipmap-*/`
-
-### Change Colors
-
-Edit `mobile/src/screens/*.tsx` files to customize colors:
-- Background: `#1a1a1a`
-- Emergency red: `#dc3545`
-- Success green: `#28a745`
-
-### Change Alarm Sound
-
-Replace `alarm.mp3` files in both iOS and Android directories.
-
-## Performance Optimization
-
-### Android
-
-1. Enable Proguard in `android/app/build.gradle`:
-   ```gradle
-   buildTypes {
-       release {
-           minifyEnabled true
-           proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-       }
-   }
-   ```
-
-2. Enable Hermes engine (enabled by default in React Native 0.70+)
-
-### iOS
-
-1. Enable Bitcode in Xcode build settings
-2. Optimize images and assets
-
-## Security
-
-- [ ] Obfuscate source code for production
-- [ ] Use SSL pinning for API communication
-- [ ] Implement certificate pinning
-- [ ] Store sensitive data in Keychain (iOS) / Keystore (Android)
-- [ ] Validate all QR codes before processing
-- [ ] Implement timeout for alarm sounds
-
-## App Store Submission
-
-### iOS - App Store
-
-1. Create app in App Store Connect
-2. Prepare screenshots and metadata
-3. Archive and upload via Xcode
-4. Submit for review
-
-Requirements:
-- App privacy policy
-- App description
-- Screenshots (multiple devices)
-- App icon
-
-### Android - Play Store
-
-1. Create app in Play Console
-2. Prepare store listing
-3. Upload AAB file
-4. Complete content rating questionnaire
-5. Submit for review
-
-Requirements:
-- App privacy policy
-- Feature graphic (1024x500)
-- Screenshots (multiple devices)
-- App icon
-
-## Continuous Integration
-
-### Fastlane Setup
-
-Install Fastlane:
-```bash
-gem install fastlane
-```
-
-Initialize:
-```bash
-cd ios
-fastlane init
-cd ../android
-fastlane init
-```
-
-Example Fastfile for iOS:
-```ruby
-lane :beta do
-  build_app(scheme: "AlarmMessenger")
-  upload_to_testflight
-end
-```
+- [React Native Docs](https://reactnative.dev/docs/getting-started)
+- [Xcode Help](https://developer.apple.com/xcode/)
+- [Android Studio Guide](https://developer.android.com/studio/intro)
+- [GitHub Actions](https://docs.github.com/en/actions)
+- [Fastlane](https://fastlane.tools/)
 
 ## Support
 
-For issues:
-1. Check React Native documentation
-2. Check Firebase documentation
-3. Review device logs
-4. Test on different devices
-5. Check GitHub issues
-
-## Next Steps
-
-After setup:
-1. Test on multiple devices
-2. Gather beta testers
-3. Collect feedback
-4. Optimize performance
-5. Prepare for app store submission
+Bei Problemen:
+1. Prüfe diese Dokumentation
+2. Prüfe React Native Troubleshooting Guide
+3. Prüfe Device Logs (Xcode Console / adb logcat)
+4. Öffne ein GitHub Issue

@@ -9,7 +9,6 @@ import emergencyRoutes from './routes/emergencies';
 import deviceRoutes from './routes/devices';
 import adminRoutes from './routes/admin';
 import { initializeDatabase } from './services/database';
-import { initializeFirebase } from './services/firebase';
 import { websocketService } from './services/websocket';
 
 dotenv.config();
@@ -53,13 +52,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Initialize database and Firebase
+// Initialize database and WebSocket
 async function startServer() {
   try {
     await initializeDatabase();
     console.log('✓ Database initialized');
-    
-    await initializeFirebase();
     
     // Create HTTP server
     const server = http.createServer(app);

@@ -18,8 +18,9 @@ Das Alarm Messenger System wurde vollständig implementiert gemäß den Anforder
    
 2. **Push-Benachrichtigungen**
    - Automatische Alarmierung aller registrierten Geräte bei Einsatzerstellung
-   - Firebase Cloud Messaging (FCM) Integration
+   - **WebSocket-basierte Echtzeit-Benachrichtigungen**
    - Verschlüsselte Übertragung über HTTPS/TLS
+   - **Keine externen Abhängigkeiten** (kein Firebase erforderlich)
    
 3. **Geräteregistrierung**
    - QR-Code-Generierung: `POST /api/devices/registration-token`
@@ -39,9 +40,10 @@ Das Alarm Messenger System wurde vollständig implementiert gemäß den Anforder
    - Speicherung der Registrierungsdaten lokal
    
 2. **Push-Benachrichtigungen**
-   - Empfang von Einsatz-Alarmen
+   - Empfang von Einsatz-Alarmen über WebSocket
    - Automatisches Öffnen der App
    - Anzeige der Einsatzinformationen
+   - **Funktioniert komplett lokal ohne externe Dienste**
    
 3. **Alarm-UI**
    - Design basierend auf alarm-monitor Repository
@@ -91,17 +93,18 @@ Das Alarm Messenger System wurde vollständig implementiert gemäß den Anforder
 │  └────────────────────────────────────┘  │
 │  ┌────────────────────────────────────┐  │
 │  │  Services                          │  │
-│  │  - Firebase (Push Notifications)  │  │
+│  │  - WebSocket (Push Notifications) │  │
 │  │  - Database (SQLite)               │  │
 │  └────────────────────────────────────┘  │
 └──────────────────┬───────────────────────┘
-                   │ FCM Push
+                   │ WebSocket Push
                    ▼
 ┌──────────────────────────────────────────┐
 │     Mobile Devices (iOS/Android)         │
 │  ┌────────────────────────────────────┐  │
 │  │  React Native App                  │  │
 │  │  - QR Scanner (Registrierung)      │  │
+│  │  - WebSocket Client                │  │
 │  │  - Alert UI (Alarmierung)          │  │
 │  │  - Response Buttons (Rückmeldung)  │  │
 │  └────────────────────────────────────┘  │
@@ -111,7 +114,7 @@ Das Alarm Messenger System wurde vollständig implementiert gemäß den Anforder
 ## Sicherheit
 
 - ✅ HTTPS/TLS-Verschlüsselung (via Nginx)
-- ✅ Firebase Cloud Messaging (Ende-zu-Ende-verschlüsselt)
+- ✅ WebSocket-basierte Push-Benachrichtigungen (lokal, keine externen Dienste)
 - ✅ Rate Limiting (100 Anfragen / 15 Minuten)
 - ✅ Helmet Security Headers
 - ✅ Token-basierte Geräteregistrierung
@@ -130,7 +133,7 @@ alarm-messenger/
 │   │   │   └── devices.ts
 │   │   ├── services/         # Business Logic
 │   │   │   ├── database.ts   # SQLite
-│   │   │   └── firebase.ts   # FCM
+│   │   │   └── websocket.ts  # WebSocket Push
 │   │   └── models/           # TypeScript-Typen
 │   ├── Dockerfile            # Production
 │   ├── Dockerfile.dev        # Development
@@ -146,6 +149,7 @@ alarm-messenger/
 │   │   ├── services/         # API & Dienste
 │   │   │   ├── api.ts
 │   │   │   ├── notifications.ts
+│   │   │   ├── websocket.ts
 │   │   │   ├── alarm.ts
 │   │   │   └── storage.ts
 │   │   └── types/            # TypeScript-Typen
@@ -179,7 +183,7 @@ cd alarm-messenger
 
 # Konfigurieren
 cp .env.example .env
-nano .env  # Firebase-Credentials eintragen
+nano .env  # API-Schlüssel eintragen (Firebase nicht mehr benötigt!)
 
 # Starten
 docker compose up -d
@@ -279,23 +283,17 @@ const participants = await fetch(
 
 ## Nächste Schritte
 
-1. **Firebase-Konfiguration**
-   - Firebase-Projekt erstellen
-   - Service Account Key generieren
-   - In .env eintragen
-
-2. **Mobile App Deployment**
-   - Firebase für iOS/Android konfigurieren
+1. **Mobile App Deployment**
    - Alarmton-Datei hinzufügen (alarm.mp3)
    - Apps für App Store/Play Store vorbereiten
 
-3. **Produktiv-Deployment**
+2. **Produktiv-Deployment**
    - SSL-Zertifikate (Let's Encrypt) einrichten
    - Domain konfigurieren
    - Backup-Strategie implementieren
    - Monitoring aufsetzen
 
-4. **Integration**
+3. **Integration**
    - Mit alarm-monitor verbinden
    - API-Aufrufe testen
    - End-to-End-Tests durchführen

@@ -18,7 +18,7 @@ The fastest way to run the Alarm Messenger server is using Docker.
 2. **Configure environment:**
    ```bash
    cp .env.example .env
-   nano .env  # Edit with your Firebase credentials
+   nano .env  # Edit with your API keys (Firebase no longer needed!)
    ```
 
 3. **Start the server:**
