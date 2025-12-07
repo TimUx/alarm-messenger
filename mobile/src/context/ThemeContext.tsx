@@ -73,7 +73,8 @@ const hexToRgba = (hex: string, alpha: number): string => {
 export const getThemeColors = (theme: Theme) => ({
   ...theme.colors,
   primaryLight: hexToRgba(theme.colors.primary, 0.12),
-  overlayBackground: hexToRgba(theme.dark ? '#000000' : '#000000', 0.5),
+  overlayBackground: hexToRgba('#000000', 0.5),
+  onPrimaryText: theme.dark ? theme.colors.text : '#ffffff',
 });
 
 interface ThemeContextType {

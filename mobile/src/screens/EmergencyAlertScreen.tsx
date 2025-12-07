@@ -10,7 +10,7 @@ import {
 import { Emergency } from '../types';
 import { alarmService } from '../services/alarm';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme, getThemeColors } from '../context/ThemeContext';
 
 interface Props {
   emergency: Emergency;
@@ -26,6 +26,7 @@ const EmergencyAlertScreen: React.FC<Props> = ({
   onDismiss,
 }) => {
   const { theme } = useTheme();
+  const themeColors = getThemeColors(theme);
 
   useEffect(() => {
     // Start alarm sound when component mounts
@@ -51,11 +52,11 @@ const EmergencyAlertScreen: React.FC<Props> = ({
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.header, { 
         backgroundColor: theme.colors.primary,
-        borderBottomColor: theme.dark ? theme.colors.border : '#ffffff',
+        borderBottomColor: themeColors.onPrimaryText,
       }]}>
-        <Icon name="warning" size={60} color={theme.dark ? theme.colors.text : '#ffffff'} />
-        <Text style={[styles.headerTitle, { color: theme.dark ? theme.colors.text : '#ffffff' }]}>EINSATZ</Text>
-        <Text style={[styles.keyword, { color: theme.dark ? theme.colors.text : '#ffffff' }]}>{emergency.emergencyKeyword}</Text>
+        <Icon name="warning" size={60} color={themeColors.onPrimaryText} />
+        <Text style={[styles.headerTitle, { color: themeColors.onPrimaryText }]}>EINSATZ</Text>
+        <Text style={[styles.keyword, { color: themeColors.onPrimaryText }]}>{emergency.emergencyKeyword}</Text>
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
@@ -86,15 +87,15 @@ const EmergencyAlertScreen: React.FC<Props> = ({
         <TouchableOpacity
           style={[styles.button, { backgroundColor: theme.colors.success }]}
           onPress={handleParticipate}>
-          <Icon name="check-circle" size={30} color={theme.dark ? theme.colors.text : '#ffffff'} />
-          <Text style={[styles.buttonText, { color: theme.dark ? theme.colors.text : '#ffffff' }]}>TEILNEHMEN</Text>
+          <Icon name="check-circle" size={30} color={themeColors.onPrimaryText} />
+          <Text style={[styles.buttonText, { color: themeColors.onPrimaryText }]}>TEILNEHMEN</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, { backgroundColor: theme.colors.inactive }]}
           onPress={handleDecline}>
-          <Icon name="cancel" size={30} color={theme.dark ? theme.colors.text : '#ffffff'} />
-          <Text style={[styles.buttonText, { color: theme.dark ? theme.colors.text : '#ffffff' }]}>NICHT VERFÜGBAR</Text>
+          <Icon name="cancel" size={30} color={themeColors.onPrimaryText} />
+          <Text style={[styles.buttonText, { color: themeColors.onPrimaryText }]}>NICHT VERFÜGBAR</Text>
         </TouchableOpacity>
       </View>
 
