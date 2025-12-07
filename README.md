@@ -216,13 +216,22 @@ npm run android
 
 ## Admin Interface
 
-The admin interface is accessible at `http://your-server:3000/admin/` and provides:
+The admin interface is accessible at `http://your-server:3000/admin/` and features:
+- Light/Dark theme toggle (light mode is default)
+- Persistent theme preference
+- Alarm-monitor inspired design
 
-### Login
-![Admin Login](https://github.com/user-attachments/assets/5216ebb2-df74-4205-be56-fce65985ab3f)
+### Login - Light Mode (Default)
+![Admin Login Light](https://github.com/user-attachments/assets/4e31daa6-e7c9-4056-92c9-f76eea14a1c5)
 
-### Dashboard with QR Code Generation
-![Admin Dashboard](https://github.com/user-attachments/assets/aa28f7c5-b6a9-4bc1-8a3d-b03971f23dfd)
+### Login - Dark Mode
+![Admin Login Dark](https://github.com/user-attachments/assets/4879ddf7-62b2-497b-9562-87ae9c5ede5b)
+
+### Dashboard with QR Code Generation - Light Mode
+![Admin Dashboard Light](https://github.com/user-attachments/assets/6a4b9baf-c02d-4682-9494-99f0d36a851c)
+
+### Dashboard - Dark Mode
+![Admin Dashboard Dark](https://github.com/user-attachments/assets/72ec7d0a-edc2-4ea8-b45c-68eb1fd9f0c3)
 
 ### QR Code Display
 ![QR Code Generation](https://github.com/user-attachments/assets/4c3b4cc3-fedd-4f6b-9892-d95aabc55f2d)
@@ -297,12 +306,25 @@ The mobile app includes:
 
 ### Admin Web Interface
 
-The admin interface follows the alarm-monitor design style:
-- Dark theme (#1a1a1a background)
+The admin interface follows the alarm-monitor design style with switchable themes:
+
+**Light Mode (Default)**
+- Clean, modern appearance with light backgrounds
+- High contrast for easy readability
+- Professional color palette
+
+**Dark Mode**
+- Dark theme (#1a1a1a background) matching alarm-monitor standby
 - Red accent color (#dc3545) for emphasis
-- Clean, modern card-based layout
+- Reduced eye strain for low-light environments
+
+**Common Features**
+- Theme toggle button (🌙/☀️) for instant switching
+- Persistent theme preference saved in browser
+- Smooth transitions between themes
 - Responsive design for all screen sizes
 - Intuitive navigation and controls
+- Card-based layout for content organization
 
 ## Deployment Options
 
