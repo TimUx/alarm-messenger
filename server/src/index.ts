@@ -15,7 +15,15 @@ const PORT = process.env.PORT || 3000;
 
 // Security middleware
 app.use(helmet());
-app.use(cors());
+
+// CORS configuration - restrict in production
+const corsOptions = {
+  origin: process.env.CORS_ORIGINS 
+    ? process.env.CORS_ORIGINS.split(',') 
+    : '*',
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({

@@ -13,14 +13,17 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install ALL dependencies (including dev for TypeScript compilation)
+RUN npm ci
 
 # Copy source code
 COPY src ./src
 
 # Build TypeScript
 RUN npm run build
+
+# Remove dev dependencies after build
+RUN npm prune --production
 
 # Create data directory for SQLite database
 RUN mkdir -p /app/data
