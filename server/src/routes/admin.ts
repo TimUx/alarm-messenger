@@ -102,6 +102,11 @@ router.post('/init', async (req: Request, res: Response) => {
     // Check if any admin users exist
     const existingUsers = await dbAll('SELECT COUNT(*) as count FROM admin_users', []);
     
+    if (!existingUsers || existingUsers.length === 0) {
+      res.status(500).json({ error: 'Database query failed' });
+      return;
+    }
+    
     if (existingUsers[0].count > 0) {
       res.status(403).json({ error: 'Admin users already exist. Use /admin/users endpoint.' });
       return;

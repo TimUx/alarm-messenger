@@ -123,7 +123,13 @@ async function refreshDevices() {
 }
 
 function createDeviceCard(device) {
-    const registeredDate = new Date(device.registeredAt).toLocaleString('de-DE');
+    let registeredDate;
+    try {
+        registeredDate = new Date(device.registeredAt).toLocaleString('de-DE');
+    } catch (e) {
+        registeredDate = 'Ungültiges Datum';
+    }
+    
     const deviceName = device.responderName || 'Nicht zugewiesen';
     const qualifications = device.qualifications || {};
     

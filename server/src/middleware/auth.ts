@@ -2,8 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
 if (JWT_SECRET === 'change-this-secret-in-production') {
-  console.error('⚠️  WARNING: JWT_SECRET is using default value. Set a secure JWT_SECRET in your .env file for production!');
+  const message = '⚠️  WARNING: JWT_SECRET is using default value. Set a secure JWT_SECRET in your .env file for production!';
+  console.error(message);
+  if (IS_PRODUCTION) {
+    throw new Error('JWT_SECRET must be set to a secure value in production environments');
+  }
 }
 
 export interface AuthRequest extends Request {
@@ -38,7 +44,12 @@ export const verifyApiKey = (req: Request, res: Response, next: NextFunction) =>
   const validApiKey = process.env.API_SECRET_KEY || 'change-me-in-production';
 
   if (validApiKey === 'change-me-in-production') {
-    console.error('⚠️  WARNING: API_SECRET_KEY is using default value. Set a secure API_SECRET_KEY in your .env file for production!');
+    const message = '⚠️  WARNING: API_SECRET_KEY is using default value. Set a secure API_SECRET_KEY in your .env file for production!';
+    console.error(message);
+    if (IS_PRODUCTION) {
+      res.status(500).json({ error: 'Server configuration error: API_SECRET_KEY not properly configured' });
+      return;
+    }
   }
 
   if (!apiKey || apiKey !== validApiKey) {
