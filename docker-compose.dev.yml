@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  alarm-messenger-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    container_name: alarm-messenger-server-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_PATH=/app/data/alarm-messenger.db
+      - SERVER_URL=http://localhost:3000
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-your-project-id}
+      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY:-your-private-key}
+      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL:-your-client-email}
+      - API_SECRET_KEY=${API_SECRET_KEY:-dev-secret-key}
+    volumes:
+      # Mount source code for hot reload
+      - ./server/src:/app/src
+      # Persist database
+      - ./server/data:/app/data
+      # Persist node_modules
+      - alarm-messenger-dev-node-modules:/app/node_modules
+    networks:
+      - alarm-messenger-network
+
+networks:
+  alarm-messenger-network:
+    driver: bridge
+
+volumes:
+  alarm-messenger-dev-node-modules:

@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  alarm-messenger-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: alarm-messenger-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_PATH=/app/data/alarm-messenger.db
+      - SERVER_URL=http://localhost:3000
+      # Firebase configuration (set these in .env file)
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-}
+      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY:-}
+      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL:-}
+      - API_SECRET_KEY=${API_SECRET_KEY:-change-me-in-production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    volumes:
+      # Persist database
+      - alarm-messenger-data:/app/data
+      # Optional: Mount logs directory
+      - ./server/logs:/app/logs
+    networks:
+      - alarm-messenger-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Nginx reverse proxy for SSL/TLS termination
+  nginx:
+    image: nginx:alpine
+    container_name: alarm-messenger-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - alarm-messenger-server
+    networks:
+      - alarm-messenger-network
+    profiles:
+      - with-nginx
+
+networks:
+  alarm-messenger-network:
+    driver: bridge
+
+volumes:
+  alarm-messenger-data:
+    driver: local

@@ -1,0 +1,51 @@
+# Git
+.git
+.gitignore
+
+# Node
+node_modules
+npm-debug.log
+package-lock.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist
+
+# Database
+data/*.db
+data/*.db-shm
+data/*.db-wal
+*.db
+
+# Logs
+logs
+*.log
+
+# Documentation
+*.md
+!README.md
+
+# Tests
+test
+tests
+*.test.ts
+*.spec.ts
+
+# Development
+Dockerfile.dev
+docker-compose.dev.yml
