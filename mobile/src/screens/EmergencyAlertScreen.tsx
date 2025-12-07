@@ -162,8 +162,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 10,
   },
-  participateButton: {},
-  declineButton: {},
   buttonText: {
     color: '#ffffff',
     fontSize: 16,

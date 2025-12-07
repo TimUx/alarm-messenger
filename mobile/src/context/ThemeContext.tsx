@@ -52,6 +52,18 @@ export const darkTheme: Theme = {
   },
 };
 
+const hexToRgba = (hex: string, alpha: number): string => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+export const getThemeColors = (theme: Theme) => ({
+  ...theme.colors,
+  primaryLight: hexToRgba(theme.colors.primary, 0.12),
+});
+
 interface ThemeContextType {
   theme: Theme;
   themeMode: ThemeMode;
@@ -75,7 +87,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const loadThemePreference = async () => {
     try {
       const savedMode = await storageService.getThemeMode();
-      if (savedMode) {
+      if (savedMode && ['light', 'dark', 'auto'].includes(savedMode)) {
         setThemeModeState(savedMode as ThemeMode);
       }
     } catch (error) {

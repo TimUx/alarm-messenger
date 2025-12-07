@@ -12,7 +12,7 @@ import {
 import { Emergency } from '../types';
 import { emergencyService } from '../services/api';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useTheme, ThemeMode } from '../context/ThemeContext';
+import { useTheme, ThemeMode, getThemeColors } from '../context/ThemeContext';
 
 interface Props {
   onEmergencyPress: (emergency: Emergency) => void;
@@ -20,6 +20,7 @@ interface Props {
 
 const HomeScreen: React.FC<Props> = ({ onEmergencyPress }) => {
   const { theme, themeMode, setThemeMode } = useTheme();
+  const themeColors = getThemeColors(theme);
   const [emergencies, setEmergencies] = useState<Emergency[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -128,7 +129,7 @@ const HomeScreen: React.FC<Props> = ({ onEmergencyPress }) => {
             <TouchableOpacity
               style={[
                 styles.themeOption,
-                themeMode === 'light' && { backgroundColor: theme.colors.primary + '20' }
+                themeMode === 'light' && { backgroundColor: themeColors.primaryLight }
               ]}
               onPress={() => handleThemeChange('light')}>
               <Icon name="brightness-7" size={24} color={theme.colors.text} />
@@ -139,7 +140,7 @@ const HomeScreen: React.FC<Props> = ({ onEmergencyPress }) => {
             <TouchableOpacity
               style={[
                 styles.themeOption,
-                themeMode === 'dark' && { backgroundColor: theme.colors.primary + '20' }
+                themeMode === 'dark' && { backgroundColor: themeColors.primaryLight }
               ]}
               onPress={() => handleThemeChange('dark')}>
               <Icon name="brightness-2" size={24} color={theme.colors.text} />
@@ -150,7 +151,7 @@ const HomeScreen: React.FC<Props> = ({ onEmergencyPress }) => {
             <TouchableOpacity
               style={[
                 styles.themeOption,
-                themeMode === 'auto' && { backgroundColor: theme.colors.primary + '20' }
+                themeMode === 'auto' && { backgroundColor: themeColors.primaryLight }
               ]}
               onPress={() => handleThemeChange('auto')}>
               <Icon name="brightness-auto" size={24} color={theme.colors.text} />
