@@ -37,6 +37,9 @@ router.post('/register', async (req: Request, res: Response) => {
       deviceToken,
       registrationToken,
       platform,
+      responderName,
+      qualifications,
+      isSquadLeader,
     } = req.body;
 
     if (!deviceToken || !registrationToken || !platform) {
@@ -58,8 +61,30 @@ router.post('/register', async (req: Request, res: Response) => {
     if (existing) {
       // Update existing device
       await dbRun(
-        'UPDATE devices SET registration_token = ?, platform = ?, active = 1 WHERE device_token = ?',
-        [registrationToken, platform, deviceToken]
+        `UPDATE devices SET 
+          registration_token = ?, 
+          platform = ?, 
+          active = 1,
+          responder_name = ?,
+          qual_machinist = ?,
+          qual_agt = ?,
+          qual_paramedic = ?,
+          qual_th_vu = ?,
+          qual_th_bau = ?,
+          is_squad_leader = ?
+        WHERE device_token = ?`,
+        [
+          registrationToken, 
+          platform, 
+          responderName || null,
+          qualifications?.machinist ? 1 : 0,
+          qualifications?.agt ? 1 : 0,
+          qualifications?.paramedic ? 1 : 0,
+          qualifications?.thVu ? 1 : 0,
+          qualifications?.thBau ? 1 : 0,
+          isSquadLeader ? 1 : 0,
+          deviceToken
+        ]
       );
 
       const device: Device = {
@@ -69,6 +94,9 @@ router.post('/register', async (req: Request, res: Response) => {
         platform,
         registeredAt: existing.registered_at,
         active: true,
+        responderName,
+        qualifications,
+        isSquadLeader,
       };
 
       res.json(device);
@@ -78,9 +106,21 @@ router.post('/register', async (req: Request, res: Response) => {
       const registeredAt = new Date().toISOString();
 
       await dbRun(
-        `INSERT INTO devices (id, device_token, registration_token, platform, registered_at, active)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, deviceToken, registrationToken, platform, registeredAt, 1]
+        `INSERT INTO devices (
+          id, device_token, registration_token, platform, registered_at, active,
+          responder_name, qual_machinist, qual_agt, qual_paramedic, 
+          qual_th_vu, qual_th_bau, is_squad_leader
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id, deviceToken, registrationToken, platform, registeredAt, 1,
+          responderName || null,
+          qualifications?.machinist ? 1 : 0,
+          qualifications?.agt ? 1 : 0,
+          qualifications?.paramedic ? 1 : 0,
+          qualifications?.thVu ? 1 : 0,
+          qualifications?.thBau ? 1 : 0,
+          isSquadLeader ? 1 : 0,
+        ]
       );
 
       const device: Device = {
@@ -90,6 +130,9 @@ router.post('/register', async (req: Request, res: Response) => {
         platform,
         registeredAt,
         active: true,
+        responderName,
+        qualifications,
+        isSquadLeader,
       };
 
       res.status(201).json(device);
@@ -115,6 +158,15 @@ router.get('/', async (req: Request, res: Response) => {
       platform: row.platform,
       registeredAt: row.registered_at,
       active: row.active === 1,
+      responderName: row.responder_name,
+      qualifications: {
+        machinist: row.qual_machinist === 1,
+        agt: row.qual_agt === 1,
+        paramedic: row.qual_paramedic === 1,
+        thVu: row.qual_th_vu === 1,
+        thBau: row.qual_th_bau === 1,
+      },
+      isSquadLeader: row.is_squad_leader === 1,
     }));
 
     res.json(devices);
@@ -142,6 +194,15 @@ router.get('/:id', async (req: Request, res: Response) => {
       platform: row.platform,
       registeredAt: row.registered_at,
       active: row.active === 1,
+      responderName: row.responder_name,
+      qualifications: {
+        machinist: row.qual_machinist === 1,
+        agt: row.qual_agt === 1,
+        paramedic: row.qual_paramedic === 1,
+        thVu: row.qual_th_vu === 1,
+        thBau: row.qual_th_bau === 1,
+      },
+      isSquadLeader: row.is_squad_leader === 1,
     };
 
     res.json(device);

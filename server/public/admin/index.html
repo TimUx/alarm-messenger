@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm Messenger - Admin Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>🚨 Alarm Messenger - Admin</h1>
+            <div class="header-actions">
+                <span id="username-display"></span>
+                <button class="btn btn-secondary" onclick="logout()">Abmelden</button>
+            </div>
+        </header>
+
+        <main class="dashboard-content">
+            <section class="section">
+                <div class="section-header">
+                    <h2>QR-Code Generierung</h2>
+                    <button class="btn btn-primary" onclick="generateQRCode()">Neuen QR-Code erstellen</button>
+                </div>
+                <div id="qr-code-display" class="qr-code-container" style="display: none;">
+                    <div class="qr-code-card">
+                        <h3>Generierter QR-Code</h3>
+                        <img id="qr-code-image" alt="QR Code">
+                        <div class="qr-code-info">
+                            <p><strong>Device Token:</strong> <span id="device-token"></span></p>
+                            <button class="btn btn-secondary" onclick="copyToken()">Token kopieren</button>
+                            <button class="btn btn-secondary" onclick="downloadQRCode()">QR-Code herunterladen</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="section-header">
+                    <h2>Registrierte Einsatzkräfte</h2>
+                    <button class="btn btn-secondary" onclick="refreshDevices()">🔄 Aktualisieren</button>
+                </div>
+                <div id="devices-list" class="devices-list">
+                    <p class="loading">Lade Daten...</p>
+                </div>
+            </section>
+
+            <!-- Edit Device Modal -->
+            <div id="edit-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Einsatzkraft bearbeiten</h3>
+                        <button class="close-btn" onclick="closeEditModal()">&times;</button>
+                    </div>
+                    <form id="editDeviceForm">
+                        <input type="hidden" id="edit-device-id">
+                        <div class="form-group">
+                            <label for="edit-responder-name">Name der Einsatzkraft</label>
+                            <input type="text" id="edit-responder-name" name="responderName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Ausbildungsstand</label>
+                            <div class="checkbox-group">
+                                <label>
+                                    <input type="checkbox" name="qual_machinist" id="edit-qual-machinist">
+                                    Maschinist
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="qual_agt" id="edit-qual-agt">
+                                    AGT (Atemschutzgeräteträger)
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="qual_paramedic" id="edit-qual-paramedic">
+                                    Sanitäter
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="qual_th_vu" id="edit-qual-th-vu">
+                                    TH-VU (Technische Hilfe - Verkehrsunfall)
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="qual_th_bau" id="edit-qual-th-bau">
+                                    TH-BAU (Technische Hilfe - Bau)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" name="is_squad_leader" id="edit-is-squad-leader">
+                                Führungskraft (Gruppenführer)
+                            </label>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary">Speichern</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="dashboard.js"></script>
+</body>
+</html>

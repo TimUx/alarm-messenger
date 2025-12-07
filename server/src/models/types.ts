@@ -16,6 +16,16 @@ export interface Device {
   platform: 'ios' | 'android';
   registeredAt: string;
   active: boolean;
+  // Responder information
+  responderName?: string;
+  qualifications?: {
+    machinist: boolean;
+    agt: boolean;
+    paramedic: boolean;
+    thVu: boolean;
+    thBau: boolean;
+  };
+  isSquadLeader?: boolean;
 }
 
 export interface Response {
@@ -37,6 +47,15 @@ export interface CreateEmergencyRequest {
 export interface DeviceRegistrationRequest {
   registrationToken: string;
   platform: 'ios' | 'android';
+  responderName?: string;
+  qualifications?: {
+    machinist: boolean;
+    agt: boolean;
+    paramedic: boolean;
+    thVu: boolean;
+    thBau: boolean;
+  };
+  isSquadLeader?: boolean;
 }
 
 export interface EmergencyResponseRequest {

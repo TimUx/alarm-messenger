@@ -3,8 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 import emergencyRoutes from './routes/emergencies';
 import deviceRoutes from './routes/devices';
+import adminRoutes from './routes/admin';
 import { initializeDatabase } from './services/database';
 import { initializeFirebase } from './services/firebase';
 
@@ -36,9 +38,13 @@ app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files for admin UI
+app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
+
 // Routes
 app.use('/api/emergencies', emergencyRoutes);
 app.use('/api/devices', deviceRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
