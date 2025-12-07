@@ -6,18 +6,23 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { Emergency } from '../types';
 import { emergencyService } from '../services/api';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useTheme, ThemeMode } from '../context/ThemeContext';
 
 interface Props {
   onEmergencyPress: (emergency: Emergency) => void;
 }
 
 const HomeScreen: React.FC<Props> = ({ onEmergencyPress }) => {
+  const { theme, themeMode, setThemeMode } = useTheme();
   const [emergencies, setEmergencies] = useState<Emergency[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
 
   useEffect(() => {
     loadEmergencies();
@@ -38,29 +43,53 @@ const HomeScreen: React.FC<Props> = ({ onEmergencyPress }) => {
     setRefreshing(false);
   };
 
+  const handleThemeChange = (mode: ThemeMode) => {
+    setThemeMode(mode);
+    setShowThemeModal(false);
+  };
+
+  const getThemeIcon = () => {
+    if (themeMode === 'auto') return 'brightness-auto';
+    if (themeMode === 'dark') return 'brightness-2';
+    return 'brightness-7';
+  };
+
   const renderEmergencyItem = ({ item }: { item: Emergency }) => (
     <TouchableOpacity
-      style={styles.emergencyCard}
+      style={[styles.emergencyCard, { 
+        backgroundColor: theme.colors.surface,
+        borderLeftColor: theme.colors.primary,
+      }]}
       onPress={() => onEmergencyPress(item)}>
       <View style={styles.cardHeader}>
-        <Icon name="warning" size={24} color="#dc3545" />
-        <Text style={styles.keyword}>{item.emergencyKeyword}</Text>
+        <Icon name="warning" size={24} color={theme.colors.primary} />
+        <Text style={[styles.keyword, { color: theme.colors.text }]}>{item.emergencyKeyword}</Text>
       </View>
       <View style={styles.cardBody}>
-        <Text style={styles.location}>{item.emergencyLocation}</Text>
-        <Text style={styles.description} numberOfLines={2}>
+        <Text style={[styles.location, { color: theme.colors.text }]}>{item.emergencyLocation}</Text>
+        <Text style={[styles.description, { color: theme.colors.textSecondary }]} numberOfLines={2}>
           {item.emergencyDescription}
         </Text>
-        <Text style={styles.date}>{item.emergencyDate}</Text>
+        <Text style={[styles.date, { color: theme.colors.textSecondary }]}>{item.emergencyDate}</Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Alarm Messenger</Text>
-        <Text style={styles.subtitle}>Einsatzübersicht</Text>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.header, { 
+        backgroundColor: theme.colors.surface,
+        borderBottomColor: theme.colors.border,
+      }]}>
+        <View>
+          <Text style={[styles.title, { color: theme.colors.text }]}>Alarm Messenger</Text>
+          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Einsatzübersicht</Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => setShowThemeModal(true)}
+          style={styles.themeButton}>
+          <Icon name={getThemeIcon()} size={28} color={theme.colors.text} />
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -69,15 +98,68 @@ const HomeScreen: React.FC<Props> = ({ onEmergencyPress }) => {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor={theme.colors.text}
+          />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Icon name="inbox" size={60} color="#666666" />
-            <Text style={styles.emptyText}>Keine Einsätze vorhanden</Text>
+            <Icon name="inbox" size={60} color={theme.colors.textSecondary} />
+            <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Keine Einsätze vorhanden</Text>
           </View>
         }
       />
+
+      <Modal
+        visible={showThemeModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowThemeModal(false)}>
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => setShowThemeModal(false)}>
+          <View 
+            style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}
+            onStartShouldSetResponder={() => true}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Theme auswählen</Text>
+            
+            <TouchableOpacity
+              style={[
+                styles.themeOption,
+                themeMode === 'light' && { backgroundColor: theme.colors.primary + '20' }
+              ]}
+              onPress={() => handleThemeChange('light')}>
+              <Icon name="brightness-7" size={24} color={theme.colors.text} />
+              <Text style={[styles.themeOptionText, { color: theme.colors.text }]}>Hell</Text>
+              {themeMode === 'light' && <Icon name="check" size={24} color={theme.colors.primary} />}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.themeOption,
+                themeMode === 'dark' && { backgroundColor: theme.colors.primary + '20' }
+              ]}
+              onPress={() => handleThemeChange('dark')}>
+              <Icon name="brightness-2" size={24} color={theme.colors.text} />
+              <Text style={[styles.themeOptionText, { color: theme.colors.text }]}>Dunkel</Text>
+              {themeMode === 'dark' && <Icon name="check" size={24} color={theme.colors.primary} />}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.themeOption,
+                themeMode === 'auto' && { backgroundColor: theme.colors.primary + '20' }
+              ]}
+              onPress={() => handleThemeChange('auto')}>
+              <Icon name="brightness-auto" size={24} color={theme.colors.text} />
+              <Text style={[styles.themeOptionText, { color: theme.colors.text }]}>Automatisch</Text>
+              {themeMode === 'auto' && <Icon name="check" size={24} color={theme.colors.primary} />}
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -85,35 +167,34 @@ const HomeScreen: React.FC<Props> = ({ onEmergencyPress }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
   },
   header: {
-    backgroundColor: '#2a2a2a',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 20,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#444444',
+  },
+  themeButton: {
+    padding: 8,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
   },
   subtitle: {
     fontSize: 14,
-    color: '#999999',
     marginTop: 5,
   },
   listContent: {
     padding: 15,
   },
   emergencyCard: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 10,
     padding: 15,
     marginBottom: 15,
     borderLeftWidth: 4,
-    borderLeftColor: '#dc3545',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -124,23 +205,19 @@ const styles = StyleSheet.create({
   keyword: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#ffffff',
   },
   cardBody: {
     gap: 5,
   },
   location: {
     fontSize: 16,
-    color: '#ffffff',
     fontWeight: '500',
   },
   description: {
     fontSize: 14,
-    color: '#cccccc',
   },
   date: {
     fontSize: 12,
-    color: '#999999',
     marginTop: 5,
   },
   emptyContainer: {
@@ -150,8 +227,37 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666666',
     marginTop: 15,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    borderRadius: 10,
+    padding: 20,
+    width: '80%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  themeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+    gap: 15,
+  },
+  themeOptionText: {
+    fontSize: 16,
+    flex: 1,
   },
 });
 

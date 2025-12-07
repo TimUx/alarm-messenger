@@ -12,12 +12,14 @@ import { Camera } from 'react-native-vision-camera';
 import { deviceService, setApiBaseUrl } from '../services/api';
 import { storageService } from '../services/storage';
 import { getFCMToken, requestUserPermission } from '../services/notifications';
+import { useTheme } from '../context/ThemeContext';
 
 interface Props {
   onRegistrationComplete: () => void;
 }
 
 const RegistrationScreen: React.FC<Props> = ({ onRegistrationComplete }) => {
+  const { theme } = useTheme();
   const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
@@ -70,29 +72,29 @@ const RegistrationScreen: React.FC<Props> = ({ onRegistrationComplete }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Alarm Messenger</Text>
-      <Text style={styles.subtitle}>Scan QR Code to Register</Text>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Alarm Messenger</Text>
+      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Scan QR Code to Register</Text>
 
       {scanning ? (
         <QRCodeScanner
           onRead={onQRCodeRead}
           topContent={
-            <Text style={styles.instructions}>
+            <Text style={[styles.instructions, { color: theme.colors.text }]}>
               Scan the QR code from the admin panel
             </Text>
           }
           bottomContent={
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[styles.cancelButton, { backgroundColor: theme.colors.surface }]}
               onPress={() => setScanning(false)}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={[styles.cancelButtonText, { color: theme.colors.text }]}>Cancel</Text>
             </TouchableOpacity>
           }
         />
       ) : (
         <TouchableOpacity
-          style={styles.scanButton}
+          style={[styles.scanButton, { backgroundColor: theme.colors.primary }]}
           onPress={() => setScanning(true)}>
           <Text style={styles.scanButtonText}>Start Scanning</Text>
         </TouchableOpacity>
@@ -104,7 +106,6 @@ const RegistrationScreen: React.FC<Props> = ({ onRegistrationComplete }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
@@ -112,22 +113,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 18,
-    color: '#cccccc',
     marginBottom: 40,
   },
   instructions: {
     fontSize: 16,
-    color: '#ffffff',
     textAlign: 'center',
     marginBottom: 20,
   },
   scanButton: {
-    backgroundColor: '#dc3545',
     paddingHorizontal: 40,
     paddingVertical: 15,
     borderRadius: 10,
@@ -139,9 +136,9 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     padding: 15,
+    borderRadius: 10,
   },
   cancelButtonText: {
-    color: '#ffffff',
     fontSize: 16,
   },
 });
