@@ -1,15 +1,52 @@
-/* alarm-monitor inspired dark theme */
+/* alarm-monitor inspired theme with light/dark mode support */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
+:root {
+    /* Light theme colors (default) */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #e9ecef;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --border-color: #dee2e6;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --accent-color: #dc3545;
+    --accent-hover: #c82333;
+    --btn-secondary-bg: #6c757d;
+    --btn-secondary-hover: #5a6268;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --warning-text: #212529;
+}
+
+body[data-theme="dark"] {
+    /* Dark theme colors */
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2a2a2a;
+    --bg-tertiary: #1a1a1a;
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+    --border-color: #444444;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --accent-color: #dc3545;
+    --accent-hover: #c82333;
+    --btn-secondary-bg: #6c757d;
+    --btn-secondary-hover: #5a6268;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --warning-text: #1a1a1a;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background-color: #1a1a1a;
-    color: #ffffff;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     line-height: 1.6;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Login Page */
@@ -22,25 +59,26 @@ body {
 }
 
 .login-box {
-    background-color: #2a2a2a;
+    background-color: var(--bg-secondary);
     border-radius: 8px;
     padding: 40px;
     max-width: 400px;
     width: 100%;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 6px var(--shadow-color);
+    transition: background-color 0.3s ease;
 }
 
 .login-box h1 {
     text-align: center;
     margin-bottom: 10px;
-    color: #dc3545;
+    color: var(--accent-color);
     font-size: 2em;
 }
 
 .login-box h2 {
     text-align: center;
     margin-bottom: 30px;
-    color: #ffffff;
+    color: var(--text-primary);
     font-size: 1.5em;
 }
 
@@ -51,7 +89,7 @@ body {
 .form-group label {
     display: block;
     margin-bottom: 8px;
-    color: #cccccc;
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
@@ -59,16 +97,17 @@ body {
 .form-group input[type="password"] {
     width: 100%;
     padding: 12px;
-    background-color: #1a1a1a;
-    border: 1px solid #444444;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
-    color: #ffffff;
+    color: var(--text-primary);
     font-size: 16px;
+    transition: all 0.3s ease;
 }
 
 .form-group input:focus {
     outline: none;
-    border-color: #dc3545;
+    border-color: var(--accent-color);
 }
 
 .btn {
@@ -82,28 +121,28 @@ body {
 }
 
 .btn-primary {
-    background-color: #dc3545;
+    background-color: var(--accent-color);
     color: #ffffff;
     width: 100%;
 }
 
 .btn-primary:hover {
-    background-color: #c82333;
+    background-color: var(--accent-hover);
 }
 
 .btn-secondary {
-    background-color: #6c757d;
+    background-color: var(--btn-secondary-bg);
     color: #ffffff;
 }
 
 .btn-secondary:hover {
-    background-color: #5a6268;
+    background-color: var(--btn-secondary-hover);
 }
 
 .error-message {
     margin-top: 15px;
     padding: 12px;
-    background-color: #dc3545;
+    background-color: var(--accent-color);
     color: #ffffff;
     border-radius: 4px;
     text-align: center;
@@ -112,7 +151,7 @@ body {
 .init-info {
     margin-top: 30px;
     padding-top: 20px;
-    border-top: 1px solid #444444;
+    border-top: 1px solid var(--border-color);
     text-align: center;
 }
 
@@ -120,11 +159,11 @@ body {
     display: inline-block;
     margin-top: 10px;
     padding: 8px 12px;
-    background-color: #1a1a1a;
-    border: 1px solid #444444;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     font-family: 'Courier New', monospace;
-    color: #dc3545;
+    color: var(--accent-color);
 }
 
 /* Dashboard */
@@ -133,17 +172,18 @@ body {
 }
 
 .dashboard-header {
-    background-color: #2a2a2a;
+    background-color: var(--bg-secondary);
     padding: 20px 40px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid #dc3545;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    border-bottom: 2px solid var(--accent-color);
+    box-shadow: 0 2px 4px var(--shadow-color);
+    transition: background-color 0.3s ease;
 }
 
 .dashboard-header h1 {
-    color: #dc3545;
+    color: var(--accent-color);
     font-size: 1.8em;
 }
 
@@ -154,8 +194,28 @@ body {
 }
 
 #username-display {
-    color: #cccccc;
+    color: var(--text-secondary);
     font-weight: 500;
+}
+
+/* Theme toggle button */
+#theme-toggle {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 1.2em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+#theme-toggle:hover {
+    background: var(--border-color);
+    transform: scale(1.1);
 }
 
 .dashboard-content {
@@ -165,11 +225,12 @@ body {
 }
 
 .section {
-    background-color: #2a2a2a;
+    background-color: var(--bg-secondary);
     border-radius: 8px;
     padding: 30px;
     margin-bottom: 30px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 4px var(--shadow-color);
+    transition: background-color 0.3s ease;
 }
 
 .section-header {
@@ -178,11 +239,11 @@ body {
     align-items: center;
     margin-bottom: 20px;
     padding-bottom: 15px;
-    border-bottom: 1px solid #444444;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .section-header h2 {
-    color: #ffffff;
+    color: var(--text-primary);
     font-size: 1.5em;
 }
 
@@ -192,16 +253,17 @@ body {
 }
 
 .qr-code-card {
-    background-color: #1a1a1a;
-    border: 1px solid #444444;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 30px;
     text-align: center;
+    transition: background-color 0.3s ease;
 }
 
 .qr-code-card h3 {
     margin-bottom: 20px;
-    color: #dc3545;
+    color: var(--accent-color);
 }
 
 .qr-code-card img {
@@ -236,17 +298,17 @@ body {
 }
 
 .device-card {
-    background-color: #1a1a1a;
-    border: 1px solid #444444;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 20px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
 }
 
 .device-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2);
-    border-color: #dc3545;
+    box-shadow: 0 4px 8px var(--shadow-color);
+    border-color: var(--accent-color);
 }
 
 .device-header {
@@ -255,19 +317,19 @@ body {
     align-items: start;
     margin-bottom: 15px;
     padding-bottom: 10px;
-    border-bottom: 1px solid #444444;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .device-name {
     font-size: 1.2em;
     font-weight: 600;
-    color: #dc3545;
+    color: var(--accent-color);
 }
 
 .device-platform {
     display: inline-block;
     padding: 4px 12px;
-    background-color: #444444;
+    background-color: var(--border-color);
     border-radius: 12px;
     font-size: 0.85em;
     text-transform: uppercase;
@@ -285,11 +347,11 @@ body {
 }
 
 .device-info-label {
-    color: #999999;
+    color: var(--text-secondary);
 }
 
 .device-info-value {
-    color: #ffffff;
+    color: var(--text-primary);
     font-weight: 500;
 }
 
@@ -299,7 +361,7 @@ body {
 
 .qualifications h4 {
     font-size: 0.95em;
-    color: #cccccc;
+    color: var(--text-secondary);
     margin-bottom: 10px;
 }
 
@@ -312,7 +374,7 @@ body {
 .qual-badge {
     display: inline-block;
     padding: 4px 10px;
-    background-color: #28a745;
+    background-color: var(--success-color);
     color: #ffffff;
     border-radius: 4px;
     font-size: 0.8em;
@@ -322,8 +384,8 @@ body {
 .leader-badge {
     display: inline-block;
     padding: 6px 12px;
-    background-color: #ffc107;
-    color: #1a1a1a;
+    background-color: var(--warning-color);
+    color: var(--warning-text);
     border-radius: 4px;
     font-size: 0.85em;
     font-weight: 600;
@@ -344,7 +406,7 @@ body {
 
 .loading {
     text-align: center;
-    color: #999999;
+    color: var(--text-secondary);
     padding: 40px;
     font-size: 1.1em;
 }
@@ -364,7 +426,7 @@ body {
 }
 
 .modal-content {
-    background-color: #2a2a2a;
+    background-color: var(--bg-secondary);
     border-radius: 8px;
     padding: 0;
     max-width: 600px;
@@ -372,25 +434,26 @@ body {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+    transition: background-color 0.3s ease;
 }
 
 .modal-header {
     padding: 20px 30px;
-    border-bottom: 1px solid #444444;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
 .modal-header h3 {
-    color: #dc3545;
+    color: var(--accent-color);
     font-size: 1.5em;
 }
 
 .close-btn {
     background: none;
     border: none;
-    color: #999999;
+    color: var(--text-secondary);
     font-size: 2em;
     cursor: pointer;
     padding: 0;
@@ -403,7 +466,7 @@ body {
 }
 
 .close-btn:hover {
-    color: #dc3545;
+    color: var(--accent-color);
 }
 
 .modal-content form {
@@ -421,13 +484,13 @@ body {
     align-items: center;
     cursor: pointer;
     padding: 10px;
-    background-color: #1a1a1a;
+    background-color: var(--bg-tertiary);
     border-radius: 4px;
     transition: background-color 0.2s ease;
 }
 
 .checkbox-group label:hover {
-    background-color: #333333;
+    background-color: var(--border-color);
 }
 
 .checkbox-group input[type="checkbox"] {
