@@ -48,6 +48,7 @@ The Alarm Messenger system is a complete emergency notification solution consist
 - ✅ Two response buttons (participate/decline)
 - ✅ Emergency history view
 - ✅ Cross-platform support (iOS & Android)
+- ✅ **Dark/Light/Auto theme modes**
 
 ## Architecture
 
@@ -292,6 +293,10 @@ const participants = await fetch(
 
 The mobile app design is based on the alarm-monitor project with:
 - Dark theme (#1a1a1a background)
+- Light theme (#f5f5f5 background)
+- Auto theme mode (follows system preference)
+- Theme toggle in settings accessible from home screen
+- Persistent theme preference saved locally
 - High contrast for emergency information
 - Large, clearly visible action buttons
 - Red accent color (#dc3545) for emergencies
@@ -303,6 +308,38 @@ The mobile app includes:
 - Emergency alert screen with alarm sound
 - Response buttons (participate/decline)
 - Emergency history view
+- Theme selection (Light/Dark/Auto modes)
+
+#### Mobile App Screenshots
+
+> **Note**: To add screenshots of the mobile app, please run the app on a device or emulator and capture screenshots of:
+> - Registration screen (QR code scanner)
+> - Home screen in Light mode
+> - Home screen in Dark mode
+> - Theme selector modal
+> - Emergency alert screen
+> 
+> Upload screenshots to GitHub and replace the placeholders below with actual image links.
+
+**Home Screen - Light Mode**
+<!-- ![Mobile Home Light](screenshot-url-here) -->
+*Screenshot placeholder: Home screen showing emergency list in light theme*
+
+**Home Screen - Dark Mode**
+<!-- ![Mobile Home Dark](screenshot-url-here) -->
+*Screenshot placeholder: Home screen showing emergency list in dark theme*
+
+**Theme Selector**
+<!-- ![Mobile Theme Selector](screenshot-url-here) -->
+*Screenshot placeholder: Modal showing Light/Dark/Auto theme options*
+
+**Emergency Alert Screen**
+<!-- ![Mobile Emergency Alert](screenshot-url-here) -->
+*Screenshot placeholder: Emergency alert with participate/decline buttons*
+
+**Registration Screen**
+<!-- ![Mobile Registration](screenshot-url-here) -->
+*Screenshot placeholder: QR code scanner for device registration*
 
 ### Admin Web Interface
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { Emergency } from '../types';
 import { alarmService } from '../services/alarm';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useTheme, getThemeColors } from '../context/ThemeContext';
 
 interface Props {
   emergency: Emergency;
@@ -24,6 +25,9 @@ const EmergencyAlertScreen: React.FC<Props> = ({
   onDecline,
   onDismiss,
 }) => {
+  const { theme } = useTheme();
+  const themeColors = useMemo(() => getThemeColors(theme), [theme]);
+
   useEffect(() => {
     // Start alarm sound when component mounts
     alarmService.play();
@@ -45,55 +49,58 @@ const EmergencyAlertScreen: React.FC<Props> = ({
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Icon name="warning" size={60} color="#dc3545" />
-        <Text style={styles.headerTitle}>EINSATZ</Text>
-        <Text style={styles.keyword}>{emergency.emergencyKeyword}</Text>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.header, { 
+        backgroundColor: theme.colors.primary,
+        borderBottomColor: themeColors.onPrimaryText,
+      }]}>
+        <Icon name="warning" size={60} color={themeColors.onPrimaryText} />
+        <Text style={[styles.headerTitle, { color: themeColors.onPrimaryText }]}>EINSATZ</Text>
+        <Text style={[styles.keyword, { color: themeColors.onPrimaryText }]}>{emergency.emergencyKeyword}</Text>
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        <View style={styles.infoSection}>
+        <View style={[styles.infoSection, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.infoRow}>
-            <Text style={styles.label}>Einsatznummer:</Text>
-            <Text style={styles.value}>{emergency.emergencyNumber}</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Einsatznummer:</Text>
+            <Text style={[styles.value, { color: theme.colors.text }]}>{emergency.emergencyNumber}</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.label}>Datum:</Text>
-            <Text style={styles.value}>{emergency.emergencyDate}</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Datum:</Text>
+            <Text style={[styles.value, { color: theme.colors.text }]}>{emergency.emergencyDate}</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.label}>Ort:</Text>
-            <Text style={styles.value}>{emergency.emergencyLocation}</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Ort:</Text>
+            <Text style={[styles.value, { color: theme.colors.text }]}>{emergency.emergencyLocation}</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.label}>Beschreibung:</Text>
-            <Text style={styles.value}>{emergency.emergencyDescription}</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Beschreibung:</Text>
+            <Text style={[styles.value, { color: theme.colors.text }]}>{emergency.emergencyDescription}</Text>
           </View>
         </View>
       </ScrollView>
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.button, styles.participateButton]}
+          style={[styles.button, { backgroundColor: theme.colors.success }]}
           onPress={handleParticipate}>
-          <Icon name="check-circle" size={30} color="#ffffff" />
-          <Text style={styles.buttonText}>TEILNEHMEN</Text>
+          <Icon name="check-circle" size={30} color={themeColors.onPrimaryText} />
+          <Text style={[styles.buttonText, { color: themeColors.onPrimaryText }]}>TEILNEHMEN</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, styles.declineButton]}
+          style={[styles.button, { backgroundColor: theme.colors.inactive }]}
           onPress={handleDecline}>
-          <Icon name="cancel" size={30} color="#ffffff" />
-          <Text style={styles.buttonText}>NICHT VERFÜGBAR</Text>
+          <Icon name="cancel" size={30} color={themeColors.onPrimaryText} />
+          <Text style={[styles.buttonText, { color: themeColors.onPrimaryText }]}>NICHT VERFÜGBAR</Text>
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.dismissButton} onPress={onDismiss}>
-        <Text style={styles.dismissText}>Später antworten</Text>
+        <Text style={[styles.dismissText, { color: theme.colors.textSecondary }]}>Später antworten</Text>
       </TouchableOpacity>
     </View>
   );
@@ -102,26 +109,21 @@ const EmergencyAlertScreen: React.FC<Props> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
   },
   header: {
-    backgroundColor: '#dc3545',
     paddingVertical: 30,
     paddingHorizontal: 20,
     alignItems: 'center',
     borderBottomWidth: 3,
-    borderBottomColor: '#ffffff',
   },
   headerTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginTop: 10,
   },
   keyword: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginTop: 10,
     textAlign: 'center',
   },
@@ -132,7 +134,6 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   infoSection: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 10,
     padding: 20,
   },
@@ -141,13 +142,11 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#999999',
     marginBottom: 5,
     textTransform: 'uppercase',
   },
   value: {
     fontSize: 18,
-    color: '#ffffff',
     fontWeight: '500',
   },
   buttonContainer: {
@@ -164,14 +163,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 10,
   },
-  participateButton: {
-    backgroundColor: '#28a745',
-  },
-  declineButton: {
-    backgroundColor: '#6c757d',
-  },
   buttonText: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -180,7 +172,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dismissText: {
-    color: '#999999',
     fontSize: 14,
   },
 });

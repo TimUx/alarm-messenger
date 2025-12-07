@@ -10,10 +10,12 @@ import { emergencyService, setApiBaseUrl } from './services/api';
 import { onMessageReceived } from './services/notifications';
 import { alarmService } from './services/alarm';
 import { Emergency, PushNotificationData } from './types';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 const Stack = createStackNavigator();
 
-const App = () => {
+const AppContent = () => {
+  const { theme } = useTheme();
   const [isRegistered, setIsRegistered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentEmergency, setCurrentEmergency] = useState<Emergency | null>(null);
@@ -116,7 +118,7 @@ const App = () => {
   };
 
   if (loading) {
-    return <View style={styles.container} />;
+    return <View style={[styles.container, { backgroundColor: theme.colors.background }]} />;
   }
 
   if (currentEmergency) {
@@ -150,8 +152,15 @@ const App = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
   },
 });
+
+const App = () => {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+};
 
 export default App;
