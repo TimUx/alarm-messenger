@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import QRCode from 'qrcode';
 import { dbRun, dbGet, dbAll } from '../services/database';
-import { Device, DeviceRegistrationRequest } from '../models/types';
+import { Device } from '../models/types';
 
 const router = Router();
 

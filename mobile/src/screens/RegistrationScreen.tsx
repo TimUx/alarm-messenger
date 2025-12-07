@@ -8,7 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import QRCodeScanner from 'react-native-qrcode-scanner';
-import { RNCamera } from 'react-native-camera';
+import { Camera } from 'react-native-vision-camera';
 import { deviceService, setApiBaseUrl } from '../services/api';
 import { storageService } from '../services/storage';
 import { getFCMToken, requestUserPermission } from '../services/notifications';
@@ -77,7 +77,6 @@ const RegistrationScreen: React.FC<Props> = ({ onRegistrationComplete }) => {
       {scanning ? (
         <QRCodeScanner
           onRead={onQRCodeRead}
-          flashMode={RNCamera.Constants.FlashMode.auto}
           topContent={
             <Text style={styles.instructions}>
               Scan the QR code from the admin panel
