@@ -7,7 +7,7 @@ import HomeScreen from './screens/HomeScreen';
 import EmergencyAlertScreen from './screens/EmergencyAlertScreen';
 import { storageService } from './services/storage';
 import { emergencyService, setApiBaseUrl } from './services/api';
-import { onMessageReceived } from './services/notifications';
+import { onMessageReceived, initializeWebSocket, disconnectWebSocket } from './services/notifications';
 import { alarmService } from './services/alarm';
 import { Emergency, PushNotificationData } from './types';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
@@ -30,17 +30,23 @@ const AppContent = () => {
     return () => {
       unsubscribe();
       alarmService.release();
+      disconnectWebSocket();
     };
   }, []);
 
   const checkRegistration = async () => {
     try {
       const deviceToken = await storageService.getDeviceToken();
+      const deviceId = await storageService.getDeviceId();
       const serverUrl = await storageService.getServerUrl();
       
-      if (deviceToken && serverUrl) {
+      if (deviceToken && serverUrl && deviceId) {
         setApiBaseUrl(serverUrl);
         setIsRegistered(true);
+        
+        // Initialize WebSocket connection for push notifications
+        initializeWebSocket(serverUrl, deviceId);
+        console.log('✓ WebSocket connection initialized');
       }
     } catch (error) {
       console.error('Error checking registration:', error);

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { sendBulkPushNotifications } from '../services/firebase';
+import { websocketService } from '../services/websocket';
 import { verifyApiKey } from '../middleware/auth';
 import {
   Emergency,
@@ -55,27 +56,51 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
 
     // Get all active devices for push notifications
     const devices = await dbAll(
-      'SELECT registration_token FROM devices WHERE active = 1',
+      'SELECT id, registration_token FROM devices WHERE active = 1',
       []
     );
 
-    const deviceTokens = devices.map((device: any) => device.registration_token);
+    // Prepare notification data
+    const notificationTitle = `EINSATZ: ${emergencyKeyword}`;
+    const notificationBody = `${emergencyLocation} - ${emergencyDescription}`;
+    const notificationData = {
+      emergencyId: id,
+      emergencyNumber,
+      emergencyDate,
+      emergencyKeyword,
+      emergencyDescription,
+      emergencyLocation,
+    };
 
-    // Send push notifications to all registered devices
-    if (deviceTokens.length > 0) {
-      await sendBulkPushNotifications(
-        deviceTokens,
-        `EINSATZ: ${emergencyKeyword}`,
-        `${emergencyLocation} - ${emergencyDescription}`,
-        {
-          emergencyId: id,
-          emergencyNumber,
-          emergencyDate,
-          emergencyKeyword,
-          emergencyDescription,
-          emergencyLocation,
-        }
+    // Send notifications via WebSocket (primary method)
+    const deviceIds = devices.map((device: any) => device.id);
+    if (deviceIds.length > 0) {
+      await websocketService.sendBulkNotifications(
+        deviceIds,
+        notificationTitle,
+        notificationBody,
+        notificationData
       );
+      console.log(`✓ WebSocket notifications sent to ${deviceIds.length} devices`);
+    }
+
+    // Send push notifications via Firebase (fallback for devices not connected via WebSocket)
+    const deviceTokens = devices
+      .map((device: any) => device.registration_token)
+      .filter((token: string) => token); // Filter out empty tokens
+    
+    if (deviceTokens.length > 0) {
+      try {
+        await sendBulkPushNotifications(
+          deviceTokens,
+          notificationTitle,
+          notificationBody,
+          notificationData
+        );
+        console.log(`✓ Firebase notifications sent to ${deviceTokens.length} devices`);
+      } catch (error) {
+        console.warn('⚠️  Firebase notifications failed (this is ok if Firebase is not configured):', error instanceof Error ? error.message : error);
+      }
     }
 
     const emergency: Emergency = {
