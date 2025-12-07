@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,7 @@ interface Props {
 
 const HomeScreen: React.FC<Props> = ({ onEmergencyPress }) => {
   const { theme, themeMode, setThemeMode } = useTheme();
-  const themeColors = getThemeColors(theme);
+  const themeColors = useMemo(() => getThemeColors(theme), [theme]);
   const [emergencies, setEmergencies] = useState<Emergency[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);

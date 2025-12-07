@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,7 +26,7 @@ const EmergencyAlertScreen: React.FC<Props> = ({
   onDismiss,
 }) => {
   const { theme } = useTheme();
-  const themeColors = getThemeColors(theme);
+  const themeColors = useMemo(() => getThemeColors(theme), [theme]);
 
   useEffect(() => {
     // Start alarm sound when component mounts
