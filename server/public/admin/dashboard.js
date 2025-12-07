@@ -134,11 +134,17 @@ function createDeviceCard(device) {
     if (qualifications.thVu) qualBadges.push('TH-VU');
     if (qualifications.thBau) qualBadges.push('TH-BAU');
     
+    // Escape all user-provided or dynamic content
+    const escapedDeviceName = escapeHtml(deviceName);
+    const escapedPlatform = escapeHtml(device.platform);
+    const escapedDeviceId = escapeHtml(device.id);
+    const escapedDeviceIdShort = escapeHtml(device.id.substring(0, 8));
+    
     const cardHtml = `
         <div class="device-card">
             <div class="device-header">
-                <div class="device-name">${escapeHtml(deviceName)}</div>
-                <div class="device-platform">${device.platform}</div>
+                <div class="device-name">${escapedDeviceName}</div>
+                <div class="device-platform">${escapedPlatform}</div>
             </div>
             <div class="device-info">
                 <div class="device-info-row">
@@ -147,21 +153,21 @@ function createDeviceCard(device) {
                 </div>
                 <div class="device-info-row">
                     <span class="device-info-label">Device ID:</span>
-                    <span class="device-info-value">${device.id.substring(0, 8)}...</span>
+                    <span class="device-info-value">${escapedDeviceIdShort}...</span>
                 </div>
             </div>
             ${qualBadges.length > 0 ? `
                 <div class="qualifications">
                     <h4>Ausbildungen:</h4>
                     <div class="qual-badges">
-                        ${qualBadges.map(q => `<span class="qual-badge">${q}</span>`).join('')}
+                        ${qualBadges.map(q => `<span class="qual-badge">${escapeHtml(q)}</span>`).join('')}
                     </div>
                 </div>
             ` : ''}
             ${device.isSquadLeader ? '<div class="leader-badge">⭐ Gruppenführer</div>' : ''}
             <div class="device-actions">
-                <button class="btn btn-secondary" data-action="edit" data-device-id="${device.id}">Bearbeiten</button>
-                <button class="btn btn-secondary" data-action="deactivate" data-device-id="${device.id}">Deaktivieren</button>
+                <button class="btn btn-secondary" data-action="edit" data-device-id="${escapedDeviceId}">Bearbeiten</button>
+                <button class="btn btn-secondary" data-action="deactivate" data-device-id="${escapedDeviceId}">Deaktivieren</button>
             </div>
         </div>
     `;
