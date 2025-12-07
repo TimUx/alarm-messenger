@@ -49,10 +49,13 @@ const EmergencyAlertScreen: React.FC<Props> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-        <Icon name="warning" size={60} color="#ffffff" />
-        <Text style={styles.headerTitle}>EINSATZ</Text>
-        <Text style={styles.keyword}>{emergency.emergencyKeyword}</Text>
+      <View style={[styles.header, { 
+        backgroundColor: theme.colors.primary,
+        borderBottomColor: theme.dark ? theme.colors.border : '#ffffff',
+      }]}>
+        <Icon name="warning" size={60} color={theme.dark ? theme.colors.text : '#ffffff'} />
+        <Text style={[styles.headerTitle, { color: theme.dark ? theme.colors.text : '#ffffff' }]}>EINSATZ</Text>
+        <Text style={[styles.keyword, { color: theme.dark ? theme.colors.text : '#ffffff' }]}>{emergency.emergencyKeyword}</Text>
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
@@ -81,17 +84,17 @@ const EmergencyAlertScreen: React.FC<Props> = ({
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.button, styles.participateButton, { backgroundColor: theme.colors.success }]}
+          style={[styles.button, { backgroundColor: theme.colors.success }]}
           onPress={handleParticipate}>
-          <Icon name="check-circle" size={30} color="#ffffff" />
-          <Text style={styles.buttonText}>TEILNEHMEN</Text>
+          <Icon name="check-circle" size={30} color={theme.dark ? theme.colors.text : '#ffffff'} />
+          <Text style={[styles.buttonText, { color: theme.dark ? theme.colors.text : '#ffffff' }]}>TEILNEHMEN</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, styles.declineButton, { backgroundColor: theme.colors.inactive }]}
+          style={[styles.button, { backgroundColor: theme.colors.inactive }]}
           onPress={handleDecline}>
-          <Icon name="cancel" size={30} color="#ffffff" />
-          <Text style={styles.buttonText}>NICHT VERFÜGBAR</Text>
+          <Icon name="cancel" size={30} color={theme.dark ? theme.colors.text : '#ffffff'} />
+          <Text style={[styles.buttonText, { color: theme.dark ? theme.colors.text : '#ffffff' }]}>NICHT VERFÜGBAR</Text>
         </TouchableOpacity>
       </View>
 
@@ -111,18 +114,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: 'center',
     borderBottomWidth: 3,
-    borderBottomColor: '#ffffff',
   },
   headerTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginTop: 10,
   },
   keyword: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginTop: 10,
     textAlign: 'center',
   },
@@ -163,7 +163,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   buttonText: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
   },

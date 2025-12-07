@@ -119,7 +119,7 @@ const HomeScreen: React.FC<Props> = ({ onEmergencyPress }) => {
         animationType="fade"
         onRequestClose={() => setShowThemeModal(false)}>
         <Pressable 
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: themeColors.overlayBackground }]}
           onPress={() => setShowThemeModal(false)}>
           <View 
             style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}
@@ -232,7 +232,6 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },

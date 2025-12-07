@@ -53,6 +53,17 @@ export const darkTheme: Theme = {
 };
 
 const hexToRgba = (hex: string, alpha: number): string => {
+  // Validate hex format
+  if (!hex || !hex.startsWith('#') || (hex.length !== 7 && hex.length !== 4)) {
+    console.warn('Invalid hex color format:', hex);
+    return `rgba(0, 0, 0, ${alpha})`;
+  }
+  
+  // Expand shorthand hex (#abc -> #aabbcc)
+  if (hex.length === 4) {
+    hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+  }
+  
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
@@ -62,6 +73,7 @@ const hexToRgba = (hex: string, alpha: number): string => {
 export const getThemeColors = (theme: Theme) => ({
   ...theme.colors,
   primaryLight: hexToRgba(theme.colors.primary, 0.12),
+  overlayBackground: hexToRgba(theme.dark ? '#000000' : '#000000', 0.5),
 });
 
 interface ThemeContextType {
