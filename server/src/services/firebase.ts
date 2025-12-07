@@ -12,8 +12,11 @@ export async function initializeFirebase(): Promise<void> {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 
-  if (!projectId || !privateKey || !clientEmail) {
-    console.warn('Firebase credentials not configured. Push notifications will not work.');
+  if (!projectId || !privateKey || !clientEmail || 
+      projectId === 'your-project-id' || 
+      privateKey.includes('your-private-key') ||
+      clientEmail.includes('your-client-email')) {
+    console.warn('⚠️  Firebase credentials not configured. Push notifications will not work.');
     console.warn('Please configure FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL in .env file');
     return;
   }
@@ -27,10 +30,10 @@ export async function initializeFirebase(): Promise<void> {
       }),
     });
     initialized = true;
-    console.log('Firebase Admin SDK initialized successfully');
+    console.log('✓ Firebase Admin SDK initialized successfully');
   } catch (error) {
-    console.error('Failed to initialize Firebase:', error);
-    throw error;
+    console.error('⚠️  Failed to initialize Firebase:', error instanceof Error ? error.message : error);
+    console.warn('Push notifications will not work. Server will continue without Firebase.');
   }
 }
 

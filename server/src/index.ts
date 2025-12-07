@@ -41,16 +41,17 @@ app.get('/health', (req, res) => {
 async function startServer() {
   try {
     await initializeDatabase();
-    console.log('Database initialized');
+    console.log('✓ Database initialized');
     
     await initializeFirebase();
-    console.log('Firebase initialized');
     
     app.listen(PORT, () => {
-      console.log(`Alarm Messenger Server running on port ${PORT}`);
+      console.log(`\n🚀 Alarm Messenger Server running on port ${PORT}`);
+      console.log(`📡 Health check: http://localhost:${PORT}/health`);
+      console.log(`📋 API Base URL: http://localhost:${PORT}/api\n`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 }
