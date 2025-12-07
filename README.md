@@ -310,6 +310,37 @@ The mobile app includes:
 - Emergency history view
 - Theme selection (Light/Dark/Auto modes)
 
+#### Mobile App Screenshots
+
+> **Note**: To add screenshots of the mobile app, please run the app on a device or emulator and capture screenshots of:
+> - Registration screen (QR code scanner)
+> - Home screen in Light mode
+> - Home screen in Dark mode
+> - Theme selector modal
+> - Emergency alert screen
+> 
+> Upload screenshots to GitHub and replace the placeholders below with actual image links.
+
+**Home Screen - Light Mode**
+<!-- ![Mobile Home Light](screenshot-url-here) -->
+*Screenshot placeholder: Home screen showing emergency list in light theme*
+
+**Home Screen - Dark Mode**
+<!-- ![Mobile Home Dark](screenshot-url-here) -->
+*Screenshot placeholder: Home screen showing emergency list in dark theme*
+
+**Theme Selector**
+<!-- ![Mobile Theme Selector](screenshot-url-here) -->
+*Screenshot placeholder: Modal showing Light/Dark/Auto theme options*
+
+**Emergency Alert Screen**
+<!-- ![Mobile Emergency Alert](screenshot-url-here) -->
+*Screenshot placeholder: Emergency alert with participate/decline buttons*
+
+**Registration Screen**
+<!-- ![Mobile Registration](screenshot-url-here) -->
+*Screenshot placeholder: QR code scanner for device registration*
+
 ### Admin Web Interface
 
 The admin interface follows the alarm-monitor design style with switchable themes:
