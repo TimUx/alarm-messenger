@@ -93,12 +93,28 @@ alarm-messenger/
 - Node.js 18+
 - npm or yarn
 - Firebase project (for push notifications)
+- **For Docker:** Docker and Docker Compose
 - For mobile development:
   - Xcode (for iOS)
   - Android Studio (for Android)
   - React Native CLI
 
 ### Backend Setup
+
+#### Option 1: Docker (Recommended for Linux)
+
+```bash
+cd alarm-messenger
+cp .env.example .env
+# Edit .env with your Firebase credentials
+docker compose up -d
+```
+
+The server will start on `http://localhost:3000`
+
+See [DOCKER-QUICKSTART.md](DOCKER-QUICKSTART.md) for more details.
+
+#### Option 2: Native Installation
 
 ```bash
 cd server
@@ -196,6 +212,22 @@ The mobile app design is based on the alarm-monitor project with:
 - Large, clearly visible action buttons
 - Red accent color (#dc3545) for emergencies
 - Material Icons for consistent iconography
+
+## Deployment Options
+
+### Linux Native
+Run directly on Linux with Node.js. See [docs/SETUP.md](docs/SETUP.md)
+
+### Docker Container
+Run in Docker container with docker-compose. See [DOCKER-QUICKSTART.md](DOCKER-QUICKSTART.md) or [docs/DOCKER.md](docs/DOCKER.md)
+
+### Production Deployment
+- Use Docker with Nginx reverse proxy for SSL/TLS
+- Configure systemd for automatic startup
+- Setup automated backups
+- Use PM2 for process management (native installation)
+
+See [docs/DOCKER.md](docs/DOCKER.md) for complete deployment instructions.
 
 ## License
 

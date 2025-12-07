@@ -8,3 +8,11 @@
 *.tmp
 *.swp
 *~
+
+# SSL Certificates
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt
+
+# Docker volumes
+docker-volumes/
