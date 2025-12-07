@@ -50,20 +50,21 @@ class WebSocketService {
           const data = JSON.parse(message.toString());
           
           if (data.type === 'register' && data.deviceId) {
-            deviceId = data.deviceId;
-            console.log(`Device registered via WebSocket: ${deviceId}`);
+            const registeredDeviceId = data.deviceId;
+            deviceId = registeredDeviceId;
+            console.log(`Device registered via WebSocket: ${registeredDeviceId}`);
             
             // Store the client connection
-            this.clients.set(deviceId, {
+            this.clients.set(registeredDeviceId, {
               ws,
-              deviceId,
+              deviceId: registeredDeviceId,
               isAlive: true,
             });
 
             // Send confirmation
             ws.send(JSON.stringify({
               type: 'registered',
-              deviceId,
+              deviceId: registeredDeviceId,
             }));
           }
         } catch (error) {
