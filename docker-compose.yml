@@ -19,6 +19,7 @@ services:
       - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY:-}
       - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL:-}
       - API_SECRET_KEY=${API_SECRET_KEY:-change-me-in-production}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
     volumes:
       # Persist database

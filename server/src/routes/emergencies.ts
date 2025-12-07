@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { sendBulkPushNotifications } from '../services/firebase';
+import { verifyApiKey } from '../middleware/auth';
 import {
   Emergency,
   CreateEmergencyRequest,
@@ -10,8 +11,8 @@ import {
 
 const router = Router();
 
-// Create a new emergency and trigger push notifications
-router.post('/', async (req: Request, res: Response) => {
+// Create a new emergency and trigger push notifications (protected with API key)
+router.post('/', verifyApiKey, async (req: Request, res: Response) => {
   try {
     const {
       emergencyNumber,

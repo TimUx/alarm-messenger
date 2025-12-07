@@ -44,7 +44,14 @@ export async function initializeDatabase(): Promise<void> {
             registration_token TEXT NOT NULL,
             platform TEXT NOT NULL,
             registered_at TEXT NOT NULL,
-            active INTEGER DEFAULT 1
+            active INTEGER DEFAULT 1,
+            responder_name TEXT,
+            qual_machinist INTEGER DEFAULT 0,
+            qual_agt INTEGER DEFAULT 0,
+            qual_paramedic INTEGER DEFAULT 0,
+            qual_th_vu INTEGER DEFAULT 0,
+            qual_th_bau INTEGER DEFAULT 0,
+            is_squad_leader INTEGER DEFAULT 0
           )
         `);
 
@@ -59,6 +66,16 @@ export async function initializeDatabase(): Promise<void> {
             FOREIGN KEY (emergency_id) REFERENCES emergencies(id),
             FOREIGN KEY (device_id) REFERENCES devices(id),
             UNIQUE(emergency_id, device_id)
+          )
+        `);
+        
+        // Admin users table
+        db.run(`
+          CREATE TABLE IF NOT EXISTS admin_users (
+            id TEXT PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL
           )
         `, (err) => {
           if (err) {

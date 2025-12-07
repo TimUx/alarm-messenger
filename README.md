@@ -19,6 +19,27 @@ The Alarm Messenger system is a complete emergency notification solution consist
 - ✅ SQLite database for data persistence
 - ✅ Response tracking (participation yes/no)
 - ✅ API endpoint to retrieve participating personnel
+- ✅ **API Key authentication for emergency creation**
+- ✅ **JWT-based admin authentication**
+- ✅ **Extended device/responder information storage**
+
+### Admin Web Interface (NEW)
+- ✅ Password-protected admin login
+- ✅ QR code generation and display
+- ✅ Device/responder management dashboard
+- ✅ Edit responder information (name, qualifications, leadership role)
+- ✅ Dark theme matching alarm-monitor design (#1a1a1a background, #dc3545 accents)
+- ✅ Responsive design for desktop and mobile
+
+### Responder Information Management (NEW)
+- ✅ Name storage for each registered device
+- ✅ Training qualifications tracking:
+  - Maschinist (Driver/Operator)
+  - AGT (Atemschutzgeräteträger - Breathing Apparatus Wearer)
+  - Sanitäter (Paramedic)
+  - TH-VU (Technical Rescue - Traffic Accidents)
+  - TH-BAU (Technical Rescue - Construction)
+- ✅ Leadership role designation (Fahrzeugführer - Vehicle Commander)
 
 ### Mobile App
 - ✅ QR code scanner for device registration
@@ -143,9 +164,16 @@ npm run android
 
 ## API Endpoints
 
+### Admin Authentication
+
+- `POST /api/admin/init` - Initialize first admin user (unprotected, only works when no users exist)
+- `POST /api/admin/login` - Admin login (returns JWT token)
+- `POST /api/admin/users` - Create additional admin users (requires JWT token)
+- `PUT /api/admin/devices/:id` - Update device/responder information (requires JWT token)
+
 ### Emergencies
 
-- `POST /api/emergencies` - Create new emergency
+- `POST /api/emergencies` - Create new emergency (requires API key via X-API-Key header)
 - `GET /api/emergencies` - Get all emergencies
 - `GET /api/emergencies/:id` - Get specific emergency
 - `POST /api/emergencies/:id/responses` - Submit response
@@ -155,30 +183,73 @@ npm run android
 ### Devices
 
 - `POST /api/devices/registration-token` - Generate QR code
-- `POST /api/devices/register` - Register device
+- `POST /api/devices/register` - Register device (with optional responder info)
 - `GET /api/devices` - Get all devices
 - `GET /api/devices/:id` - Get specific device
 - `DELETE /api/devices/:id` - Deactivate device
 
 ## Usage Flow
 
-1. **Admin generates QR code** via `POST /api/devices/registration-token`
-2. **User scans QR code** in mobile app
-3. **Device registers** with server and FCM token
-4. **External system creates emergency** via `POST /api/emergencies`
-5. **Server sends push notifications** to all registered devices
-6. **Mobile app displays alert** with alarm sound
-7. **User responds** (participate or decline)
-8. **Response saved** in database
-9. **External system retrieves participants** via `GET /api/emergencies/:id/participants`
+1. **Admin initializes account** via `POST /api/admin/init` (first time only)
+2. **Admin logs in** at `/admin/login.html`
+3. **Admin generates QR code** via admin dashboard
+4. **Admin enters responder information** for the device (name, qualifications, leadership role)
+5. **User scans QR code** in mobile app
+6. **Device registers** with server, FCM token, and responder information
+7. **External system creates emergency** via `POST /api/emergencies` with API key
+8. **Server sends push notifications** to all registered devices
+9. **Mobile app displays alert** with alarm sound
+10. **User responds** (participate or decline)
+11. **Response saved** in database with responder information
+12. **External system retrieves participants** via `GET /api/emergencies/:id/participants` with full responder details
 
 ## Security
 
 - HTTPS/TLS encryption for all API communication
+- API Key authentication for emergency creation (X-API-Key header)
+- JWT-based authentication for admin interface
+- Password hashing with bcrypt for admin users
 - Firebase Cloud Messaging for secure push notifications
 - Rate limiting to prevent abuse
 - Helmet middleware for security headers
 - Device token validation
+
+## Admin Interface
+
+The admin interface is accessible at `http://your-server:3000/admin/` and features:
+- Light/Dark theme toggle (light mode is default)
+- Persistent theme preference
+- Alarm-monitor inspired design
+
+### Login - Light Mode (Default)
+![Admin Login Light](https://github.com/user-attachments/assets/4e31daa6-e7c9-4056-92c9-f76eea14a1c5)
+
+### Login - Dark Mode
+![Admin Login Dark](https://github.com/user-attachments/assets/4879ddf7-62b2-497b-9562-87ae9c5ede5b)
+
+### Dashboard with QR Code Generation - Light Mode
+![Admin Dashboard Light](https://github.com/user-attachments/assets/6a4b9baf-c02d-4682-9494-99f0d36a851c)
+
+### Dashboard - Dark Mode
+![Admin Dashboard Dark](https://github.com/user-attachments/assets/72ec7d0a-edc2-4ea8-b45c-68eb1fd9f0c3)
+
+### QR Code Display
+![QR Code Generation](https://github.com/user-attachments/assets/4c3b4cc3-fedd-4f6b-9892-d95aabc55f2d)
+
+### Responder Information Management
+![Edit Responder](https://github.com/user-attachments/assets/14457c74-b918-44e3-aba2-8e22532ae3e0)
+
+### Initial Admin Setup
+
+Before using the admin interface, create the first admin user:
+
+```bash
+curl -X POST http://localhost:3000/api/admin/init \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"your-secure-password"}'
+```
+
+This endpoint only works when no admin users exist yet. After that, use the login page at `/admin/login.html`.
 
 ## Integration with Alarm Monitor
 
@@ -188,7 +259,10 @@ The system is designed to integrate with the [alarm-monitor](https://github.com/
 // Example: Create emergency from alarm monitor
 const response = await fetch('http://alarm-messenger-server:3000/api/emergencies', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json',
+    'X-API-Key': 'your-api-secret-key'  // Required for authentication
+  },
   body: JSON.stringify({
     emergencyNumber: '2024-001',
     emergencyDate: '2024-12-07T19:00:00Z',
@@ -198,13 +272,23 @@ const response = await fetch('http://alarm-messenger-server:3000/api/emergencies
   })
 });
 
-// Retrieve participants
+// Retrieve participants with responder information
 const participants = await fetch(
-  `http://alarm-messenger-server:3000/api/emergencies/${emergencyId}/participants`
+  `http://alarm-messenger-server:3000/api/emergencies/${emergencyId}/participants`,
+  {
+    headers: { 'X-API-Key': 'your-api-secret-key' }
+  }
 ).then(r => r.json());
+
+// participants now includes responder details:
+// - name
+// - qualifications (machinist, agt, paramedic, thVu, thBau)
+// - isSquadLeader
 ```
 
 ## Design
+
+### Mobile App
 
 The mobile app design is based on the alarm-monitor project with:
 - Dark theme (#1a1a1a background)
@@ -212,6 +296,35 @@ The mobile app design is based on the alarm-monitor project with:
 - Large, clearly visible action buttons
 - Red accent color (#dc3545) for emergencies
 - Material Icons for consistent iconography
+
+The mobile app includes:
+- QR code scanner for registration
+- Push notification support
+- Emergency alert screen with alarm sound
+- Response buttons (participate/decline)
+- Emergency history view
+
+### Admin Web Interface
+
+The admin interface follows the alarm-monitor design style with switchable themes:
+
+**Light Mode (Default)**
+- Clean, modern appearance with light backgrounds
+- High contrast for easy readability
+- Professional color palette
+
+**Dark Mode**
+- Dark theme (#1a1a1a background) matching alarm-monitor standby
+- Red accent color (#dc3545) for emphasis
+- Reduced eye strain for low-light environments
+
+**Common Features**
+- Theme toggle button (🌙/☀️) for instant switching
+- Persistent theme preference saved in browser
+- Smooth transitions between themes
+- Responsive design for all screen sizes
+- Intuitive navigation and controls
+- Card-based layout for content organization
 
 ## Deployment Options
 
