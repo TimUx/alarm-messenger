@@ -48,6 +48,7 @@ The Alarm Messenger system is a complete emergency notification solution consist
 - ✅ Two response buttons (participate/decline)
 - ✅ Emergency history view
 - ✅ Cross-platform support (iOS & Android)
+- ✅ **Dark/Light/Auto theme modes**
 
 ## Architecture
 
@@ -292,6 +293,10 @@ const participants = await fetch(
 
 The mobile app design is based on the alarm-monitor project with:
 - Dark theme (#1a1a1a background)
+- Light theme (#f5f5f5 background)
+- Auto theme mode (follows system preference)
+- Theme toggle in settings accessible from home screen
+- Persistent theme preference saved locally
 - High contrast for emergency information
 - Large, clearly visible action buttons
 - Red accent color (#dc3545) for emergencies
@@ -303,6 +308,7 @@ The mobile app includes:
 - Emergency alert screen with alarm sound
 - Response buttons (participate/decline)
 - Emergency history view
+- Theme selection (Light/Dark/Auto modes)
 
 ### Admin Web Interface
 
