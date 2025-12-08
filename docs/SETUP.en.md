@@ -4,7 +4,6 @@
 
 - Node.js 18 or higher
 - npm or yarn
-- Firebase project (for push notifications)
 - SQLite3 (included in dependencies)
 
 ## Step 1: Install Dependencies
@@ -14,15 +13,7 @@ cd server
 npm install
 ```
 
-## Step 2: Configure Firebase
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create a new project or select an existing one
-3. Go to Project Settings > Service Accounts
-4. Click "Generate New Private Key"
-5. Save the JSON file securely
-
-## Step 3: Configure Environment Variables
+## Step 2: Configure Environment Variables
 
 ```bash
 cp .env.example .env
@@ -35,27 +26,26 @@ Edit `.env` file with your configuration:
 PORT=3000
 NODE_ENV=production
 
-# Firebase Configuration
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour private key here\n-----END PRIVATE KEY-----\n"
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project-id.iam.gserviceaccount.com
-
 # Database
 DATABASE_PATH=./data/alarm-messenger.db
 
 # Security
 API_SECRET_KEY=your-secret-key-here
+JWT_SECRET=your-jwt-secret-here
 
-# Optional: Server URL for QR codes
+# Server URL for QR codes
 SERVER_URL=http://localhost:3000
+
+# CORS Configuration
+CORS_ORIGINS=*
 ```
 
 **Important:** 
-- Keep your Firebase credentials secure
+- Keep your API keys secure
 - Never commit `.env` file to version control
-- Replace newlines in `FIREBASE_PRIVATE_KEY` with `\n`
+- Use strong, random values for API_SECRET_KEY and JWT_SECRET
 
-## Step 4: Build the Application
+## Step 3: Build the Application
 
 ```bash
 npm run build
@@ -63,7 +53,7 @@ npm run build
 
 This will compile TypeScript to JavaScript in the `dist` directory.
 
-## Step 5: Start the Server
+## Step 4: Start the Server
 
 ### Development Mode
 ```bash
@@ -77,7 +67,9 @@ npm start
 
 The server will start on the port specified in `.env` (default: 3000).
 
-## Step 6: Verify Installation
+**Note:** The system uses WebSocket for push notifications. Firebase is no longer required!
+
+## Step 5: Verify Installation
 
 Test the health endpoint:
 
@@ -303,13 +295,13 @@ sqlite3 data/alarm-messenger.db "VACUUM;"
 ## Security Checklist
 
 - [ ] Use HTTPS in production
-- [ ] Keep Firebase credentials secure
+- [ ] Keep API keys secure
 - [ ] Enable firewall rules
 - [ ] Implement API authentication
 - [ ] Regular security updates
 - [ ] Monitor access logs
 - [ ] Backup database regularly
-- [ ] Use strong API_SECRET_KEY
+- [ ] Use strong API_SECRET_KEY and JWT_SECRET
 - [ ] Limit CORS origins in production
 - [ ] Enable rate limiting
 
@@ -322,12 +314,6 @@ sqlite3 data/alarm-messenger.db "VACUUM;"
 3. Check environment variables: `cat .env`
 4. Check logs for errors
 
-### Firebase errors
-
-1. Verify Firebase credentials are correct
-2. Ensure Firebase project has Cloud Messaging enabled
-3. Check Firebase service account permissions
-
 ### Database errors
 
 1. Ensure `data` directory exists and is writable
@@ -336,10 +322,10 @@ sqlite3 data/alarm-messenger.db "VACUUM;"
 
 ### Push notifications not working
 
-1. Verify Firebase configuration
-2. Check device FCM tokens are valid
-3. Ensure Cloud Messaging is enabled in Firebase
-4. Check server logs for FCM errors
+1. Verify WebSocket connection
+2. Check that devices are connected to the WebSocket server
+3. Check server logs for WebSocket errors
+4. Ensure devices are properly registered
 
 ## Updating
 
@@ -363,7 +349,7 @@ For issues, check:
 1. Server logs
 2. Database integrity
 3. Network connectivity
-4. Firebase status
+4. WebSocket connection
 5. GitHub issues
 
 ## Next Steps
