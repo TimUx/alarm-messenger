@@ -350,6 +350,50 @@ body {
     color: var(--text-secondary);
 }
 
+/* Group badge styles */
+.group-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    margin: 4px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+/* Radio group styles */
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.radio-group input[type="radio"] {
+    cursor: pointer;
+}
+
+/* Groups list styles */
+.groups-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+/* Header actions for groups */
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
 .device-info-value {
     color: var(--text-primary);
     font-weight: 500;

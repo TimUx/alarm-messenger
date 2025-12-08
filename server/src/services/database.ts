@@ -32,7 +32,8 @@ export async function initializeDatabase(): Promise<void> {
             emergency_description TEXT NOT NULL,
             emergency_location TEXT NOT NULL,
             created_at TEXT NOT NULL,
-            active INTEGER DEFAULT 1
+            active INTEGER DEFAULT 1,
+            groups TEXT
           )
         `);
 
@@ -49,9 +50,28 @@ export async function initializeDatabase(): Promise<void> {
             qual_machinist INTEGER DEFAULT 0,
             qual_agt INTEGER DEFAULT 0,
             qual_paramedic INTEGER DEFAULT 0,
-            qual_th_vu INTEGER DEFAULT 0,
-            qual_th_bau INTEGER DEFAULT 0,
-            is_squad_leader INTEGER DEFAULT 0
+            leadership_role TEXT DEFAULT 'none'
+          )
+        `);
+
+        // Groups table
+        db.run(`
+          CREATE TABLE IF NOT EXISTS groups (
+            code TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            created_at TEXT NOT NULL
+          )
+        `);
+
+        // Device-Groups association table
+        db.run(`
+          CREATE TABLE IF NOT EXISTS device_groups (
+            device_id TEXT NOT NULL,
+            group_code TEXT NOT NULL,
+            PRIMARY KEY (device_id, group_code),
+            FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE,
+            FOREIGN KEY (group_code) REFERENCES groups(code) ON DELETE CASCADE
           )
         `);
 
@@ -77,10 +97,12 @@ export async function initializeDatabase(): Promise<void> {
             password_hash TEXT NOT NULL,
             created_at TEXT NOT NULL
           )
-        `, (err) => {
+        `, async (err) => {
           if (err) {
             reject(err);
           } else {
+            // Run migration to update existing database
+            await migrateDatabase();
             resolve();
           }
         });
@@ -123,3 +145,44 @@ export const dbAll = (sql: string, params: any[] = []): Promise<any[]> => {
     });
   });
 };
+
+// Database migration function
+async function migrateDatabase(): Promise<void> {
+  try {
+    // Check if migration is needed by checking for old columns
+    const tableInfo = await dbAll("PRAGMA table_info(devices)", []);
+    
+    const hasOldColumns = tableInfo.some((col: any) => 
+      col.name === 'qual_th_vu' || 
+      col.name === 'qual_th_bau' || 
+      col.name === 'is_squad_leader'
+    );
+    
+    const hasNewColumn = tableInfo.some((col: any) => col.name === 'leadership_role');
+    
+    if (hasOldColumns && !hasNewColumn) {
+      console.log('🔄 Running database migration...');
+      
+      // Add new column
+      await dbRun('ALTER TABLE devices ADD COLUMN leadership_role TEXT DEFAULT "none"');
+      
+      // Migrate is_squad_leader to leadership_role (default to groupLeader if was true)
+      await dbRun(`UPDATE devices SET leadership_role = 'groupLeader' WHERE is_squad_leader = 1`);
+      
+      console.log('✓ Database migration completed');
+    }
+    
+    // Check if emergencies table needs groups column
+    const emergencyTableInfo = await dbAll("PRAGMA table_info(emergencies)", []);
+    const hasGroupsColumn = emergencyTableInfo.some((col: any) => col.name === 'groups');
+    
+    if (!hasGroupsColumn) {
+      console.log('🔄 Adding groups column to emergencies...');
+      await dbRun('ALTER TABLE emergencies ADD COLUMN groups TEXT');
+      console.log('✓ Groups column added');
+    }
+  } catch (error) {
+    console.error('⚠️  Database migration warning:', error);
+    // Don't fail if migration has issues, as the table might already be in the correct state
+  }
+}

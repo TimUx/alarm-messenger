@@ -7,6 +7,7 @@ export interface Emergency {
   emergencyLocation: string;
   createdAt: string;
   active: boolean;
+  groups?: string; // Comma-separated group codes (e.g., "WIL26,SWA11")
 }
 
 export interface Device {
@@ -22,10 +23,9 @@ export interface Device {
     machinist: boolean;
     agt: boolean;
     paramedic: boolean;
-    thVu: boolean;
-    thBau: boolean;
   };
-  isSquadLeader?: boolean;
+  leadershipRole?: 'none' | 'groupLeader' | 'platoonLeader';
+  assignedGroups?: string[]; // Array of group codes assigned to this device
 }
 
 export interface Response {
@@ -42,6 +42,7 @@ export interface CreateEmergencyRequest {
   emergencyKeyword: string;
   emergencyDescription: string;
   emergencyLocation: string;
+  groups?: string; // Comma-separated group codes
 }
 
 export interface DeviceRegistrationRequest {
@@ -52,13 +53,32 @@ export interface DeviceRegistrationRequest {
     machinist: boolean;
     agt: boolean;
     paramedic: boolean;
-    thVu: boolean;
-    thBau: boolean;
   };
-  isSquadLeader?: boolean;
+  leadershipRole?: 'none' | 'groupLeader' | 'platoonLeader';
 }
 
 export interface EmergencyResponseRequest {
   deviceId: string;
   participating: boolean;
+}
+
+export interface Group {
+  code: string; // Unique identifier (e.g., "WIL26")
+  name: string;
+  description?: string;
+  createdAt: string;
+}
+
+export interface CreateGroupRequest {
+  code: string;
+  name: string;
+  description?: string;
+}
+
+export interface ImportGroupsRequest {
+  groups: Array<{
+    code: string;
+    name: string;
+    description?: string;
+  }>;
 }

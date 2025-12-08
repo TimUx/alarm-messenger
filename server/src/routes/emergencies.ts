@@ -20,6 +20,7 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
       emergencyKeyword,
       emergencyDescription,
       emergencyLocation,
+      groups,
     }: CreateEmergencyRequest = req.body;
 
     // Validate required fields
@@ -39,8 +40,8 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
 
     // Insert emergency into database
     await dbRun(
-      `INSERT INTO emergencies (id, emergency_number, emergency_date, emergency_keyword, emergency_description, emergency_location, created_at, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO emergencies (id, emergency_number, emergency_date, emergency_keyword, emergency_description, emergency_location, created_at, active, groups)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         emergencyNumber,
@@ -50,14 +51,34 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
         emergencyLocation,
         createdAt,
         1,
+        groups || null,
       ]
     );
 
-    // Get all active devices for push notifications
-    const devices = await dbAll(
-      'SELECT id FROM devices WHERE active = 1',
-      []
-    );
+    // Get devices to notify based on groups
+    let devices;
+    if (groups) {
+      // If groups are specified, only notify devices assigned to those groups
+      const groupCodes = groups.split(',').map(g => g.trim().toUpperCase());
+      const placeholders = groupCodes.map(() => '?').join(',');
+      
+      devices = await dbAll(
+        `SELECT DISTINCT d.id 
+         FROM devices d
+         INNER JOIN device_groups dg ON d.id = dg.device_id
+         WHERE d.active = 1 AND dg.group_code IN (${placeholders})`,
+        groupCodes
+      );
+      
+      console.log(`✓ Found ${devices.length} devices matching groups: ${groups}`);
+    } else {
+      // If no groups specified, notify all active devices
+      devices = await dbAll(
+        'SELECT id FROM devices WHERE active = 1',
+        []
+      );
+      console.log(`✓ No groups specified, notifying all ${devices.length} active devices`);
+    }
 
     // Prepare notification data
     const notificationTitle = `EINSATZ: ${emergencyKeyword}`;
@@ -69,6 +90,7 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
       emergencyKeyword,
       emergencyDescription,
       emergencyLocation,
+      groups: groups || '',
     };
 
     // Send notifications via WebSocket
@@ -92,6 +114,7 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
       emergencyLocation,
       createdAt,
       active: true,
+      groups,
     };
 
     res.status(201).json(emergency);
@@ -118,6 +141,7 @@ router.get('/', async (req: Request, res: Response) => {
       emergencyLocation: row.emergency_location,
       createdAt: row.created_at,
       active: row.active === 1,
+      groups: row.groups,
     }));
 
     res.json(emergencies);
@@ -147,6 +171,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       emergencyLocation: row.emergency_location,
       createdAt: row.created_at,
       active: row.active === 1,
+      groups: row.groups,
     };
 
     res.json(emergency);

@@ -8,6 +8,7 @@ import http from 'http';
 import emergencyRoutes from './routes/emergencies';
 import deviceRoutes from './routes/devices';
 import adminRoutes from './routes/admin';
+import groupRoutes from './routes/groups';
 import { initializeDatabase } from './services/database';
 import { websocketService } from './services/websocket';
 
@@ -46,6 +47,7 @@ app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
 app.use('/api/emergencies', emergencyRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/groups', groupRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

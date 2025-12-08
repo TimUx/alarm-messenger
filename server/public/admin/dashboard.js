@@ -1,5 +1,6 @@
 const API_BASE = window.location.origin + '/api';
 let currentDevices = [];
+let currentGroups = [];
 let currentQRData = null;
 
 // Check authentication on page load
@@ -28,8 +29,30 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Load devices
+    // Group management listeners
+    document.getElementById('add-group-btn').addEventListener('click', () => openGroupModal());
+    document.getElementById('close-group-modal-btn').addEventListener('click', closeGroupModal);
+    document.getElementById('cancel-group-modal-btn').addEventListener('click', closeGroupModal);
+    document.getElementById('group-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'group-modal') {
+            closeGroupModal();
+        }
+    });
+    
+    // Import groups listeners
+    document.getElementById('import-groups-btn').addEventListener('click', openImportModal);
+    document.getElementById('close-import-modal-btn').addEventListener('click', closeImportModal);
+    document.getElementById('cancel-import-btn').addEventListener('click', closeImportModal);
+    document.getElementById('confirm-import-btn').addEventListener('click', importGroups);
+    document.getElementById('import-groups-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'import-groups-modal') {
+            closeImportModal();
+        }
+    });
+    
+    // Load data
     refreshDevices();
+    refreshGroups();
 });
 
 function logout() {
@@ -137,8 +160,22 @@ function createDeviceCard(device) {
     if (qualifications.machinist) qualBadges.push('Maschinist');
     if (qualifications.agt) qualBadges.push('AGT');
     if (qualifications.paramedic) qualBadges.push('Sanitäter');
-    if (qualifications.thVu) qualBadges.push('TH-VU');
-    if (qualifications.thBau) qualBadges.push('TH-BAU');
+    
+    // Leadership role badge
+    let leaderBadge = '';
+    if (device.leadershipRole === 'groupLeader') {
+        leaderBadge = '<div class="leader-badge">⭐ Gruppenführer</div>';
+    } else if (device.leadershipRole === 'platoonLeader') {
+        leaderBadge = '<div class="leader-badge">⭐⭐ Zugführer</div>';
+    }
+    
+    // Assigned groups
+    const assignedGroups = device.assignedGroups || [];
+    const groupBadges = assignedGroups.map(code => {
+        const group = currentGroups.find(g => g.code === code);
+        const groupName = group ? group.name : code;
+        return `<span class="group-badge" title="${escapeHtml(groupName)}">${escapeHtml(code)}</span>`;
+    }).join('');
     
     // Escape all user-provided or dynamic content
     const escapedDeviceName = escapeHtml(deviceName);
@@ -170,7 +207,15 @@ function createDeviceCard(device) {
                     </div>
                 </div>
             ` : ''}
-            ${device.isSquadLeader ? '<div class="leader-badge">⭐ Fahrzeugführer</div>' : ''}
+            ${leaderBadge}
+            ${assignedGroups.length > 0 ? `
+                <div class="qualifications">
+                    <h4>Zugeordnete Gruppen:</h4>
+                    <div class="qual-badges">
+                        ${groupBadges}
+                    </div>
+                </div>
+            ` : ''}
             <div class="device-actions">
                 <button class="btn btn-secondary" data-action="edit" data-device-id="${escapedDeviceId}">Bearbeiten</button>
                 <button class="btn btn-secondary" data-action="deactivate" data-device-id="${escapedDeviceId}">Deaktivieren</button>
@@ -224,11 +269,40 @@ function editDevice(deviceId) {
     document.getElementById('edit-qual-machinist').checked = qualifications.machinist || false;
     document.getElementById('edit-qual-agt').checked = qualifications.agt || false;
     document.getElementById('edit-qual-paramedic').checked = qualifications.paramedic || false;
-    document.getElementById('edit-qual-th-vu').checked = qualifications.thVu || false;
-    document.getElementById('edit-qual-th-bau').checked = qualifications.thBau || false;
-    document.getElementById('edit-is-squad-leader').checked = device.isSquadLeader || false;
+    
+    // Set leadership role
+    const leadershipRole = device.leadershipRole || 'none';
+    document.getElementById('edit-role-none').checked = (leadershipRole === 'none');
+    document.getElementById('edit-role-group').checked = (leadershipRole === 'groupLeader');
+    document.getElementById('edit-role-platoon').checked = (leadershipRole === 'platoonLeader');
+    
+    // Load and set assigned groups
+    loadGroupCheckboxes(device.assignedGroups || []);
     
     document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function loadGroupCheckboxes(assignedGroups) {
+    const container = document.getElementById('edit-assigned-groups');
+    
+    if (currentGroups.length === 0) {
+        container.innerHTML = '<p style="color: #999;">Keine Gruppen verfügbar. Bitte zuerst Gruppen anlegen.</p>';
+        return;
+    }
+    
+    const checkboxesHtml = currentGroups.map(group => {
+        const isChecked = assignedGroups.includes(group.code);
+        const escapedCode = escapeHtml(group.code);
+        const escapedName = escapeHtml(group.name);
+        return `
+            <label>
+                <input type="checkbox" name="group_${escapedCode}" value="${escapedCode}" ${isChecked ? 'checked' : ''}>
+                ${escapedCode} - ${escapedName}
+            </label>
+        `;
+    }).join('');
+    
+    container.innerHTML = checkboxesHtml;
 }
 
 function closeEditModal() {
@@ -245,24 +319,40 @@ document.getElementById('editDeviceForm').addEventListener('submit', async (e) =
         machinist: document.getElementById('edit-qual-machinist').checked,
         agt: document.getElementById('edit-qual-agt').checked,
         paramedic: document.getElementById('edit-qual-paramedic').checked,
-        thVu: document.getElementById('edit-qual-th-vu').checked,
-        thBau: document.getElementById('edit-qual-th-bau').checked,
     };
     
-    const isSquadLeader = document.getElementById('edit-is-squad-leader').checked;
+    // Get selected leadership role
+    const leadershipRole = document.querySelector('input[name="leadership_role"]:checked').value;
+    
+    // Get selected groups
+    const groupCheckboxes = document.querySelectorAll('#edit-assigned-groups input[type="checkbox"]:checked');
+    const groupCodes = Array.from(groupCheckboxes).map(cb => cb.value);
     
     try {
+        // Update device info
         const response = await apiRequest(`${API_BASE}/admin/devices/${deviceId}`, {
             method: 'PUT',
             body: JSON.stringify({
                 responderName,
                 qualifications,
-                isSquadLeader
+                leadershipRole
             })
         });
         
         if (!response.ok) {
             throw new Error('Fehler beim Aktualisieren');
+        }
+        
+        // Update device groups
+        const groupResponse = await apiRequest(`${API_BASE}/groups/device/${deviceId}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                groupCodes
+            })
+        });
+        
+        if (!groupResponse.ok) {
+            throw new Error('Fehler beim Aktualisieren der Gruppen');
         }
         
         closeEditModal();
@@ -291,5 +381,250 @@ async function deactivateDevice(deviceId) {
         alert('Gerät erfolgreich deaktiviert!');
     } catch (error) {
         alert('Fehler: ' + error.message);
+    }
+}
+
+// ===== Group Management Functions =====
+
+async function refreshGroups() {
+    try {
+        const response = await apiRequest(`${API_BASE}/groups`);
+        
+        if (!response.ok) {
+            throw new Error('Fehler beim Laden der Gruppen');
+        }
+        
+        const groups = await response.json();
+        currentGroups = groups;
+        displayGroups(groups);
+    } catch (error) {
+        document.getElementById('groups-list').innerHTML = 
+            `<p class="loading" style="color: #dc3545;">Fehler beim Laden: ${error.message}</p>`;
+    }
+}
+
+function displayGroups(groups) {
+    const container = document.getElementById('groups-list');
+    
+    if (groups.length === 0) {
+        container.innerHTML = '<p class="loading">Keine Gruppen gefunden. Erstellen Sie eine neue Gruppe oder importieren Sie Gruppen aus einer CSV-Datei.</p>';
+        return;
+    }
+    
+    const groupsHtml = groups.map(group => {
+        const escapedCode = escapeHtml(group.code);
+        const escapedName = escapeHtml(group.name);
+        const escapedDescription = escapeHtml(group.description || '');
+        
+        return `
+            <div class="device-card">
+                <div class="device-header">
+                    <div class="device-name">${escapedCode}</div>
+                </div>
+                <div class="device-info">
+                    <div class="device-info-row">
+                        <span class="device-info-label">Name:</span>
+                        <span class="device-info-value">${escapedName}</span>
+                    </div>
+                    ${escapedDescription ? `
+                        <div class="device-info-row">
+                            <span class="device-info-label">Beschreibung:</span>
+                            <span class="device-info-value">${escapedDescription}</span>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="device-actions">
+                    <button class="btn btn-secondary" data-action="edit-group" data-group-code="${escapedCode}">Bearbeiten</button>
+                    <button class="btn btn-secondary" data-action="delete-group" data-group-code="${escapedCode}">Löschen</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = groupsHtml;
+    
+    // Add event listeners
+    container.querySelectorAll('[data-action="edit-group"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const code = e.target.getAttribute('data-group-code');
+            editGroup(code);
+        });
+    });
+    
+    container.querySelectorAll('[data-action="delete-group"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const code = e.target.getAttribute('data-group-code');
+            deleteGroup(code);
+        });
+    });
+}
+
+function openGroupModal(groupCode = null) {
+    if (groupCode) {
+        const group = currentGroups.find(g => g.code === groupCode);
+        if (group) {
+            document.getElementById('group-modal-title').textContent = 'Gruppe bearbeiten';
+            document.getElementById('edit-group-original-code').value = group.code;
+            document.getElementById('edit-group-code').value = group.code;
+            document.getElementById('edit-group-code').disabled = true; // Don't allow changing code
+            document.getElementById('edit-group-name').value = group.name;
+            document.getElementById('edit-group-description').value = group.description || '';
+        }
+    } else {
+        document.getElementById('group-modal-title').textContent = 'Neue Gruppe';
+        document.getElementById('edit-group-original-code').value = '';
+        document.getElementById('edit-group-code').value = '';
+        document.getElementById('edit-group-code').disabled = false;
+        document.getElementById('edit-group-name').value = '';
+        document.getElementById('edit-group-description').value = '';
+    }
+    
+    document.getElementById('group-modal').style.display = 'flex';
+}
+
+function closeGroupModal() {
+    document.getElementById('group-modal').style.display = 'none';
+}
+
+function editGroup(code) {
+    openGroupModal(code);
+}
+
+async function deleteGroup(code) {
+    if (!confirm(`Möchten Sie die Gruppe "${code}" wirklich löschen?`)) {
+        return;
+    }
+    
+    try {
+        const response = await apiRequest(`${API_BASE}/groups/${code}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Fehler beim Löschen');
+        }
+        
+        refreshGroups();
+        alert('Gruppe erfolgreich gelöscht!');
+    } catch (error) {
+        alert('Fehler: ' + error.message);
+    }
+}
+
+document.getElementById('groupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const originalCode = document.getElementById('edit-group-original-code').value;
+    const code = document.getElementById('edit-group-code').value.toUpperCase();
+    const name = document.getElementById('edit-group-name').value;
+    const description = document.getElementById('edit-group-description').value;
+    
+    try {
+        if (originalCode) {
+            // Update existing group
+            const response = await apiRequest(`${API_BASE}/groups/${originalCode}`, {
+                method: 'PUT',
+                body: JSON.stringify({ name, description })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Fehler beim Aktualisieren');
+            }
+            
+            alert('Gruppe erfolgreich aktualisiert!');
+        } else {
+            // Create new group
+            const response = await apiRequest(`${API_BASE}/groups`, {
+                method: 'POST',
+                body: JSON.stringify({ code, name, description })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Fehler beim Erstellen');
+            }
+            
+            alert('Gruppe erfolgreich erstellt!');
+        }
+        
+        closeGroupModal();
+        refreshGroups();
+    } catch (error) {
+        alert('Fehler: ' + error.message);
+    }
+});
+
+function openImportModal() {
+    document.getElementById('import-csv-data').value = '';
+    document.getElementById('import-groups-modal').style.display = 'flex';
+}
+
+function closeImportModal() {
+    document.getElementById('import-groups-modal').style.display = 'none';
+}
+
+async function importGroups() {
+    const csvData = document.getElementById('import-csv-data').value.trim();
+    
+    if (!csvData) {
+        alert('Bitte CSV-Daten eingeben');
+        return;
+    }
+    
+    try {
+        // Parse CSV
+        const lines = csvData.split('\n').filter(line => line.trim());
+        const groups = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            
+            // Skip header if it looks like one
+            if (i === 0 && (line.toLowerCase().includes('code') || line.toLowerCase().includes('name'))) {
+                continue;
+            }
+            
+            // Parse CSV line (simple comma split, doesn't handle quoted values)
+            const parts = line.split(',').map(p => p.trim());
+            
+            if (parts.length >= 2) {
+                groups.push({
+                    code: parts[0],
+                    name: parts[1],
+                    description: parts[2] || ''
+                });
+            }
+        }
+        
+        if (groups.length === 0) {
+            alert('Keine gültigen Gruppen gefunden');
+            return;
+        }
+        
+        // Import groups
+        const response = await apiRequest(`${API_BASE}/groups/import`, {
+            method: 'POST',
+            body: JSON.stringify({ groups })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Fehler beim Importieren');
+        }
+        
+        const result = await response.json();
+        
+        let message = `Import abgeschlossen!\n`;
+        message += `Erstellt: ${result.created}\n`;
+        message += `Aktualisiert: ${result.updated}\n`;
+        if (result.errors.length > 0) {
+            message += `Fehler: ${result.errors.length}\n\n`;
+            message += result.errors.slice(0, 5).join('\n');
+        }
+        
+        alert(message);
+        closeImportModal();
+        refreshGroups();
+    } catch (error) {
+        alert('Fehler beim Importieren: ' + error.message);
     }
 }

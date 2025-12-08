@@ -39,7 +39,7 @@ router.post('/register', async (req: Request, res: Response) => {
       platform,
       responderName,
       qualifications,
-      isSquadLeader,
+      leadershipRole,
     } = req.body;
 
     if (!deviceToken || !registrationToken || !platform) {
@@ -69,9 +69,7 @@ router.post('/register', async (req: Request, res: Response) => {
           qual_machinist = ?,
           qual_agt = ?,
           qual_paramedic = ?,
-          qual_th_vu = ?,
-          qual_th_bau = ?,
-          is_squad_leader = ?
+          leadership_role = ?
         WHERE device_token = ?`,
         [
           registrationToken, 
@@ -80,9 +78,7 @@ router.post('/register', async (req: Request, res: Response) => {
           qualifications?.machinist ? 1 : 0,
           qualifications?.agt ? 1 : 0,
           qualifications?.paramedic ? 1 : 0,
-          qualifications?.thVu ? 1 : 0,
-          qualifications?.thBau ? 1 : 0,
-          isSquadLeader ? 1 : 0,
+          leadershipRole || 'none',
           deviceToken
         ]
       );
@@ -96,7 +92,7 @@ router.post('/register', async (req: Request, res: Response) => {
         active: true,
         responderName,
         qualifications,
-        isSquadLeader,
+        leadershipRole: leadershipRole || 'none',
       };
 
       res.json(device);
@@ -109,17 +105,15 @@ router.post('/register', async (req: Request, res: Response) => {
         `INSERT INTO devices (
           id, device_token, registration_token, platform, registered_at, active,
           responder_name, qual_machinist, qual_agt, qual_paramedic, 
-          qual_th_vu, qual_th_bau, is_squad_leader
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          leadership_role
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id, deviceToken, registrationToken, platform, registeredAt, 1,
           responderName || null,
           qualifications?.machinist ? 1 : 0,
           qualifications?.agt ? 1 : 0,
           qualifications?.paramedic ? 1 : 0,
-          qualifications?.thVu ? 1 : 0,
-          qualifications?.thBau ? 1 : 0,
-          isSquadLeader ? 1 : 0,
+          leadershipRole || 'none',
         ]
       );
 
@@ -132,7 +126,7 @@ router.post('/register', async (req: Request, res: Response) => {
         active: true,
         responderName,
         qualifications,
-        isSquadLeader,
+        leadershipRole: leadershipRole || 'none',
       };
 
       res.status(201).json(device);
@@ -151,22 +145,30 @@ router.get('/', async (req: Request, res: Response) => {
       []
     );
 
-    const devices: Device[] = rows.map((row: any) => ({
-      id: row.id,
-      deviceToken: row.device_token,
-      registrationToken: row.registration_token,
-      platform: row.platform,
-      registeredAt: row.registered_at,
-      active: row.active === 1,
-      responderName: row.responder_name,
-      qualifications: {
-        machinist: row.qual_machinist === 1,
-        agt: row.qual_agt === 1,
-        paramedic: row.qual_paramedic === 1,
-        thVu: row.qual_th_vu === 1,
-        thBau: row.qual_th_bau === 1,
-      },
-      isSquadLeader: row.is_squad_leader === 1,
+    const devices: Device[] = await Promise.all(rows.map(async (row: any) => {
+      // Get assigned groups for each device
+      const groupRows = await dbAll(
+        'SELECT group_code FROM device_groups WHERE device_id = ?',
+        [row.id]
+      );
+      const assignedGroups = groupRows.map((g: any) => g.group_code);
+
+      return {
+        id: row.id,
+        deviceToken: row.device_token,
+        registrationToken: row.registration_token,
+        platform: row.platform,
+        registeredAt: row.registered_at,
+        active: row.active === 1,
+        responderName: row.responder_name,
+        qualifications: {
+          machinist: row.qual_machinist === 1,
+          agt: row.qual_agt === 1,
+          paramedic: row.qual_paramedic === 1,
+        },
+        leadershipRole: row.leadership_role || 'none',
+        assignedGroups,
+      };
     }));
 
     res.json(devices);
@@ -187,6 +189,13 @@ router.get('/:id', async (req: Request, res: Response) => {
       return;
     }
 
+    // Get assigned groups
+    const groupRows = await dbAll(
+      'SELECT group_code FROM device_groups WHERE device_id = ?',
+      [id]
+    );
+    const assignedGroups = groupRows.map((g: any) => g.group_code);
+
     const device: Device = {
       id: row.id,
       deviceToken: row.device_token,
@@ -199,10 +208,9 @@ router.get('/:id', async (req: Request, res: Response) => {
         machinist: row.qual_machinist === 1,
         agt: row.qual_agt === 1,
         paramedic: row.qual_paramedic === 1,
-        thVu: row.qual_th_vu === 1,
-        thBau: row.qual_th_bau === 1,
       },
-      isSquadLeader: row.is_squad_leader === 1,
+      leadershipRole: row.leadership_role || 'none',
+      assignedGroups,
     };
 
     res.json(device);
