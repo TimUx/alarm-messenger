@@ -105,9 +105,13 @@ alarm-messenger/
 │   └── tsconfig.json
 │
 └── docs/              # Dokumentation
-    ├── API.md
-    ├── SETUP.md
-    └── MOBILE.md
+    ├── API.md                        # API-Referenz
+    ├── API.en.md                     # API-Referenz (Englisch)
+    ├── AUTHENTIFIZIERUNG.md          # Authentifizierungsleitfaden
+    ├── SERVER-KONFIGURATION.md       # Server-Konfiguration und URL-Setup
+    ├── SETUP.md                      # Setup-Anleitung
+    ├── DOCKER.md                     # Docker-Deployment
+    └── MOBILE.md                     # Mobile App Setup
 ```
 
 ## Schnellstart
@@ -216,6 +220,10 @@ npm run android
 - Rate Limiting zur Verhinderung von Missbrauch
 - Helmet-Middleware für Sicherheits-Header
 - Geräte-Token-Validierung
+
+**📚 Detaillierte Informationen:**
+- Siehe [docs/AUTHENTIFIZIERUNG.md](docs/AUTHENTIFIZIERUNG.md) für vollständige Authentifizierungsdokumentation
+- Siehe [docs/SERVER-KONFIGURATION.md](docs/SERVER-KONFIGURATION.md) für Server-Setup und URL-Konfiguration
 
 ## Admin-Interface
 
@@ -381,6 +389,103 @@ In Docker Container mit docker-compose ausführen. Siehe [DOCKER-QUICKSTART.md](
 - PM2 für Prozessmanagement verwenden (native Installation)
 
 Siehe [docs/DOCKER.md](docs/DOCKER.md) für vollständige Deployment-Anweisungen.
+
+## Häufig gestellte Fragen (FAQ)
+
+### Authentifizierung
+
+**Q: Ist Authentifizierung im System implementiert?**
+
+A: **Ja, Authentifizierung ist vollständig implementiert.** Das System verwendet zwei verschiedene Authentifizierungsmethoden:
+- **API-Key-Authentifizierung** für Einsatzerstellung (POST /api/emergencies)
+- **JWT-Token-Authentifizierung** für das Admin-Interface
+
+Siehe [docs/AUTHENTIFIZIERUNG.md](docs/AUTHENTIFIZIERUNG.md) für Details.
+
+**Q: Brauche ich Authentifizierung für die Mobile App?**
+
+A: **Nein**, die Mobile App benötigt keine zusätzliche Authentifizierung. Geräte authentifizieren sich durch:
+- Das deviceToken vom QR-Code
+- Die registrationToken (WebSocket-ID)
+
+**Q: Wie konfiguriere ich die API-Keys?**
+
+A: Setzen Sie die Umgebungsvariablen in der `.env` Datei:
+```bash
+API_SECRET_KEY=ihr-sicherer-api-key
+JWT_SECRET=ihr-jwt-geheimnis
+```
+
+Siehe [docs/AUTHENTIFIZIERUNG.md](docs/AUTHENTIFIZIERUNG.md) für vollständige Anleitung.
+
+### Server-Konfiguration
+
+**Q: Wie erfahren Mobile Geräte die Server-URL?**
+
+A: **Automatisch über den QR-Code.** Der Ablauf:
+1. Admin generiert QR-Code im Admin-Interface
+2. QR-Code enthält `serverUrl` (aus `SERVER_URL` Umgebungsvariable)
+3. Mobile App scannt QR-Code und extrahiert automatisch die Server-URL
+4. App speichert URL lokal und verwendet sie für alle Verbindungen
+
+Siehe [docs/SERVER-KONFIGURATION.md](docs/SERVER-KONFIGURATION.md) für Details.
+
+**Q: Wo setze ich die SERVER_URL?**
+
+A: In der `.env` Datei:
+```bash
+# Entwicklung
+SERVER_URL=http://localhost:3000
+
+# Produktion
+SERVER_URL=https://ihre-domain.de
+```
+
+**Q: Was passiert, wenn sich die Server-URL ändert?**
+
+A: Sie müssen neue QR-Codes generieren. Bereits registrierte Geräte müssen neu registriert werden, da sie die alte URL gespeichert haben.
+
+### Sicherheit
+
+**Q: Ist das System sicher für Produktivbetrieb?**
+
+A: **Ja**, wenn korrekt konfiguriert:
+- ✅ Verwenden Sie HTTPS (zwingend!)
+- ✅ Ändern Sie API_SECRET_KEY und JWT_SECRET
+- ✅ Verwenden Sie starke Passwörter
+- ✅ Aktivieren Sie Firewall-Regeln
+- ✅ Regelmäßige Updates durchführen
+
+Siehe [docs/AUTHENTIFIZIERUNG.md](docs/AUTHENTIFIZIERUNG.md) für Best Practices.
+
+**Q: Werden Passwörter sicher gespeichert?**
+
+A: **Ja**, Admin-Passwörter werden mit bcrypt gehasht gespeichert.
+
+### Integration
+
+**Q: Wie integriere ich mit alarm-monitor?**
+
+A: Senden Sie Einsätze mit API-Key:
+```javascript
+fetch('https://ihr-server/api/emergencies', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': 'ihr-api-key'
+  },
+  body: JSON.stringify({ /* Einsatzdaten */ })
+});
+```
+
+Siehe [docs/API.md](docs/API.md) für vollständige API-Dokumentation.
+
+### Weitere Hilfe
+
+Für weitere Fragen:
+- 📖 Lesen Sie die vollständige Dokumentation in `/docs`
+- 🐛 Öffnen Sie ein Issue auf GitHub
+- 💬 Kontaktieren Sie den Support
 
 ## Lizenz
 
