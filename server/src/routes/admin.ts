@@ -144,7 +144,7 @@ router.put('/devices/:id', verifyToken, async (req: AuthRequest, res: Response) 
     const {
       responderName,
       qualifications,
-      isSquadLeader,
+      leadershipRole,
     } = req.body;
 
     const device = await dbGet('SELECT * FROM devices WHERE id = ?', [id]);
@@ -160,18 +160,14 @@ router.put('/devices/:id', verifyToken, async (req: AuthRequest, res: Response) 
         qual_machinist = ?,
         qual_agt = ?,
         qual_paramedic = ?,
-        qual_th_vu = ?,
-        qual_th_bau = ?,
-        is_squad_leader = ?
+        leadership_role = ?
       WHERE id = ?`,
       [
         responderName || null,
         qualifications?.machinist ? 1 : 0,
         qualifications?.agt ? 1 : 0,
         qualifications?.paramedic ? 1 : 0,
-        qualifications?.thVu ? 1 : 0,
-        qualifications?.thBau ? 1 : 0,
-        isSquadLeader ? 1 : 0,
+        leadershipRole || 'none',
         id,
       ]
     );

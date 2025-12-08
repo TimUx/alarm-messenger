@@ -47,6 +47,19 @@
                 </div>
             </section>
 
+            <section class="section">
+                <div class="section-header">
+                    <h2>Alarmierungsgruppen</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" id="import-groups-btn">📤 CSV Import</button>
+                        <button class="btn btn-primary" id="add-group-btn">Neue Gruppe</button>
+                    </div>
+                </div>
+                <div id="groups-list" class="groups-list">
+                    <p class="loading">Lade Gruppen...</p>
+                </div>
+            </section>
+
             <!-- Edit Device Modal -->
             <div id="edit-modal" class="modal" style="display: none;">
                 <div class="modal-content">
@@ -75,27 +88,88 @@
                                     <input type="checkbox" name="qual_paramedic" id="edit-qual-paramedic">
                                     Sanitäter
                                 </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Führungsrolle</label>
+                            <div class="radio-group">
                                 <label>
-                                    <input type="checkbox" name="qual_th_vu" id="edit-qual-th-vu">
-                                    TH-VU (Technische Hilfe - Verkehrsunfall)
+                                    <input type="radio" name="leadership_role" value="none" id="edit-role-none" checked>
+                                    Keine
                                 </label>
                                 <label>
-                                    <input type="checkbox" name="qual_th_bau" id="edit-qual-th-bau">
-                                    TH-BAU (Technische Hilfe - Bau)
+                                    <input type="radio" name="leadership_role" value="groupLeader" id="edit-role-group">
+                                    Gruppenführer
+                                </label>
+                                <label>
+                                    <input type="radio" name="leadership_role" value="platoonLeader" id="edit-role-platoon">
+                                    Zugführer
                                 </label>
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>
-                                <input type="checkbox" name="is_squad_leader" id="edit-is-squad-leader">
-                                Führungskraft/Fahrzeugführer
-                            </label>
+                            <label for="edit-assigned-groups">Zugeordnete Gruppen</label>
+                            <div id="edit-assigned-groups" class="checkbox-group">
+                                <p class="loading">Lade Gruppen...</p>
+                            </div>
                         </div>
                         <div class="modal-actions">
                             <button type="button" class="btn btn-secondary" id="cancel-modal-btn">Abbrechen</button>
                             <button type="submit" class="btn btn-primary">Speichern</button>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <!-- Add/Edit Group Modal -->
+            <div id="group-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 id="group-modal-title">Neue Gruppe</h3>
+                        <button class="close-btn" id="close-group-modal-btn">&times;</button>
+                    </div>
+                    <form id="groupForm">
+                        <input type="hidden" id="edit-group-original-code">
+                        <div class="form-group">
+                            <label for="edit-group-code">Gruppen-Kürzel *</label>
+                            <input type="text" id="edit-group-code" name="code" required placeholder="z.B. WIL26">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-group-name">Name *</label>
+                            <input type="text" id="edit-group-name" name="name" required placeholder="z.B. WIL Steina M">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-group-description">Beschreibung</label>
+                            <textarea id="edit-group-description" name="description" rows="3" placeholder="Optionale Beschreibung"></textarea>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="cancel-group-modal-btn">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary">Speichern</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Import Groups Modal -->
+            <div id="import-groups-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Gruppen CSV Import</h3>
+                        <button class="close-btn" id="close-import-modal-btn">&times;</button>
+                    </div>
+                    <div>
+                        <div class="form-group">
+                            <label>CSV-Format: code,name,description (Header optional)</label>
+                            <p style="font-size: 0.9em; color: #999;">Beispiel:<br>
+                            WIL26,WIL Steina M,TME WIL26<br>
+                            SWA11,SWA Trutzhain S,TME SWA11</p>
+                            <textarea id="import-csv-data" rows="10" placeholder="CSV-Daten hier einfügen..."></textarea>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="cancel-import-btn">Abbrechen</button>
+                            <button type="button" class="btn btn-primary" id="confirm-import-btn">Importieren</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
