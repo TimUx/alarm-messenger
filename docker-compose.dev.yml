@@ -16,6 +16,7 @@ services:
       - SERVER_URL=http://localhost:3000
       - API_SECRET_KEY=${API_SECRET_KEY:-dev-secret-key}
       - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
     volumes:
       # Mount source code for hot reload
       - ./server/src:/app/src
