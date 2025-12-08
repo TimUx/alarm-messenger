@@ -244,14 +244,14 @@ Register a mobile device with the server.
 ```json
 {
   "deviceToken": "generated-uuid",
-  "registrationToken": "fcm-token-from-firebase",
+  "registrationToken": "device-unique-identifier",
   "platform": "android"
 }
 ```
 
 **Parameters:**
 - `deviceToken` - Token from QR code
-- `registrationToken` - FCM token from the device
+- `registrationToken` - Unique device identifier for WebSocket connection
 - `platform` - Either "ios" or "android"
 
 **Response:** `201 Created` (or `200 OK` if updating existing)
@@ -259,7 +259,7 @@ Register a mobile device with the server.
 {
   "id": "device-uuid",
   "deviceToken": "generated-uuid",
-  "registrationToken": "fcm-token-from-firebase",
+  "registrationToken": "device-unique-identifier",
   "platform": "android",
   "registeredAt": "2024-12-07T19:00:00.000Z",
   "active": true
@@ -283,7 +283,7 @@ Retrieve all registered and active devices.
   {
     "id": "device-uuid",
     "deviceToken": "generated-uuid",
-    "registrationToken": "fcm-token",
+    "registrationToken": "device-unique-identifier",
     "platform": "android",
     "registeredAt": "2024-12-07T19:00:00.000Z",
     "active": true
@@ -304,7 +304,7 @@ Retrieve a specific device.
 {
   "id": "device-uuid",
   "deviceToken": "generated-uuid",
-  "registrationToken": "fcm-token",
+  "registrationToken": "device-unique-identifier",
   "platform": "android",
   "registeredAt": "2024-12-07T19:00:00.000Z",
   "active": true

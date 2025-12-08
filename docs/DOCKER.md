@@ -79,7 +79,7 @@ cp .env.example .env
 nano .env
 ```
 
-**Wichtig:** Konfigurieren Sie Firebase-Zugangsdaten in `.env` damit Push-Benachrichtigungen funktionieren.
+**Hinweis:** Das System verwendet WebSocket für Push-Benachrichtigungen. Firebase wird nicht mehr benötigt!
 
 ### 3. Server starten (Produktiv)
 ```bash
@@ -453,18 +453,9 @@ sudo rm ./server/data/*.db-shm ./server/data/*.db-wal
 docker compose up -d
 ```
 
-### Firebase funktioniert nicht
-```bash
-# Umgebungsvariablen prüfen
-docker compose exec alarm-messenger-server env | grep FIREBASE
-
-# Zugangsdaten-Format überprüfen
-# Privater Schlüssel muss \n durch tatsächliche Zeilenumbrüche in .env ersetzt haben
-```
-
 ## Produktiv-Deployment-Checkliste
 
-- [ ] Ordnungsgemäße `.env`-Datei mit Firebase-Zugangsdaten konfigurieren
+- [ ] Ordnungsgemäße `.env`-Datei mit API-Schlüsseln konfigurieren
 - [ ] SSL/TLS mit Caddy einrichten (automatisch mit Let's Encrypt)
 - [ ] Firewall-Regeln konfigurieren (Port 80 und 443 öffnen)
 - [ ] Automatisierte Backups einrichten

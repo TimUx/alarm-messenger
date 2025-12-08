@@ -244,14 +244,14 @@ Registriert ein mobiles Gerät beim Server.
 ```json
 {
   "deviceToken": "generated-uuid",
-  "registrationToken": "fcm-token-from-firebase",
+  "registrationToken": "device-unique-identifier",
   "platform": "android"
 }
 ```
 
 **Parameter:**
 - `deviceToken` - Token vom QR-Code
-- `registrationToken` - FCM-Token vom Gerät
+- `registrationToken` - Eindeutige Geräte-ID für WebSocket-Verbindung
 - `platform` - Entweder "ios" oder "android"
 
 **Antwort:** `201 Created` (oder `200 OK` bei Aktualisierung eines existierenden)
@@ -259,7 +259,7 @@ Registriert ein mobiles Gerät beim Server.
 {
   "id": "device-uuid",
   "deviceToken": "generated-uuid",
-  "registrationToken": "fcm-token-from-firebase",
+  "registrationToken": "device-unique-identifier",
   "platform": "android",
   "registeredAt": "2024-12-07T19:00:00.000Z",
   "active": true
@@ -283,7 +283,7 @@ Ruft alle registrierten und aktiven Geräte ab.
   {
     "id": "device-uuid",
     "deviceToken": "generated-uuid",
-    "registrationToken": "fcm-token",
+    "registrationToken": "device-unique-identifier",
     "platform": "android",
     "registeredAt": "2024-12-07T19:00:00.000Z",
     "active": true
@@ -304,7 +304,7 @@ Ruft ein spezifisches Gerät ab.
 {
   "id": "device-uuid",
   "deviceToken": "generated-uuid",
-  "registrationToken": "fcm-token",
+  "registrationToken": "device-unique-identifier",
   "platform": "android",
   "registeredAt": "2024-12-07T19:00:00.000Z",
   "active": true
