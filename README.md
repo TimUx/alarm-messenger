@@ -233,24 +233,64 @@ Das Admin-Interface ist erreichbar unter `http://dein-server:3000/admin/` und bi
 - Hell/Dunkel Theme-Umschaltung (Hell-Modus ist Standard)
 - Persistente Theme-Einstellung
 - Am alarm-monitor inspiriertes Design
+- QR-Code-Generierung für Geräteregistrierung
+- Verwaltung von Einsatzkräften mit Qualifikationen und Führungsrollen
+- **Alarmierungsgruppen-Verwaltung** (NEU)
+- CSV-Import für Gruppen
 
-### Login - Hell-Modus (Standard)
-![Admin Login Light](https://github.com/user-attachments/assets/4e31daa6-e7c9-4056-92c9-f76eea14a1c5)
+### Login
 
-### Login - Dunkel-Modus
-![Admin Login Dark](https://github.com/user-attachments/assets/4879ddf7-62b2-497b-9562-87ae9c5ede5b)
+| Hell-Modus | Dunkel-Modus |
+|------------|--------------|
+| <img src="screenshots/admin-login-light.png" width="400"> | <img src="screenshots/admin-login-dark.png" width="400"> |
 
-### Dashboard mit QR-Code-Generierung - Hell-Modus
-![Admin Dashboard Light](https://github.com/user-attachments/assets/6a4b9baf-c02d-4682-9494-99f0d36a851c)
+### Dashboard mit Einsatzkräften und Gruppen
 
-### Dashboard - Dunkel-Modus
-![Admin Dashboard Dark](https://github.com/user-attachments/assets/72ec7d0a-edc2-4ea8-b45c-68eb1fd9f0c3)
+| Hell-Modus | Dunkel-Modus |
+|------------|--------------|
+| <img src="screenshots/admin-dashboard-light.png" width="400"> | <img src="screenshots/admin-dashboard-dark.png" width="400"> |
 
-### QR-Code-Anzeige
-![QR Code Generation](https://github.com/user-attachments/assets/4c3b4cc3-fedd-4f6b-9892-d95aabc55f2d)
+Das Dashboard zeigt:
+- QR-Code-Generierung
+- Liste registrierter Einsatzkräfte mit Qualifikationen
+- Alarmierungsgruppen-Verwaltung
 
-### Einsatzkraft-Informationsverwaltung
-![Edit Responder](https://github.com/user-attachments/assets/14457c74-b918-44e3-aba2-8e22532ae3e0)
+### QR-Code-Generierung
+
+| Hell-Modus | Dunkel-Modus |
+|------------|--------------|
+| <img src="screenshots/admin-qr-code-light.png" width="400"> | <img src="screenshots/admin-qr-code-dark.png" width="400"> |
+
+### Einsatzkraft bearbeiten
+
+| Hell-Modus | Dunkel-Modus |
+|------------|--------------|
+| <img src="screenshots/admin-edit-device-light.png" width="400"> | <img src="screenshots/admin-edit-device-dark.png" width="400"> |
+
+Modal zum Bearbeiten von Einsatzkraft-Informationen:
+- Name
+- Qualifikationen (Maschinist, AGT, Sanitäter)
+- Führungsrolle (Gruppenführer, Zugführer)
+- **Gruppenzuordnungen** (NEU)
+
+### Gruppe hinzufügen/bearbeiten
+
+| Hell-Modus | Dunkel-Modus |
+|------------|--------------|
+| <img src="screenshots/admin-add-group-light.png" width="400"> | <img src="screenshots/admin-add-group-dark.png" width="400"> |
+
+Erstellen oder Bearbeiten von Alarmierungsgruppen mit:
+- Gruppen-Kürzel (z.B. WIL26)
+- Name (z.B. WIL Steina M)
+- Optionale Beschreibung
+
+### CSV-Import für Gruppen
+
+| Hell-Modus | Dunkel-Modus |
+|------------|--------------|
+| <img src="screenshots/admin-import-csv-light.png" width="400"> | <img src="screenshots/admin-import-csv-dark.png" width="400"> |
+
+Massenimport von Gruppen im CSV-Format: `code,name,description`
 
 ### Initiale Admin-Einrichtung
 
