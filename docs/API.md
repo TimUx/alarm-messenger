@@ -175,42 +175,77 @@ Sendet die Rückmeldung eines Geräts (Teilnahme oder Ablehnung) zu einem Einsat
 
 ### Einsatz-Teilnehmer abrufen
 
-Ruft alle Geräte ab, die ihre Teilnahme an einem Einsatz bestätigt haben.
+Ruft alle Geräte ab, die ihre Teilnahme an einem Einsatz bestätigt haben, **inklusive vollständiger Einsatzkraft-Details** (Name, Qualifikationen, Führungsrolle).
 
 **Endpunkt:** `GET /api/emergencies/:id/participants`
+
+🔒 **Authentifizierung erforderlich:** API-Key über `X-API-Key` Header
+
+**Request Header:**
+```
+X-API-Key: ihr-geheimer-api-key
+```
 
 **Antwort:** `200 OK`
 ```json
 {
   "emergencyId": "550e8400-e29b-41d4-a716-446655440000",
-  "totalParticipants": 5,
+  "totalParticipants": 2,
   "participants": [
     {
       "id": "response-uuid-1",
       "deviceId": "device-uuid-1",
       "platform": "android",
-      "respondedAt": "2024-12-07T19:02:00.000Z"
+      "respondedAt": "2024-12-07T19:02:00.000Z",
+      "responder": {
+        "firstName": "Max",
+        "lastName": "Mustermann",
+        "qualifications": {
+          "machinist": true,
+          "agt": true,
+          "paramedic": false
+        },
+        "leadershipRole": "groupLeader"
+      }
     },
     {
       "id": "response-uuid-2",
       "deviceId": "device-uuid-2",
       "platform": "ios",
-      "respondedAt": "2024-12-07T19:03:00.000Z"
+      "respondedAt": "2024-12-07T19:03:00.000Z",
+      "responder": {
+        "firstName": "Anna",
+        "lastName": "Schmidt",
+        "qualifications": {
+          "machinist": false,
+          "agt": true,
+          "paramedic": true
+        },
+        "leadershipRole": "none"
+      }
     }
   ]
 }
 ```
 
 **Fehlerantworten:**
+- `401 Unauthorized` - API-Key fehlt oder ist ungültig
 - `404 Not Found` - Einsatz nicht gefunden
 
 ---
 
 ### Alle Rückmeldungen abrufen
 
-Ruft alle Rückmeldungen (sowohl Teilnahme als auch Ablehnung) für einen Einsatz ab.
+Ruft alle Rückmeldungen (sowohl Teilnahme als auch Ablehnung) für einen Einsatz ab, **inklusive vollständiger Einsatzkraft-Details** (Name, Qualifikationen, Führungsrolle).
 
 **Endpunkt:** `GET /api/emergencies/:id/responses`
+
+🔒 **Authentifizierung erforderlich:** API-Key über `X-API-Key` Header
+
+**Request Header:**
+```
+X-API-Key: ihr-geheimer-api-key
+```
 
 **Antwort:** `200 OK`
 ```json
@@ -221,7 +256,17 @@ Ruft alle Rückmeldungen (sowohl Teilnahme als auch Ablehnung) für einen Einsat
     "deviceId": "device-uuid-1",
     "platform": "android",
     "participating": true,
-    "respondedAt": "2024-12-07T19:02:00.000Z"
+    "respondedAt": "2024-12-07T19:02:00.000Z",
+    "responder": {
+      "firstName": "Max",
+      "lastName": "Mustermann",
+      "qualifications": {
+        "machinist": true,
+        "agt": true,
+        "paramedic": false
+      },
+      "leadershipRole": "groupLeader"
+    }
   },
   {
     "id": "response-uuid-2",
@@ -229,10 +274,25 @@ Ruft alle Rückmeldungen (sowohl Teilnahme als auch Ablehnung) für einen Einsat
     "deviceId": "device-uuid-2",
     "platform": "ios",
     "participating": false,
-    "respondedAt": "2024-12-07T19:03:00.000Z"
+    "respondedAt": "2024-12-07T19:03:00.000Z",
+    "responder": {
+      "firstName": "Anna",
+      "lastName": "Schmidt",
+      "qualifications": {
+        "machinist": false,
+        "agt": true,
+        "paramedic": true
+      },
+      "leadershipRole": "none"
+    }
   }
 ]
 ```
+
+**Fehlerantworten:**
+- `401 Unauthorized` - API-Key fehlt oder ist ungültig
+
+**Hinweis:** Für detaillierte Informationen zur Datenstruktur und Integration siehe [RUECKMELDUNGEN-API.md](RUECKMELDUNGEN-API.md).
 
 ---
 
@@ -386,13 +446,29 @@ async function createEmergency() {
   return response.data.id;
 }
 
-// Teilnehmer abrufen
+// Teilnehmer mit vollständigen Einsatzkraft-Details abrufen
 async function getParticipants(emergencyId) {
   const response = await axios.get(
-    `${API_BASE_URL}/emergencies/${emergencyId}/participants`
+    `${API_BASE_URL}/emergencies/${emergencyId}/participants`,
+    {
+      headers: {
+        'X-API-Key': API_KEY  // API-Key erforderlich!
+      }
+    }
   );
   
   console.log('Teilnehmer:', response.data);
+  
+  // Beispiel: Details ausgeben
+  response.data.participants.forEach(p => {
+    const name = `${p.responder.firstName} ${p.responder.lastName}`;
+    const quals = [];
+    if (p.responder.qualifications.machinist) quals.push('Maschinist');
+    if (p.responder.qualifications.agt) quals.push('AGT');
+    if (p.responder.qualifications.paramedic) quals.push('Sanitäter');
+    console.log(`${name} (${quals.join(', ')})`);
+  });
+  
   return response.data.participants;
 }
 
@@ -442,13 +518,31 @@ def create_emergency():
     return emergency['id']
 
 def get_participants(emergency_id):
+    headers = {
+        'X-API-Key': API_KEY  # API-Key erforderlich!
+    }
+    
     response = requests.get(
-        f'{API_BASE_URL}/emergencies/{emergency_id}/participants'
+        f'{API_BASE_URL}/emergencies/{emergency_id}/participants',
+        headers=headers
     )
     response.raise_for_status()
     
     data = response.json()
     print(f"Gesamt Teilnehmer: {data['totalParticipants']}")
+    
+    # Beispiel: Details ausgeben
+    for p in data['participants']:
+        name = f"{p['responder']['firstName']} {p['responder']['lastName']}"
+        quals = []
+        if p['responder']['qualifications']['machinist']:
+            quals.append('Maschinist')
+        if p['responder']['qualifications']['agt']:
+            quals.append('AGT')
+        if p['responder']['qualifications']['paramedic']:
+            quals.append('Sanitäter')
+        print(f"{name} ({', '.join(quals)})")
+    
     return data['participants']
 
 # Verwendung
@@ -471,8 +565,13 @@ curl -X POST http://localhost:3000/api/emergencies \
     "emergencyLocation": "Hauptstraße 123, 12345 Stadt"
   }'
 
-# Teilnehmer abrufen (keine Authentifizierung erforderlich)
-curl http://localhost:3000/api/emergencies/{emergency-id}/participants
+# Teilnehmer mit vollständigen Einsatzkraft-Details abrufen (benötigt API-Key)
+curl http://localhost:3000/api/emergencies/{emergency-id}/participants \
+  -H "X-API-Key: ihr-geheimer-api-key"
+
+# Alle Rückmeldungen abrufen (benötigt API-Key)
+curl http://localhost:3000/api/emergencies/{emergency-id}/responses \
+  -H "X-API-Key: ihr-geheimer-api-key"
 
 # Registrierungs-QR-Code generieren
 curl -X POST http://localhost:3000/api/devices/registration-token

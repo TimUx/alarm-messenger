@@ -11,6 +11,20 @@ import {
 
 const router = Router();
 
+// Helper function to map database row to responder object
+function mapResponderDetails(row: any) {
+  return {
+    firstName: row.first_name,
+    lastName: row.last_name,
+    qualifications: {
+      machinist: row.qual_machinist === 1,
+      agt: row.qual_agt === 1,
+      paramedic: row.qual_paramedic === 1,
+    },
+    leadershipRole: row.leadership_role || 'none',
+  };
+}
+
 // Create a new emergency and trigger push notifications (protected with API key)
 router.post('/', verifyApiKey, async (req: Request, res: Response) => {
   try {
@@ -251,8 +265,8 @@ router.post('/:id/responses', async (req: Request, res: Response) => {
   }
 });
 
-// Get participants for an emergency
-router.get('/:id/participants', async (req: Request, res: Response) => {
+// Get participants for an emergency with full responder details (protected with API key)
+router.get('/:id/participants', verifyApiKey, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -264,7 +278,8 @@ router.get('/:id/participants', async (req: Request, res: Response) => {
     }
 
     const rows = await dbAll(
-      `SELECT r.*, d.id as device_id, d.platform
+      `SELECT r.*, d.id as device_id, d.platform, d.first_name, d.last_name,
+              d.qual_machinist, d.qual_agt, d.qual_paramedic, d.leadership_role
        FROM responses r
        JOIN devices d ON r.device_id = d.id
        WHERE r.emergency_id = ? AND r.participating = 1
@@ -277,6 +292,8 @@ router.get('/:id/participants', async (req: Request, res: Response) => {
       deviceId: row.device_id,
       platform: row.platform,
       respondedAt: row.responded_at,
+      // Responder details from devices table
+      responder: mapResponderDetails(row),
     }));
 
     res.json({
@@ -290,13 +307,14 @@ router.get('/:id/participants', async (req: Request, res: Response) => {
   }
 });
 
-// Get all responses for an emergency
-router.get('/:id/responses', async (req: Request, res: Response) => {
+// Get all responses for an emergency with full responder details (protected with API key)
+router.get('/:id/responses', verifyApiKey, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
     const rows = await dbAll(
-      `SELECT r.*, d.platform
+      `SELECT r.*, d.platform, d.first_name, d.last_name,
+              d.qual_machinist, d.qual_agt, d.qual_paramedic, d.leadership_role
        FROM responses r
        JOIN devices d ON r.device_id = d.id
        WHERE r.emergency_id = ?
@@ -311,6 +329,8 @@ router.get('/:id/responses', async (req: Request, res: Response) => {
       platform: row.platform,
       participating: row.participating === 1,
       respondedAt: row.responded_at,
+      // Responder details from devices table
+      responder: mapResponderDetails(row),
     }));
 
     res.json(responses);
