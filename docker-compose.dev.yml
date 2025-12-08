@@ -14,10 +14,8 @@ services:
       - PORT=3000
       - DATABASE_PATH=/app/data/alarm-messenger.db
       - SERVER_URL=http://localhost:3000
-      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-your-project-id}
-      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY:-your-private-key}
-      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL:-your-client-email}
       - API_SECRET_KEY=${API_SECRET_KEY:-dev-secret-key}
+      - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret}
     volumes:
       # Mount source code for hot reload
       - ./server/src:/app/src
