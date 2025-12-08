@@ -1,0 +1,127 @@
+# Caddy Configuration für Alarm Messenger
+# 
+# Dieses Caddyfile konfiguriert:
+# - Automatische HTTPS mit Let's Encrypt
+# - WebSocket-Unterstützung für Push-Benachrichtigungen
+# - Reverse Proxy für den Backend Server
+# - Admin Web-Interface
+# - Rate Limiting zum Schutz vor Missbrauch
+
+# Für lokales Testen (ohne Domain)
+# Kommentieren Sie diesen Block aus, wenn Sie eine richtige Domain verwenden
+:80 {
+    # Reverse Proxy zum Backend Server
+    reverse_proxy alarm-messenger-server:3000 {
+        # WebSocket-Unterstützung
+        # Caddy unterstützt WebSockets automatisch, keine zusätzliche Konfiguration nötig
+        
+        # Timeouts
+        transport http {
+            dial_timeout 30s
+            response_header_timeout 60s
+        }
+    }
+}
+
+# Für Produktiv-Deployment mit echter Domain
+# Ersetzen Sie 'ihre-domain.de' mit Ihrer tatsächlichen Domain
+# Entfernen Sie die Kommentarzeichen um diese Konfiguration zu aktivieren
+# ihre-domain.de {
+#     # Automatisches HTTPS mit Let's Encrypt
+#     # Caddy holt und erneuert Zertifikate automatisch
+#     
+#     # Optional: E-Mail für Let's Encrypt Benachrichtigungen
+#     # tls ihre-email@example.com
+#     
+#     # Rate Limiting zum Schutz vor Missbrauch
+#     # Begrenzt auf 100 Anfragen pro Sekunde pro IP
+#     # rate_limit {
+#     #     zone dynamic {
+#     #         key {remote_host}
+#     #         events 100
+#     #         window 1s
+#     #     }
+#     # }
+#     
+#     # Sicherheits-Header
+#     header {
+#         # Verhindert Clickjacking
+#         X-Frame-Options "SAMEORIGIN"
+#         
+#         # XSS-Schutz
+#         X-Content-Type-Options "nosniff"
+#         X-XSS-Protection "1; mode=block"
+#         
+#         # Content Security Policy
+#         Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+#         
+#         # Referrer Policy
+#         Referrer-Policy "strict-origin-when-cross-origin"
+#         
+#         # HSTS (HTTP Strict Transport Security)
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+#     }
+#     
+#     # Logging
+#     log {
+#         output file /var/log/caddy/access.log {
+#             roll_size 100mb
+#             roll_keep 10
+#             roll_keep_for 720h
+#         }
+#         format json
+#     }
+#     
+#     # Reverse Proxy zum Backend Server
+#     reverse_proxy alarm-messenger-server:3000 {
+#         # WebSocket-Unterstützung ist automatisch aktiviert
+#         
+#         # Health Check
+#         health_uri /health
+#         health_interval 30s
+#         health_timeout 10s
+#         
+#         # Timeouts
+#         transport http {
+#             dial_timeout 30s
+#             response_header_timeout 60s
+#             read_timeout 60s
+#             write_timeout 60s
+#         }
+#         
+#         # Headers für Proxy
+#         header_up Host {host}
+#         header_up X-Real-IP {remote_host}
+#         header_up X-Forwarded-For {remote_host}
+#         header_up X-Forwarded-Proto {scheme}
+#     }
+#     
+#     # Fehlerseiten
+#     handle_errors {
+#         @5xx expression `{http.error.status_code} >= 500 && {http.error.status_code} < 600`
+#         respond @5xx "Server-Fehler. Bitte versuchen Sie es später erneut." 500
+#         
+#         @4xx expression `{http.error.status_code} >= 400 && {http.error.status_code} < 500`
+#         respond @4xx "Anfrage konnte nicht verarbeitet werden." {http.error.status_code}
+#     }
+# }
+
+# Subdomain-Konfiguration für Admin-Interface (optional)
+# admin.ihre-domain.de {
+#     # Automatisches HTTPS mit Let's Encrypt
+#     tls ihre-email@example.com
+#     
+#     # Zugriffsbeschränkung auf Admin-Bereich
+#     @admin {
+#         path /admin/*
+#     }
+#     
+#     # Sicherheits-Header für Admin-Interface
+#     header @admin {
+#         X-Frame-Options "DENY"
+#         X-Content-Type-Options "nosniff"
+#     }
+#     
+#     # Reverse Proxy zum Backend Server
+#     reverse_proxy alarm-messenger-server:3000
+# }

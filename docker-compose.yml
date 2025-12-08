@@ -35,7 +35,7 @@ services:
       retries: 3
       start_period: 40s
 
-  # Optional: Nginx reverse proxy for SSL/TLS termination
+  # Optional: Nginx reverse proxy for SSL/TLS termination (Legacy)
   nginx:
     image: nginx:alpine
     container_name: alarm-messenger-nginx
@@ -53,10 +53,34 @@ services:
     profiles:
       - with-nginx
 
+  # Optional: Caddy reverse proxy für SSL/TLS termination mit automatischem HTTPS
+  caddy:
+    image: caddy:2-alpine
+    container_name: alarm-messenger-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"  # HTTP/3 Support
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - alarm-messenger-server
+    networks:
+      - alarm-messenger-network
+    profiles:
+      - with-caddy
+
 networks:
   alarm-messenger-network:
     driver: bridge
 
 volumes:
   alarm-messenger-data:
+    driver: local
+  caddy-data:
+    driver: local
+  caddy-config:
     driver: local
