@@ -146,7 +146,18 @@ export const dbAll = (sql: string, params: any[] = []): Promise<any[]> => {
   });
 };
 
-// Database migration function
+/**
+ * Database migration function
+ * 
+ * Performs the following migrations if needed:
+ * 1. Adds 'leadership_role' column to devices table (replaces is_squad_leader)
+ * 2. Migrates existing is_squad_leader values to leadership_role='groupLeader'
+ * 3. Adds 'groups' column to emergencies table for comma-separated group codes
+ * 
+ * Note: Old columns (qual_th_vu, qual_th_bau, is_squad_leader) are not dropped
+ * to maintain backward compatibility with existing data. They are simply ignored
+ * by the application code.
+ */
 async function migrateDatabase(): Promise<void> {
   try {
     // Check if migration is needed by checking for old columns

@@ -62,8 +62,15 @@ router.post('/', verifyToken, async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Validate code format (only alphanumeric and dash, max 20 chars)
+    const upperCode = code.toUpperCase();
+    if (!/^[A-Z0-9-]{1,20}$/.test(upperCode)) {
+      res.status(400).json({ error: 'Invalid group code format. Use only letters, numbers, and dashes (max 20 characters).' });
+      return;
+    }
+
     // Check if group already exists
-    const existing = await dbGet('SELECT * FROM groups WHERE code = ?', [code]);
+    const existing = await dbGet('SELECT * FROM groups WHERE code = ?', [upperCode]);
     if (existing) {
       res.status(409).json({ error: 'Group with this code already exists' });
       return;
@@ -73,11 +80,11 @@ router.post('/', verifyToken, async (req: AuthRequest, res: Response) => {
 
     await dbRun(
       'INSERT INTO groups (code, name, description, created_at) VALUES (?, ?, ?, ?)',
-      [code.toUpperCase(), name, description || null, createdAt]
+      [upperCode, name, description || null, createdAt]
     );
 
     const group: Group = {
-      code: code.toUpperCase(),
+      code: upperCode,
       name,
       description,
       createdAt,

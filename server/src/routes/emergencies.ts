@@ -38,6 +38,26 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
     const id = uuidv4();
     const createdAt = new Date().toISOString();
 
+    // Validate and sanitize groups parameter
+    let sanitizedGroups = null;
+    if (groups) {
+      // Remove whitespace and validate format (only alphanumeric, comma, and dash allowed)
+      const cleanedGroups = groups.trim().toUpperCase();
+      if (!/^[A-Z0-9,-]+$/.test(cleanedGroups)) {
+        res.status(400).json({ error: 'Groups parameter contains invalid characters. Only letters, numbers, commas, and dashes are allowed.' });
+        return;
+      }
+      
+      // Limit number of groups to prevent DoS
+      const groupArray = cleanedGroups.split(',').filter(g => g.trim());
+      if (groupArray.length > 50) {
+        res.status(400).json({ error: 'Too many groups specified. Maximum 50 groups allowed.' });
+        return;
+      }
+      
+      sanitizedGroups = groupArray.join(',');
+    }
+
     // Insert emergency into database
     await dbRun(
       `INSERT INTO emergencies (id, emergency_number, emergency_date, emergency_keyword, emergency_description, emergency_location, created_at, active, groups)
@@ -51,15 +71,15 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
         emergencyLocation,
         createdAt,
         1,
-        groups || null,
+        sanitizedGroups,
       ]
     );
 
     // Get devices to notify based on groups
     let devices;
-    if (groups) {
+    if (sanitizedGroups) {
       // If groups are specified, only notify devices assigned to those groups
-      const groupCodes = groups.split(',').map(g => g.trim().toUpperCase());
+      const groupCodes = sanitizedGroups.split(',').map(g => g.trim());
       const placeholders = groupCodes.map(() => '?').join(',');
       
       devices = await dbAll(
@@ -70,7 +90,7 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
         groupCodes
       );
       
-      console.log(`✓ Found ${devices.length} devices matching groups: ${groups}`);
+      console.log(`✓ Found ${devices.length} devices matching groups: ${sanitizedGroups}`);
     } else {
       // If no groups specified, notify all active devices
       devices = await dbAll(
@@ -90,7 +110,7 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
       emergencyKeyword,
       emergencyDescription,
       emergencyLocation,
-      groups: groups || '',
+      groups: sanitizedGroups || '',
     };
 
     // Send notifications via WebSocket
@@ -114,7 +134,7 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
       emergencyLocation,
       createdAt,
       active: true,
-      groups,
+      groups: sanitizedGroups,
     };
 
     res.status(201).json(emergency);

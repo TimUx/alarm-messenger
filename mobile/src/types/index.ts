@@ -7,6 +7,7 @@ export interface Emergency {
   emergencyLocation: string;
   createdAt: string;
   active: boolean;
+  groups?: string; // Comma-separated group codes
 }
 
 export interface Device {
@@ -25,4 +26,5 @@ export interface PushNotificationData {
   emergencyKeyword: string;
   emergencyDescription: string;
   emergencyLocation: string;
+  groups?: string; // Comma-separated group codes
 }
