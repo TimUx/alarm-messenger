@@ -53,7 +53,7 @@ services:
     profiles:
       - with-nginx
 
-  # Optional: Caddy reverse proxy für SSL/TLS termination mit automatischem HTTPS
+  # Optional: Caddy Reverse Proxy für SSL/TLS Terminierung mit automatischem HTTPS
   caddy:
     image: caddy:2-alpine
     container_name: alarm-messenger-caddy
