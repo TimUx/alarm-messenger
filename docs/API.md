@@ -10,7 +10,22 @@ Für den Produktivbetrieb ersetzen Sie dies mit Ihrer Server-URL.
 
 ## Authentifizierung
 
-Derzeit erfordert die API keine Authentifizierung. Für den Produktivbetrieb implementieren Sie API-Keys oder OAuth2.
+Die API verwendet **API-Key-Authentifizierung** für kritische Endpunkte. Für den Produktivbetrieb muss ein sicherer API-Key konfiguriert werden.
+
+**Geschützte Endpunkte erfordern den HTTP-Header:**
+```
+X-API-Key: ihr-geheimer-api-key
+```
+
+**Konfiguration:**
+```bash
+# In server/.env oder .env (Docker)
+API_SECRET_KEY=ihr-geheimer-api-key-hier
+```
+
+⚠️ **Wichtig:** Ändern Sie den Standard-API-Key vor dem Produktivbetrieb! Der Server gibt eine Warnung aus und lehnt Anfragen ab, wenn der Standard-Wert in der Produktionsumgebung verwendet wird.
+
+**Weitere Details:** Siehe [AUTHENTIFIZIERUNG.md](AUTHENTIFIZIERUNG.md) für vollständige Dokumentation.
 
 ## Endpunkte
 
@@ -37,6 +52,14 @@ Prüfen, ob der Server läuft.
 Erstellt einen neuen Einsatz und löst Push-Benachrichtigungen an alle registrierten Geräte aus.
 
 **Endpunkt:** `POST /api/emergencies`
+
+🔒 **Authentifizierung erforderlich:** API-Key über `X-API-Key` Header
+
+**Request Header:**
+```
+Content-Type: application/json
+X-API-Key: ihr-geheimer-api-key
+```
 
 **Request Body:**
 ```json
@@ -65,7 +88,8 @@ Erstellt einen neuen Einsatz und löst Push-Benachrichtigungen an alle registrie
 
 **Fehlerantworten:**
 - `400 Bad Request` - Erforderliche Felder fehlen
-- `500 Internal Server Error` - Serverfehler
+- `401 Unauthorized` - API-Key fehlt oder ist ungültig
+- `500 Internal Server Error` - Serverfehler oder API-Key nicht konfiguriert (Produktionsmodus)
 
 ---
 
@@ -342,6 +366,7 @@ Deaktiviert ein registriertes Gerät (Soft Delete).
 const axios = require('axios');
 
 const API_BASE_URL = 'http://localhost:3000/api';
+const API_KEY = 'ihr-geheimer-api-key'; // Aus Umgebungsvariablen laden!
 
 // Einsatz erstellen
 async function createEmergency() {
@@ -351,6 +376,10 @@ async function createEmergency() {
     emergencyKeyword: 'BRAND 3',
     emergencyDescription: 'Wohnungsbrand im 2. OG',
     emergencyLocation: 'Hauptstraße 123, 12345 Stadt'
+  }, {
+    headers: {
+      'X-API-Key': API_KEY  // API-Key erforderlich!
+    }
   });
   
   console.log('Einsatz erstellt:', response.data);
@@ -382,9 +411,11 @@ async function getParticipants(emergencyId) {
 ```python
 import requests
 import json
+import os
 from datetime import datetime
 
 API_BASE_URL = 'http://localhost:3000/api'
+API_KEY = os.environ.get('API_SECRET_KEY', 'ihr-geheimer-api-key')  # Aus Umgebung laden!
 
 def create_emergency():
     data = {
@@ -395,7 +426,15 @@ def create_emergency():
         'emergencyLocation': 'Hauptstraße 123, 12345 Stadt'
     }
     
-    response = requests.post(f'{API_BASE_URL}/emergencies', json=data)
+    headers = {
+        'X-API-Key': API_KEY  # API-Key erforderlich!
+    }
+    
+    response = requests.post(
+        f'{API_BASE_URL}/emergencies', 
+        json=data, 
+        headers=headers  # Headers mit API-Key hinzufügen
+    )
     response.raise_for_status()
     
     emergency = response.json()
@@ -420,9 +459,10 @@ participants = get_participants(emergency_id)
 ### cURL-Beispiele
 
 ```bash
-# Einsatz erstellen
+# Einsatz erstellen (benötigt API-Key)
 curl -X POST http://localhost:3000/api/emergencies \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: ihr-geheimer-api-key" \
   -d '{
     "emergencyNumber": "2024-001",
     "emergencyDate": "2024-12-07T19:00:00Z",
@@ -431,7 +471,7 @@ curl -X POST http://localhost:3000/api/emergencies \
     "emergencyLocation": "Hauptstraße 123, 12345 Stadt"
   }'
 
-# Teilnehmer abrufen
+# Teilnehmer abrufen (keine Authentifizierung erforderlich)
 curl http://localhost:3000/api/emergencies/{emergency-id}/participants
 
 # Registrierungs-QR-Code generieren

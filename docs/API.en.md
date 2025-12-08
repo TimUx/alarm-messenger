@@ -10,7 +10,22 @@ For production, replace with your server URL.
 
 ## Authentication
 
-Currently, the API does not require authentication. For production use, implement API keys or OAuth2.
+The API uses **API Key authentication** for critical endpoints. A secure API key must be configured for production use.
+
+**Protected endpoints require the HTTP header:**
+```
+X-API-Key: your-secret-api-key
+```
+
+**Configuration:**
+```bash
+# In server/.env or .env (Docker)
+API_SECRET_KEY=your-secret-api-key-here
+```
+
+⚠️ **Important:** Change the default API key before production use! The server will issue a warning and reject requests if the default value is used in a production environment.
+
+**More details:** See [AUTHENTIFIZIERUNG.md](AUTHENTIFIZIERUNG.md) for complete documentation (German).
 
 ## Endpoints
 
@@ -37,6 +52,14 @@ Check if the server is running.
 Create a new emergency and trigger push notifications to all registered devices.
 
 **Endpoint:** `POST /api/emergencies`
+
+🔒 **Authentication required:** API Key via `X-API-Key` header
+
+**Request Headers:**
+```
+Content-Type: application/json
+X-API-Key: your-secret-api-key
+```
 
 **Request Body:**
 ```json
