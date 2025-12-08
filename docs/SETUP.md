@@ -36,9 +36,9 @@ PORT=3000
 NODE_ENV=production
 
 # Firebase-Konfiguration
-FIREBASE_PROJECT_ID=ihr-projekt-id
+FIREBASE_PROJECT_ID=ihre-projekt-id
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nIhr privater Schlüssel hier\n-----END PRIVATE KEY-----\n"
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@ihr-projekt-id.iam.gserviceaccount.com
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@ihre-projekt-id.iam.gserviceaccount.com
 
 # Datenbank
 DATABASE_PATH=./data/alarm-messenger.db
@@ -52,7 +52,7 @@ SERVER_URL=http://localhost:3000
 
 **Wichtig:** 
 - Halten Sie Ihre Firebase-Zugangsdaten sicher
-- Committen Sie niemals die `.env`-Datei in die Versionskontrolle
+- Checken Sie niemals die `.env`-Datei in die Versionskontrolle ein
 - Ersetzen Sie Zeilenumbrüche in `FIREBASE_PRIVATE_KEY` durch `\n`
 
 ## Schritt 4: Anwendung bauen

@@ -32,4 +32,4 @@ sudo cp /etc/letsencrypt/live/ihre-domain.de/privkey.pem nginx/ssl/key.pem
 
 ## Sicherheit
 
-**Wichtig:** SSL-Zertifikate nicht in die Versionskontrolle committen!
+**Wichtig:** SSL-Zertifikate nicht in die Versionskontrolle einchecken!
