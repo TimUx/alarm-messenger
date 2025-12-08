@@ -21,6 +21,7 @@ Das Alarm Messenger System ist eine vollständige Alarmierungslösung bestehend 
 - ✅ API-Endpunkt zum Abrufen teilnehmender Einsatzkräfte
 - ✅ **API-Key-Authentifizierung für Einsatzerstellung**
 - ✅ **JWT-basierte Admin-Authentifizierung**
+- ✅ **Base64-Kodierung für Secrets** (optional, mit Plain-Text Fallback)
 - ✅ **Erweiterte Geräte-/Einsatzkraft-Informationsspeicherung**
 
 ### Admin Web-Interface (NEU)
@@ -223,6 +224,7 @@ npm run android
 
 **📚 Detaillierte Informationen:**
 - Siehe [docs/AUTHENTIFIZIERUNG.md](docs/AUTHENTIFIZIERUNG.md) für vollständige Authentifizierungsdokumentation
+- Siehe [docs/BASE64-SECRETS.md](docs/BASE64-SECRETS.md) für Base64-Kodierung von Secrets (NEU)
 - Siehe [docs/SERVER-KONFIGURATION.md](docs/SERVER-KONFIGURATION.md) für Server-Setup und URL-Konfiguration
 
 ## Admin-Interface

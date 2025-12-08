@@ -150,6 +150,29 @@ Diese Tokens ermöglichen die Identifikation des Geräts ohne zusätzliche Authe
 
 ## Sicherheitsmodell
 
+### Base64-Kodierung für Secrets
+
+**NEU:** Das System unterstützt jetzt Base64-kodierte Secrets für `API_SECRET_KEY` und `JWT_SECRET`.
+
+**Vorteile:**
+- Secrets sind nicht sofort lesbar in Konfigurationsdateien
+- Reduziert das Risiko versehentlicher Offenlegung in Logs oder Screenshots
+- Zusätzliche Sicherheitsebene bei der Speicherung
+- Vollständige Rückwärtskompatibilität mit Plain-Text Secrets
+
+**Verwendung:**
+```bash
+# Plain-Text Secret (funktioniert weiterhin)
+API_SECRET_KEY=my-secret-key
+
+# Base64-kodiertes Secret (wird automatisch dekodiert)
+API_SECRET_KEY=bXktc2VjcmV0LWtleQ==
+```
+
+Das System erkennt automatisch, ob ein Secret Base64-kodiert ist und dekodiert es bei Bedarf. Plain-Text Secrets funktionieren weiterhin ohne Änderungen.
+
+**Wichtig:** Base64-Kodierung ist **keine Verschlüsselung**, sondern nur eine Verschleierung. Für echte Sicherheit ist HTTPS zwingend erforderlich, und Secrets müssen sicher aufbewahrt werden.
+
 ### Warum verschiedene Authentifizierungsmethoden?
 
 1. **API-Key für Einsatzerstellung:**
@@ -185,6 +208,7 @@ Diese Tokens ermöglichen die Identifikation des Geräts ohne zusätzliche Authe
    - Nie in Git committen
    - Umgebungsvariablen oder Secret-Management-Systeme verwenden
    - Zugriff auf .env-Dateien beschränken
+   - **Optional: Base64-Kodierung für zusätzliche Verschleierung verwenden**
 
 4. **API-Keys regelmäßig rotieren**
    - Besonders nach Verdacht auf Kompromittierung
@@ -288,21 +312,52 @@ Wenn Sie vom Entwicklungs- zum Produktivbetrieb wechseln:
 
 1. **Generieren Sie starke Secrets:**
 ```bash
-# Linux/Mac
+# Linux/Mac - Direkt als Base64
 openssl rand -base64 32  # Für API_SECRET_KEY
 openssl rand -base64 32  # Für JWT_SECRET
 
-# Oder mit Node.js
+# Oder mit Node.js - Direkt als Base64
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+# Wenn Sie Plain-Text verwenden möchten (auch unterstützt):
+openssl rand -hex 32
 ```
 
 2. **Konfigurieren Sie die Umgebungsvariablen:**
+
+**Option A: Base64-kodierte Secrets (empfohlen für zusätzliche Sicherheit)**
 ```bash
 # .env Datei
 NODE_ENV=production
-API_SECRET_KEY=<generierter-key-1>
-JWT_SECRET=<generierter-key-2>
+
+# Secrets im Base64-Format (werden automatisch dekodiert)
+API_SECRET_KEY=U3VwZXJTZWNyZXRBcGlLZXlGb3JQcm9kdWN0aW9u
+JWT_SECRET=U3VwZXJTZWNyZXRKV1RLZXlGb3JQcm9kdWN0aW9u
+
 SERVER_URL=https://ihre-domain.de
+```
+
+**Option B: Plain-Text Secrets (ebenfalls unterstützt)**
+```bash
+# .env Datei
+NODE_ENV=production
+API_SECRET_KEY=SuperSecretApiKeyForProduction
+JWT_SECRET=SuperSecretJWTKeyForProduction
+SERVER_URL=https://ihre-domain.de
+```
+
+**Hinweis:** Das System erkennt automatisch, ob ein Secret Base64-kodiert ist und dekodiert es entsprechend. Plain-Text Secrets funktionieren weiterhin für vollständige Rückwärtskompatibilität.
+
+**Base64-Kodierung eines bestehenden Secrets:**
+```bash
+# Linux/Mac
+echo -n "mein-geheimer-schlüssel" | base64
+
+# Windows PowerShell
+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("mein-geheimer-schlüssel"))
+
+# Node.js
+node -e "console.log(Buffer.from('mein-geheimer-schlüssel', 'utf-8').toString('base64'))"
 ```
 
 3. **Starten Sie den Server neu**
