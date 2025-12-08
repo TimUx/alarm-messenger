@@ -1,86 +1,86 @@
-# Quick Start with Docker
+# Schnellstart mit Docker
 
-The fastest way to run the Alarm Messenger server is using Docker.
+Der schnellste Weg, den Alarm Messenger Server zu betreiben, ist die Verwendung von Docker.
 
-## Prerequisites
+## Voraussetzungen
 
-- Docker installed on your Linux system
+- Docker auf Ihrem Linux-System installiert
 - Docker Compose (v2.0+)
 
-## Quick Start
+## Schnellstart
 
-1. **Clone the repository:**
+1. **Repository klonen:**
    ```bash
    git clone https://github.com/TimUx/alarm-messenger.git
    cd alarm-messenger
    ```
 
-2. **Configure environment:**
+2. **Umgebung konfigurieren:**
    ```bash
    cp .env.example .env
-   nano .env  # Edit with your API keys (Firebase no longer needed!)
+   nano .env  # Mit API-Schlüsseln bearbeiten (Firebase nicht mehr benötigt!)
    ```
 
-3. **Start the server:**
+3. **Server starten:**
    ```bash
    docker compose up -d
    ```
 
-4. **Check if running:**
+4. **Prüfen ob Server läuft:**
    ```bash
    curl http://localhost:3000/health
    ```
 
-That's it! The server is now running on port 3000.
+Das war's! Der Server läuft jetzt auf Port 3000.
 
-## Docker Commands
+## Docker-Befehle
 
 ```bash
-# Start server
+# Server starten
 docker compose up -d
 
-# View logs
+# Logs anzeigen
 docker compose logs -f
 
-# Stop server
+# Server stoppen
 docker compose down
 
-# Restart server
+# Server neu starten
 docker compose restart
 
-# Update and rebuild
+# Aktualisieren und neu bauen
 docker compose up -d --build
 ```
 
-## Development Mode
+## Entwicklungsmodus
 
-For development with hot reload:
+Für die Entwicklung mit Hot-Reload:
 
 ```bash
 docker compose -f docker-compose.dev.yml up
 ```
 
-## With SSL/TLS (Nginx)
+## Mit SSL/TLS (Nginx)
 
 ```bash
-# Generate self-signed certificate (testing only)
+# Selbstsigniertes Zertifikat generieren (nur zum Testen)
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout nginx/ssl/key.pem \
   -out nginx/ssl/cert.pem \
   -subj "/CN=localhost"
 
-# Start with Nginx
+# Mit Nginx starten
 docker compose --profile with-nginx up -d
 ```
 
-## Documentation
+## Dokumentation
 
-For complete documentation, see:
-- [docs/DOCKER.md](docs/DOCKER.md) - Complete Docker deployment guide
-- [docs/SETUP.md](docs/SETUP.md) - Native Linux setup
-- [docs/API.md](docs/API.md) - API documentation
+Für vollständige Dokumentation, siehe:
+- [docs/DOCKER.md](docs/DOCKER.md) - Vollständige Docker-Deployment-Anleitung
+- [docs/SETUP.md](docs/SETUP.md) - Native Linux-Einrichtung
+- [docs/API.md](docs/API.md) - API-Dokumentation
 
 ## Support
 
-- Check logs: `docker compose logs -f`
-- Report issues: https://github.com/TimUx/alarm-messenger/issues
+- Logs prüfen: `docker compose logs -f`
+- Probleme melden: https://github.com/TimUx/alarm-messenger/issues

@@ -1,127 +1,127 @@
-# Docker Deployment Guide
+# Docker-Deployment-Anleitung
 
-This guide explains how to deploy the Alarm Messenger server on Linux using Docker and docker-compose.
+Diese Anleitung erklärt, wie der Alarm Messenger Server auf Linux mittels Docker und docker-compose deployed wird.
 
-## Prerequisites
+## Voraussetzungen
 
-### System Requirements
-- Linux (Ubuntu 20.04+, Debian 11+, CentOS 8+, or similar)
+### Systemanforderungen
+- Linux (Ubuntu 20.04+, Debian 11+, CentOS 8+ oder ähnlich)
 - Docker 20.10+
 - Docker Compose 2.0+
 - 1GB RAM minimum
-- 10GB disk space
+- 10GB Festplattenspeicher
 
-### Install Docker
+### Docker installieren
 
 #### Ubuntu/Debian
 ```bash
-# Update package index
+# Paket-Index aktualisieren
 sudo apt-get update
 
-# Install dependencies
+# Abhängigkeiten installieren
 sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
 
-# Add Docker's official GPG key
+# Docker's offiziellen GPG-Schlüssel hinzufügen
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 
-# Set up stable repository
+# Stabiles Repository einrichten
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Install Docker Engine
+# Docker Engine installieren
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# Verify installation
+# Installation überprüfen
 docker --version
 docker compose version
 ```
 
 #### CentOS/RHEL
 ```bash
-# Install dependencies
+# Abhängigkeiten installieren
 sudo yum install -y yum-utils
 
-# Add Docker repository
+# Docker-Repository hinzufügen
 sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 
-# Install Docker Engine
+# Docker Engine installieren
 sudo yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# Start Docker
+# Docker starten
 sudo systemctl start docker
 sudo systemctl enable docker
 
-# Verify installation
+# Installation überprüfen
 docker --version
 docker compose version
 ```
 
-#### Add User to Docker Group
+#### Benutzer zur Docker-Gruppe hinzufügen
 ```bash
 sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-## Quick Start
+## Schnellstart
 
-### 1. Clone Repository
+### 1. Repository klonen
 ```bash
 git clone https://github.com/TimUx/alarm-messenger.git
 cd alarm-messenger
 ```
 
-### 2. Configure Environment
+### 2. Umgebung konfigurieren
 ```bash
-# Copy example environment file
+# Beispiel-Umgebungsdatei kopieren
 cp .env.example .env
 
-# Edit with your configuration
+# Mit Ihrer Konfiguration bearbeiten
 nano .env
 ```
 
-**Important:** Configure Firebase credentials in `.env` for push notifications to work.
+**Wichtig:** Konfigurieren Sie Firebase-Zugangsdaten in `.env` damit Push-Benachrichtigungen funktionieren.
 
-### 3. Start Server (Production)
+### 3. Server starten (Produktiv)
 ```bash
-# Build and start
+# Bauen und starten
 docker compose up -d
 
-# View logs
+# Logs anzeigen
 docker compose logs -f
 
-# Check status
+# Status prüfen
 docker compose ps
 ```
 
-The server will be available at `http://localhost:3000`
+Der Server ist verfügbar unter `http://localhost:3000`
 
-### 4. Verify Deployment
+### 4. Deployment verifizieren
 ```bash
-# Health check
+# Gesundheitsprüfung
 curl http://localhost:3000/health
 
-# Expected output:
+# Erwartete Ausgabe:
 # {"status":"ok","timestamp":"2024-12-07T19:00:00.000Z"}
 ```
 
-## Development Mode
+## Entwicklungsmodus
 
-For development with hot reload:
+Für Entwicklung mit Hot-Reload:
 
 ```bash
-# Start in development mode
+# Im Entwicklungsmodus starten
 docker compose -f docker-compose.dev.yml up
 
-# The server will restart automatically when you edit files in server/src/
+# Der Server startet automatisch neu wenn Sie Dateien in server/src/ bearbeiten
 ```
 
-## Using Nginx Reverse Proxy
+## Nginx Reverse Proxy verwenden
 
-To add SSL/TLS support with Nginx:
+Um SSL/TLS-Unterstützung mit Nginx hinzuzufügen:
 
-### 1. Configure SSL Certificates
+### 1. SSL-Zertifikate konfigurieren
 
-#### Self-Signed (Testing)
+#### Selbstsigniert (Zum Testen)
 ```bash
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout nginx/ssl/key.pem \
@@ -129,116 +129,116 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -subj "/CN=localhost"
 ```
 
-#### Let's Encrypt (Production)
+#### Let's Encrypt (Produktiv)
 ```bash
-# Install certbot
+# Certbot installieren
 sudo apt-get install certbot
 
-# Generate certificate (stop docker-compose first)
+# Zertifikat generieren (docker-compose zuerst stoppen)
 docker compose down
-sudo certbot certonly --standalone -d your-domain.com
+sudo certbot certonly --standalone -d ihre-domain.de
 
-# Copy certificates
-sudo cp /etc/letsencrypt/live/your-domain.com/fullchain.pem nginx/ssl/cert.pem
-sudo cp /etc/letsencrypt/live/your-domain.com/privkey.pem nginx/ssl/key.pem
+# Zertifikate kopieren
+sudo cp /etc/letsencrypt/live/ihre-domain.de/fullchain.pem nginx/ssl/cert.pem
+sudo cp /etc/letsencrypt/live/ihre-domain.de/privkey.pem nginx/ssl/key.pem
 sudo chmod 644 nginx/ssl/*.pem
 ```
 
-### 2. Enable Nginx in docker-compose.yml
+### 2. Nginx in docker-compose.yml aktivieren
 ```bash
-# Uncomment HTTPS configuration in nginx/nginx.conf
+# HTTPS-Konfiguration in nginx/nginx.conf auskommentieren
 nano nginx/nginx.conf
 
-# Start with Nginx profile
+# Mit Nginx-Profil starten
 docker compose --profile with-nginx up -d
 ```
 
-Now the server is available at:
+Jetzt ist der Server verfügbar unter:
 - HTTP: `http://localhost:80`
 - HTTPS: `https://localhost:443`
 
-## Docker Commands
+## Docker-Befehle
 
-### Start Services
+### Services starten
 ```bash
-# Start all services
+# Alle Services starten
 docker compose up -d
 
-# Start specific service
+# Spezifischen Service starten
 docker compose up -d alarm-messenger-server
 
-# Start with Nginx
+# Mit Nginx starten
 docker compose --profile with-nginx up -d
 ```
 
-### Stop Services
+### Services stoppen
 ```bash
-# Stop all services
+# Alle Services stoppen
 docker compose down
 
-# Stop but keep volumes
+# Stoppen aber Volumes behalten
 docker compose stop
 
-# Stop and remove volumes (WARNING: deletes database)
+# Stoppen und Volumes entfernen (WARNUNG: löscht Datenbank)
 docker compose down -v
 ```
 
-### View Logs
+### Logs anzeigen
 ```bash
-# All services
+# Alle Services
 docker compose logs -f
 
-# Specific service
+# Spezifischer Service
 docker compose logs -f alarm-messenger-server
 
-# Last 100 lines
+# Letzte 100 Zeilen
 docker compose logs --tail=100 alarm-messenger-server
 ```
 
-### Restart Services
+### Services neu starten
 ```bash
-# Restart all
+# Alle neu starten
 docker compose restart
 
-# Restart specific service
+# Spezifischen Service neu starten
 docker compose restart alarm-messenger-server
 ```
 
-### Update Application
+### Anwendung aktualisieren
 ```bash
-# Pull latest code
+# Neuesten Code pullen
 git pull
 
-# Rebuild and restart
+# Neu bauen und neu starten
 docker compose up -d --build
 ```
 
-## Database Management
+## Datenbankverwaltung
 
-### Backup Database
+### Datenbank sichern
 ```bash
-# Create backup
+# Backup erstellen
 docker compose exec alarm-messenger-server cp /app/data/alarm-messenger.db /app/data/backup-$(date +%Y%m%d-%H%M%S).db
 
-# Copy backup to host
+# Backup auf Host kopieren
 docker cp alarm-messenger-server:/app/data/backup-*.db ./backups/
 ```
 
-### Restore Database
+### Datenbank wiederherstellen
 ```bash
-# Copy backup to container
+# Backup in Container kopieren
 docker cp ./backups/backup-20240101-120000.db alarm-messenger-server:/app/data/alarm-messenger.db
 
-# Restart service
+# Service neu starten
 docker compose restart alarm-messenger-server
 ```
 
-### View Database
+### Datenbank anzeigen
 ```bash
-# Access SQLite CLI
+# SQLite CLI aufrufen
 docker compose exec alarm-messenger-server sh -c "cd /app/data && sqlite3 alarm-messenger.db"
 
-# Example queries
+# Beispiel-Abfragen
 sqlite> .tables
 sqlite> SELECT * FROM emergencies;
 sqlite> .exit
@@ -246,109 +246,109 @@ sqlite> .exit
 
 ## Monitoring
 
-### Health Check
+### Gesundheitsprüfung
 ```bash
-# Check container health
+# Container-Gesundheit prüfen
 docker compose ps
 
-# Manual health check
+# Manuelle Gesundheitsprüfung
 curl http://localhost:3000/health
 ```
 
-### Resource Usage
+### Ressourcennutzung
 ```bash
-# View resource usage
+# Ressourcennutzung anzeigen
 docker stats alarm-messenger-server
 
-# View disk usage
+# Festplattennutzung anzeigen
 docker system df
 ```
 
-### Container Shell Access
+### Container-Shell-Zugriff
 ```bash
-# Access container shell
+# Container-Shell aufrufen
 docker compose exec alarm-messenger-server sh
 
-# View files
+# Dateien anzeigen
 ls -la /app
 cat /app/data/alarm-messenger.db
 
-# Exit
+# Beenden
 exit
 ```
 
-## Troubleshooting
+## Problembehandlung
 
-### Container Won't Start
+### Container startet nicht
 ```bash
-# Check logs
+# Logs prüfen
 docker compose logs alarm-messenger-server
 
-# Check container status
+# Container-Status prüfen
 docker compose ps -a
 
-# Rebuild image
+# Image neu bauen
 docker compose build --no-cache
 docker compose up -d
 ```
 
-### Port Already in Use
+### Port bereits in Verwendung
 ```bash
-# Check what's using the port
+# Prüfen was den Port verwendet
 sudo lsof -i :3000
 
-# Kill the process or change port in docker-compose.yml
+# Prozess beenden oder Port in docker-compose.yml ändern
 ```
 
-### Permission Errors
+### Berechtigungsfehler
 ```bash
-# Fix volume permissions
+# Volume-Berechtigungen korrigieren
 sudo chown -R 1000:1000 ./server/data
 
-# Or run as root (not recommended)
+# Oder als root ausführen (nicht empfohlen)
 docker compose run --user root alarm-messenger-server sh
 ```
 
-### Database Locked
+### Datenbank gesperrt
 ```bash
-# Stop all containers
+# Alle Container stoppen
 docker compose down
 
-# Remove stale lock
+# Veraltete Sperre entfernen
 sudo rm ./server/data/*.db-shm ./server/data/*.db-wal
 
-# Restart
+# Neu starten
 docker compose up -d
 ```
 
-### Firebase Not Working
+### Firebase funktioniert nicht
 ```bash
-# Check environment variables
+# Umgebungsvariablen prüfen
 docker compose exec alarm-messenger-server env | grep FIREBASE
 
-# Verify credentials format
-# Private key must have \n replaced with actual newlines in .env
+# Zugangsdaten-Format überprüfen
+# Privater Schlüssel muss \n durch tatsächliche Zeilenumbrüche in .env ersetzt haben
 ```
 
-## Production Deployment Checklist
+## Produktiv-Deployment-Checkliste
 
-- [ ] Configure proper `.env` file with Firebase credentials
-- [ ] Setup SSL/TLS certificates
-- [ ] Configure firewall rules
-- [ ] Setup automated backups
-- [ ] Configure log rotation
-- [ ] Setup monitoring and alerts
-- [ ] Test emergency notification flow
-- [ ] Setup automatic container restart on failure
-- [ ] Document deployment for team
-- [ ] Configure reverse proxy (Nginx)
-- [ ] Setup domain name and DNS
+- [ ] Ordnungsgemäße `.env`-Datei mit Firebase-Zugangsdaten konfigurieren
+- [ ] SSL/TLS-Zertifikate einrichten
+- [ ] Firewall-Regeln konfigurieren
+- [ ] Automatisierte Backups einrichten
+- [ ] Log-Rotation konfigurieren
+- [ ] Monitoring und Alerts einrichten
+- [ ] Einsatzbenachrichtigungs-Ablauf testen
+- [ ] Automatischen Container-Neustart bei Fehler einrichten
+- [ ] Deployment für Team dokumentieren
+- [ ] Reverse Proxy (Nginx) konfigurieren
+- [ ] Domainnamen und DNS einrichten
 
-## Systemd Service (Optional)
+## Systemd-Service (Optional)
 
-To start docker-compose automatically on boot:
+Um docker-compose automatisch beim Booten zu starten:
 
-Create `/etc/systemd/system/alarm-messenger.service`:
+Erstellen Sie `/etc/systemd/system/alarm-messenger.service`:
 
 ```ini
 [Unit]
@@ -368,17 +368,17 @@ TimeoutStartSec=0
 WantedBy=multi-user.target
 ```
 
-Enable and start:
+Aktivieren und starten:
 ```bash
 sudo systemctl enable alarm-messenger
 sudo systemctl start alarm-messenger
 sudo systemctl status alarm-messenger
 ```
 
-## Performance Tuning
+## Performance-Tuning
 
-### Increase Container Resources
-Edit `docker-compose.yml`:
+### Container-Ressourcen erhöhen
+`docker-compose.yml` bearbeiten:
 
 ```yaml
 services:
@@ -393,8 +393,8 @@ services:
           memory: 512M
 ```
 
-### Enable Logging Rotation
-Edit `docker-compose.yml`:
+### Logging-Rotation aktivieren
+`docker-compose.yml` bearbeiten:
 
 ```yaml
 services:
@@ -406,47 +406,47 @@ services:
         max-file: "3"
 ```
 
-## Security Best Practices
+## Sicherheits-Best-Practices
 
-1. **Use secrets for sensitive data:**
+1. **Secrets für sensible Daten verwenden:**
    ```bash
-   # Create Docker secret
+   # Docker Secret erstellen
    echo "your-api-key" | docker secret create api_secret_key -
    ```
 
-2. **Run as non-root user:**
-   Add to Dockerfile:
+2. **Als Nicht-Root-Benutzer ausführen:**
+   Zu Dockerfile hinzufügen:
    ```dockerfile
    USER node
    ```
 
-3. **Scan images for vulnerabilities:**
+3. **Images auf Schwachstellen scannen:**
    ```bash
    docker scan alarm-messenger-server
    ```
 
-4. **Keep Docker updated:**
+4. **Docker aktuell halten:**
    ```bash
    sudo apt-get update
    sudo apt-get upgrade docker-ce docker-ce-cli containerd.io
    ```
 
-5. **Use network isolation:**
-   - Keep database in internal network
-   - Only expose necessary ports
+5. **Netzwerkisolierung verwenden:**
+   - Datenbank in internem Netzwerk halten
+   - Nur notwendige Ports freigeben
 
 ## Support
 
-For issues:
-1. Check logs: `docker compose logs -f`
-2. Verify configuration: `docker compose config`
-3. Test health endpoint: `curl http://localhost:3000/health`
-4. Check GitHub issues
-5. Review documentation
+Bei Problemen:
+1. Logs prüfen: `docker compose logs -f`
+2. Konfiguration überprüfen: `docker compose config`
+3. Gesundheitsendpunkt testen: `curl http://localhost:3000/health`
+4. GitHub-Issues prüfen
+5. Dokumentation durchsehen
 
-## Additional Resources
+## Zusätzliche Ressourcen
 
-- [Docker Documentation](https://docs.docker.com/)
-- [Docker Compose Documentation](https://docs.docker.com/compose/)
-- [Linux Server Administration](https://ubuntu.com/server/docs)
-- [Nginx Documentation](https://nginx.org/en/docs/)
+- [Docker-Dokumentation](https://docs.docker.com/)
+- [Docker Compose-Dokumentation](https://docs.docker.com/compose/)
+- [Linux-Server-Administration](https://ubuntu.com/server/docs)
+- [Nginx-Dokumentation](https://nginx.org/en/docs/)
