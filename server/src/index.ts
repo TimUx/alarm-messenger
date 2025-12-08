@@ -4,11 +4,12 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import http from 'http';
 import emergencyRoutes from './routes/emergencies';
 import deviceRoutes from './routes/devices';
 import adminRoutes from './routes/admin';
 import { initializeDatabase } from './services/database';
-import { initializeFirebase } from './services/firebase';
+import { websocketService } from './services/websocket';
 
 dotenv.config();
 
@@ -51,18 +52,23 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Initialize database and Firebase
+// Initialize database and WebSocket
 async function startServer() {
   try {
     await initializeDatabase();
     console.log('✓ Database initialized');
     
-    await initializeFirebase();
+    // Create HTTP server
+    const server = http.createServer(app);
     
-    app.listen(PORT, () => {
+    // Initialize WebSocket service
+    websocketService.initialize(server);
+    
+    server.listen(PORT, () => {
       console.log(`\n🚀 Alarm Messenger Server running on port ${PORT}`);
       console.log(`📡 Health check: http://localhost:${PORT}/health`);
-      console.log(`📋 API Base URL: http://localhost:${PORT}/api\n`);
+      console.log(`📋 API Base URL: http://localhost:${PORT}/api`);
+      console.log(`🔌 WebSocket URL: ws://localhost:${PORT}/ws\n`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

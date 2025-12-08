@@ -1,49 +1,62 @@
-import messaging from '@react-native-firebase/messaging';
 import { Platform, PermissionsAndroid } from 'react-native';
+import { websocketService } from './websocket';
 
 export const requestUserPermission = async (): Promise<boolean> => {
-  if (Platform.OS === 'ios') {
-    const authStatus = await messaging().requestPermission();
-    const enabled =
-      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-    return enabled;
-  } else if (Platform.OS === 'android') {
+  if (Platform.OS === 'android') {
     if (Platform.Version >= 33) {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
-      );
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (error) {
+        console.warn('Permission request failed:', error);
+        return false;
+      }
     }
     return true;
   }
-  return false;
+  // iOS doesn't need explicit permission for WebSocket notifications
+  return true;
 };
 
 export const getFCMToken = async (): Promise<string | null> => {
-  try {
-    const token = await messaging().getToken();
-    return token;
-  } catch (error) {
-    console.error('Error getting FCM token:', error);
-    return null;
-  }
+  // No longer using FCM tokens, return null
+  // Registration now only uses device ID
+  return null;
 };
 
 export const onMessageReceived = (
   callback: (message: any) => void
 ): (() => void) => {
-  // Foreground message handler
-  const unsubscribe = messaging().onMessage(async (remoteMessage) => {
-    console.log('Foreground message received:', remoteMessage);
-    callback(remoteMessage);
+  // Set up WebSocket message handler
+  const unsubscribeWS = websocketService.onMessage((message) => {
+    console.log('WebSocket message received:', message);
+    // Transform WebSocket message to match expected format
+    const transformedMessage = {
+      data: message.data,
+      notification: message.notification,
+    };
+    callback(transformedMessage);
   });
 
-  return unsubscribe;
+  return unsubscribeWS;
 };
 
 export const setBackgroundMessageHandler = (
   handler: (message: any) => Promise<void>
 ): void => {
-  messaging().setBackgroundMessageHandler(handler);
+  // Background message handling is not needed for WebSocket
+  // Messages are handled when app is in foreground through WebSocket
+  console.log('Background message handler not needed with WebSocket');
+};
+
+// Initialize WebSocket connection
+export const initializeWebSocket = (serverUrl: string, deviceId: string): void => {
+  websocketService.connect(serverUrl, deviceId);
+};
+
+// Disconnect WebSocket
+export const disconnectWebSocket = (): void => {
+  websocketService.disconnect();
 };

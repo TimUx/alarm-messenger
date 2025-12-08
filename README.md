@@ -14,7 +14,7 @@ The Alarm Messenger system is a complete emergency notification solution consist
 ### Backend Server
 - ✅ RESTful API for emergency management
 - ✅ Device registration with QR code generation
-- ✅ Firebase Cloud Messaging (FCM) integration for push notifications
+- ✅ **WebSocket-based push notifications** (no external dependencies)
 - ✅ Encrypted HTTPS/TLS communication
 - ✅ SQLite database for data persistence
 - ✅ Response tracking (participation yes/no)
@@ -43,12 +43,13 @@ The Alarm Messenger system is a complete emergency notification solution consist
 
 ### Mobile App
 - ✅ QR code scanner for device registration
-- ✅ Push notification handling
+- ✅ **WebSocket-based real-time notifications**
 - ✅ Emergency alert UI with alarm sounds
 - ✅ Two response buttons (participate/decline)
 - ✅ Emergency history view
 - ✅ Cross-platform support (iOS & Android)
 - ✅ **Dark/Light/Auto theme modes**
+- ✅ **No external dependencies** - fully self-contained
 
 ## Architecture
 
@@ -64,9 +65,9 @@ The Alarm Messenger system is a complete emergency notification solution consist
 │  (Node.js)      │
 │  - API Routes   │
 │  - Database     │
-│  - FCM Service  │
+│  - WebSocket    │
 └────────┬────────┘
-         │ Push Notifications (FCM)
+         │ WebSocket Push Notifications
          ▼
 ┌─────────────────┐
 │  Mobile Devices │
@@ -114,12 +115,13 @@ alarm-messenger/
 ### Prerequisites
 - Node.js 18+
 - npm or yarn
-- Firebase project (for push notifications)
 - **For Docker:** Docker and Docker Compose
 - For mobile development:
   - Xcode (for iOS)
   - Android Studio (for Android)
   - React Native CLI
+
+**Note:** Firebase is no longer required! The system now uses WebSocket for push notifications.
 
 ### Backend Setup
 
@@ -128,7 +130,7 @@ alarm-messenger/
 ```bash
 cd alarm-messenger
 cp .env.example .env
-# Edit .env with your Firebase credentials
+# Edit .env with your API keys (Firebase no longer needed!)
 docker compose up -d
 ```
 
@@ -142,7 +144,7 @@ See [DOCKER-QUICKSTART.md](DOCKER-QUICKSTART.md) for more details.
 cd server
 npm install
 cp .env.example .env
-# Edit .env with your Firebase credentials
+# Edit .env with your API keys (Firebase no longer needed!)
 npm run build
 npm start
 ```
@@ -196,9 +198,9 @@ npm run android
 3. **Admin generates QR code** via admin dashboard
 4. **Admin enters responder information** for the device (name, qualifications, leadership role)
 5. **User scans QR code** in mobile app
-6. **Device registers** with server, FCM token, and responder information
+6. **Device registers** with server and establishes WebSocket connection
 7. **External system creates emergency** via `POST /api/emergencies` with API key
-8. **Server sends push notifications** to all registered devices
+8. **Server sends push notifications** to all registered devices via WebSocket
 9. **Mobile app displays alert** with alarm sound
 10. **User responds** (participate or decline)
 11. **Response saved** in database with responder information
@@ -210,7 +212,7 @@ npm run android
 - API Key authentication for emergency creation (X-API-Key header)
 - JWT-based authentication for admin interface
 - Password hashing with bcrypt for admin users
-- Firebase Cloud Messaging for secure push notifications
+- **WebSocket-based push notifications** (no external dependencies)
 - Rate limiting to prevent abuse
 - Helmet middleware for security headers
 - Device token validation

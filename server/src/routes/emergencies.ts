@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { dbRun, dbGet, dbAll } from '../services/database';
-import { sendBulkPushNotifications } from '../services/firebase';
+import { websocketService } from '../services/websocket';
 import { verifyApiKey } from '../middleware/auth';
 import {
   Emergency,
@@ -55,27 +55,32 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
 
     // Get all active devices for push notifications
     const devices = await dbAll(
-      'SELECT registration_token FROM devices WHERE active = 1',
+      'SELECT id FROM devices WHERE active = 1',
       []
     );
 
-    const deviceTokens = devices.map((device: any) => device.registration_token);
+    // Prepare notification data
+    const notificationTitle = `EINSATZ: ${emergencyKeyword}`;
+    const notificationBody = `${emergencyLocation} - ${emergencyDescription}`;
+    const notificationData = {
+      emergencyId: id,
+      emergencyNumber,
+      emergencyDate,
+      emergencyKeyword,
+      emergencyDescription,
+      emergencyLocation,
+    };
 
-    // Send push notifications to all registered devices
-    if (deviceTokens.length > 0) {
-      await sendBulkPushNotifications(
-        deviceTokens,
-        `EINSATZ: ${emergencyKeyword}`,
-        `${emergencyLocation} - ${emergencyDescription}`,
-        {
-          emergencyId: id,
-          emergencyNumber,
-          emergencyDate,
-          emergencyKeyword,
-          emergencyDescription,
-          emergencyLocation,
-        }
+    // Send notifications via WebSocket
+    const deviceIds = devices.map((device: any) => device.id);
+    if (deviceIds.length > 0) {
+      await websocketService.sendBulkNotifications(
+        deviceIds,
+        notificationTitle,
+        notificationBody,
+        notificationData
       );
+      console.log(`✓ Notifications sent to ${deviceIds.length} devices via WebSocket`);
     }
 
     const emergency: Emergency = {
