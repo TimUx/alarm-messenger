@@ -15,6 +15,7 @@ import crypto from 'crypto';
 /**
  * Checks if a string is Base64 encoded
  * A valid Base64 string contains only A-Z, a-z, 0-9, +, /, and = (padding)
+ * Note: This is a heuristic check; the actual decoding attempt is the final validation
  */
 function isBase64(str: string): boolean {
   if (!str || str.length === 0) {
@@ -23,7 +24,13 @@ function isBase64(str: string): boolean {
   
   // Check if string contains only valid Base64 characters
   const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
-  return base64Regex.test(str);
+  if (!base64Regex.test(str)) {
+    return false;
+  }
+  
+  // Valid Base64 strings should have length divisible by 4
+  // But we're lenient here and let the actual decode attempt be the final validator
+  return str.length % 4 === 0;
 }
 
 /**
@@ -42,13 +49,13 @@ export function decodeSecret(secret: string | undefined): string | undefined {
   if (isBase64(secret)) {
     try {
       const decoded = Buffer.from(secret, 'base64').toString('utf-8');
-      // Ensure decoded string is not empty
-      if (decoded.length > 0) {
+      // Ensure decoded string contains meaningful content (not just whitespace)
+      if (decoded.trim().length > 0) {
         return decoded;
       }
     } catch (error) {
       // If decoding fails, treat it as plain text
-      console.warn('⚠️  WARNING: Secret decoding failed, using original value');
+      console.warn('⚠️  WARNING: Configuration value processing failed, using original value');
     }
   }
   
