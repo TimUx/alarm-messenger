@@ -1,4 +1,4 @@
-# Caddy Configuration für Alarm Messenger
+# Caddy Konfiguration für Alarm Messenger
 # 
 # Dieses Caddyfile konfiguriert:
 # - Automatische HTTPS mit Let's Encrypt
