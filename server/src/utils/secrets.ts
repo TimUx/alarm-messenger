@@ -21,11 +21,6 @@ function isBase64(str: string): boolean {
     return false;
   }
   
-  // Base64 strings should be divisible by 4 (with padding)
-  if (str.length % 4 !== 0) {
-    return false;
-  }
-  
   // Check if string contains only valid Base64 characters
   const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
   return base64Regex.test(str);
@@ -47,13 +42,13 @@ export function decodeSecret(secret: string | undefined): string | undefined {
   if (isBase64(secret)) {
     try {
       const decoded = Buffer.from(secret, 'base64').toString('utf-8');
-      // Additional check: decoded string should not be empty
-      if (decoded && decoded.length > 0) {
+      // Ensure decoded string is not empty
+      if (decoded.length > 0) {
         return decoded;
       }
     } catch (error) {
       // If decoding fails, treat it as plain text
-      console.warn('⚠️  WARNING: Failed to decode Base64 secret, using as plain text');
+      console.warn('⚠️  WARNING: Secret decoding failed, using original value');
     }
   }
   
