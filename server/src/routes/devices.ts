@@ -37,7 +37,8 @@ router.post('/register', async (req: Request, res: Response) => {
       deviceToken,
       registrationToken,
       platform,
-      responderName,
+      firstName,
+      lastName,
       qualifications,
       leadershipRole,
     } = req.body;
@@ -65,7 +66,8 @@ router.post('/register', async (req: Request, res: Response) => {
           registration_token = ?, 
           platform = ?, 
           active = 1,
-          responder_name = ?,
+          first_name = ?,
+          last_name = ?,
           qual_machinist = ?,
           qual_agt = ?,
           qual_paramedic = ?,
@@ -74,7 +76,8 @@ router.post('/register', async (req: Request, res: Response) => {
         [
           registrationToken, 
           platform, 
-          responderName || null,
+          firstName || null,
+          lastName || null,
           qualifications?.machinist ? 1 : 0,
           qualifications?.agt ? 1 : 0,
           qualifications?.paramedic ? 1 : 0,
@@ -90,7 +93,8 @@ router.post('/register', async (req: Request, res: Response) => {
         platform,
         registeredAt: existing.registered_at,
         active: true,
-        responderName,
+        firstName,
+        lastName,
         qualifications,
         leadershipRole: leadershipRole || 'none',
       };
@@ -104,12 +108,13 @@ router.post('/register', async (req: Request, res: Response) => {
       await dbRun(
         `INSERT INTO devices (
           id, device_token, registration_token, platform, registered_at, active,
-          responder_name, qual_machinist, qual_agt, qual_paramedic, 
+          first_name, last_name, qual_machinist, qual_agt, qual_paramedic, 
           leadership_role
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id, deviceToken, registrationToken, platform, registeredAt, 1,
-          responderName || null,
+          firstName || null,
+          lastName || null,
           qualifications?.machinist ? 1 : 0,
           qualifications?.agt ? 1 : 0,
           qualifications?.paramedic ? 1 : 0,
@@ -124,7 +129,8 @@ router.post('/register', async (req: Request, res: Response) => {
         platform,
         registeredAt,
         active: true,
-        responderName,
+        firstName,
+        lastName,
         qualifications,
         leadershipRole: leadershipRole || 'none',
       };
@@ -160,7 +166,8 @@ router.get('/', async (req: Request, res: Response) => {
         platform: row.platform,
         registeredAt: row.registered_at,
         active: row.active === 1,
-        responderName: row.responder_name,
+        firstName: row.first_name,
+        lastName: row.last_name,
         qualifications: {
           machinist: row.qual_machinist === 1,
           agt: row.qual_agt === 1,
@@ -203,7 +210,8 @@ router.get('/:id', async (req: Request, res: Response) => {
       platform: row.platform,
       registeredAt: row.registered_at,
       active: row.active === 1,
-      responderName: row.responder_name,
+      firstName: row.first_name,
+      lastName: row.last_name,
       qualifications: {
         machinist: row.qual_machinist === 1,
         agt: row.qual_agt === 1,

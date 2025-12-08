@@ -18,7 +18,8 @@ export interface Device {
   registeredAt: string;
   active: boolean;
   // Responder information
-  responderName?: string;
+  firstName?: string;
+  lastName?: string;
   qualifications?: {
     machinist: boolean;
     agt: boolean;
@@ -48,7 +49,8 @@ export interface CreateEmergencyRequest {
 export interface DeviceRegistrationRequest {
   registrationToken: string;
   platform: 'ios' | 'android';
-  responderName?: string;
+  firstName?: string;
+  lastName?: string;
   qualifications?: {
     machinist: boolean;
     agt: boolean;
