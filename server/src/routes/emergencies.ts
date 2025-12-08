@@ -11,6 +11,20 @@ import {
 
 const router = Router();
 
+// Helper function to map database row to responder object
+function mapResponderDetails(row: any) {
+  return {
+    firstName: row.first_name,
+    lastName: row.last_name,
+    qualifications: {
+      machinist: row.qual_machinist === 1,
+      agt: row.qual_agt === 1,
+      paramedic: row.qual_paramedic === 1,
+    },
+    leadershipRole: row.leadership_role || 'none',
+  };
+}
+
 // Create a new emergency and trigger push notifications (protected with API key)
 router.post('/', verifyApiKey, async (req: Request, res: Response) => {
   try {
@@ -279,16 +293,7 @@ router.get('/:id/participants', verifyApiKey, async (req: Request, res: Response
       platform: row.platform,
       respondedAt: row.responded_at,
       // Responder details from devices table
-      responder: {
-        firstName: row.first_name,
-        lastName: row.last_name,
-        qualifications: {
-          machinist: row.qual_machinist === 1,
-          agt: row.qual_agt === 1,
-          paramedic: row.qual_paramedic === 1,
-        },
-        leadershipRole: row.leadership_role || 'none',
-      },
+      responder: mapResponderDetails(row),
     }));
 
     res.json({
@@ -325,16 +330,7 @@ router.get('/:id/responses', verifyApiKey, async (req: Request, res: Response) =
       participating: row.participating === 1,
       respondedAt: row.responded_at,
       // Responder details from devices table
-      responder: {
-        firstName: row.first_name,
-        lastName: row.last_name,
-        qualifications: {
-          machinist: row.qual_machinist === 1,
-          agt: row.qual_agt === 1,
-          paramedic: row.qual_paramedic === 1,
-        },
-        leadershipRole: row.leadership_role || 'none',
-      },
+      responder: mapResponderDetails(row),
     }));
 
     res.json(responses);
