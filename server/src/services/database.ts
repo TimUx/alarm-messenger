@@ -153,8 +153,10 @@ export const dbAll = (sql: string, params: any[] = []): Promise<any[]> => {
  * 1. Adds 'leadership_role' column to devices table (replaces is_squad_leader)
  * 2. Migrates existing is_squad_leader values to leadership_role='groupLeader'
  * 3. Adds 'groups' column to emergencies table for comma-separated group codes
+ * 4. Adds 'first_name' and 'last_name' columns to devices table (replaces responder_name)
+ * 5. Migrates existing responder_name values by splitting into first and last name
  * 
- * Note: Old columns (qual_th_vu, qual_th_bau, is_squad_leader) are not dropped
+ * Note: Old columns (qual_th_vu, qual_th_bau, is_squad_leader, responder_name) are not dropped
  * to maintain backward compatibility with existing data. They are simply ignored
  * by the application code.
  */
@@ -191,6 +193,34 @@ async function migrateDatabase(): Promise<void> {
       console.log('🔄 Adding groups column to emergencies...');
       await dbRun('ALTER TABLE emergencies ADD COLUMN groups TEXT');
       console.log('✓ Groups column added');
+    }
+    
+    // Check if devices table needs first_name and last_name columns
+    const hasFirstNameColumn = tableInfo.some((col: any) => col.name === 'first_name');
+    const hasLastNameColumn = tableInfo.some((col: any) => col.name === 'last_name');
+    
+    if (!hasFirstNameColumn || !hasLastNameColumn) {
+      console.log('🔄 Adding first_name and last_name columns to devices...');
+      
+      if (!hasFirstNameColumn) {
+        await dbRun('ALTER TABLE devices ADD COLUMN first_name TEXT');
+      }
+      if (!hasLastNameColumn) {
+        await dbRun('ALTER TABLE devices ADD COLUMN last_name TEXT');
+      }
+      
+      // Migrate existing responder_name values by splitting into first and last name
+      const devices = await dbAll("SELECT id, responder_name FROM devices WHERE responder_name IS NOT NULL", []);
+      for (const device of devices) {
+        if (device.responder_name) {
+          const nameParts = device.responder_name.trim().split(/\s+/);
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          await dbRun('UPDATE devices SET first_name = ?, last_name = ? WHERE id = ?', [firstName, lastName, device.id]);
+        }
+      }
+      
+      console.log('✓ first_name and last_name columns added and data migrated');
     }
   } catch (error) {
     console.error('⚠️  Database migration warning:', error);

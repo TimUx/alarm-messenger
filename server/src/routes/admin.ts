@@ -142,7 +142,8 @@ router.put('/devices/:id', verifyToken, async (req: AuthRequest, res: Response) 
   try {
     const { id } = req.params;
     const {
-      responderName,
+      firstName,
+      lastName,
       qualifications,
       leadershipRole,
     } = req.body;
@@ -156,14 +157,16 @@ router.put('/devices/:id', verifyToken, async (req: AuthRequest, res: Response) 
 
     await dbRun(
       `UPDATE devices SET 
-        responder_name = ?,
+        first_name = ?,
+        last_name = ?,
         qual_machinist = ?,
         qual_agt = ?,
         qual_paramedic = ?,
         leadership_role = ?
       WHERE id = ?`,
       [
-        responderName || null,
+        firstName || null,
+        lastName || null,
         qualifications?.machinist ? 1 : 0,
         qualifications?.agt ? 1 : 0,
         qualifications?.paramedic ? 1 : 0,

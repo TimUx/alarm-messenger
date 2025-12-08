@@ -153,7 +153,9 @@ function createDeviceCard(device) {
         registeredDate = 'Ungültiges Datum';
     }
     
-    const deviceName = device.responderName || 'Nicht zugewiesen';
+    const firstName = device.firstName || '';
+    const lastName = device.lastName || '';
+    const deviceName = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : 'Nicht zugewiesen';
     const qualifications = device.qualifications || {};
     
     const qualBadges = [];
@@ -263,7 +265,8 @@ function editDevice(deviceId) {
     if (!device) return;
     
     document.getElementById('edit-device-id').value = device.id;
-    document.getElementById('edit-responder-name').value = device.responderName || '';
+    document.getElementById('edit-first-name').value = device.firstName || '';
+    document.getElementById('edit-last-name').value = device.lastName || '';
     
     const qualifications = device.qualifications || {};
     document.getElementById('edit-qual-machinist').checked = qualifications.machinist || false;
@@ -313,7 +316,8 @@ document.getElementById('editDeviceForm').addEventListener('submit', async (e) =
     e.preventDefault();
     
     const deviceId = document.getElementById('edit-device-id').value;
-    const responderName = document.getElementById('edit-responder-name').value;
+    const firstName = document.getElementById('edit-first-name').value;
+    const lastName = document.getElementById('edit-last-name').value;
     
     const qualifications = {
         machinist: document.getElementById('edit-qual-machinist').checked,
@@ -333,7 +337,8 @@ document.getElementById('editDeviceForm').addEventListener('submit', async (e) =
         const response = await apiRequest(`${API_BASE}/admin/devices/${deviceId}`, {
             method: 'PUT',
             body: JSON.stringify({
-                responderName,
+                firstName,
+                lastName,
                 qualifications,
                 leadershipRole
             })
