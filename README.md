@@ -374,7 +374,8 @@ Direkt auf Linux mit Node.js ausführen. Siehe [docs/SETUP.md](docs/SETUP.md)
 In Docker Container mit docker-compose ausführen. Siehe [DOCKER-QUICKSTART.md](DOCKER-QUICKSTART.md) oder [docs/DOCKER.md](docs/DOCKER.md)
 
 ### Produktiv-Deployment
-- Docker mit Nginx Reverse Proxy für SSL/TLS verwenden
+- Docker mit Caddy Reverse Proxy für automatisches SSL/TLS verwenden (empfohlen)
+- Docker mit Nginx Reverse Proxy für SSL/TLS verwenden (legacy)
 - Systemd für automatischen Start konfigurieren
 - Automatisierte Backups einrichten
 - PM2 für Prozessmanagement verwenden (native Installation)

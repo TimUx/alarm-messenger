@@ -115,47 +115,176 @@ docker compose -f docker-compose.dev.yml up
 # Der Server startet automatisch neu wenn Sie Dateien in server/src/ bearbeiten
 ```
 
-## Nginx Reverse Proxy verwenden
+## Caddy Reverse Proxy verwenden
 
-Um SSL/TLS-Unterstützung mit Nginx hinzuzufügen:
+Um SSL/TLS-Unterstützung mit Caddy hinzuzufügen:
 
-### 1. SSL-Zertifikate konfigurieren
+### Warum Caddy?
 
-#### Selbstsigniert (Zum Testen)
+Caddy bietet gegenüber anderen Reverse Proxies wie nginx folgende Vorteile:
+- **Automatisches HTTPS**: Let's Encrypt Zertifikate werden automatisch geholt und erneuert
+- **Einfache Konfiguration**: Sehr einfach zu lesen und zu schreiben
+- **WebSocket-Unterstützung**: Funktioniert out-of-the-box ohne zusätzliche Konfiguration
+- **HTTP/2 und HTTP/3**: Automatisch aktiviert
+- **Moderne Features**: Eingebautes Rate Limiting, Health Checks, und mehr
+
+### 1. Lokales Testen (ohne Domain)
+
+Für lokales Testen ist keine weitere Konfiguration nötig:
+
 ```bash
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout nginx/ssl/key.pem \
-  -out nginx/ssl/cert.pem \
-  -subj "/CN=localhost"
+# Mit Caddy starten
+docker compose --profile with-caddy up -d
 ```
 
-#### Let's Encrypt (Produktiv)
+Der Server ist verfügbar unter:
+- HTTP: `http://localhost:80`
+
+### 2. Produktiv-Deployment mit echter Domain
+
+#### Schritt 1: Domain vorbereiten
+
+Stellen Sie sicher, dass:
+- Ihre Domain mit einem A-Record auf die IP-Adresse Ihres Servers zeigt
+- Port 80 und 443 in Ihrer Firewall geöffnet sind
+
 ```bash
-# Certbot installieren
-sudo apt-get install certbot
-
-# Zertifikat generieren (docker-compose zuerst stoppen)
-docker compose down
-sudo certbot certonly --standalone -d ihre-domain.de
-
-# Zertifikate kopieren
-sudo cp /etc/letsencrypt/live/ihre-domain.de/fullchain.pem nginx/ssl/cert.pem
-sudo cp /etc/letsencrypt/live/ihre-domain.de/privkey.pem nginx/ssl/key.pem
-sudo chmod 644 nginx/ssl/*.pem
+# Firewall-Ports öffnen
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
 ```
 
-### 2. Nginx in docker-compose.yml aktivieren
-```bash
-# HTTPS-Konfiguration in nginx/nginx.conf auskommentieren
-nano nginx/nginx.conf
+#### Schritt 2: Caddyfile bearbeiten
 
-# Mit Nginx-Profil starten
-docker compose --profile with-nginx up -d
+```bash
+# Caddyfile bearbeiten
+nano caddy/Caddyfile
 ```
+
+1. **Lokalen Block auskommentieren** (die Zeilen mit `:80 { ... }`)
+2. **Produktiv-Block aktivieren**:
+   - Entfernen Sie die Kommentarzeichen vor dem Block `ihre-domain.de { ... }`
+   - Ersetzen Sie `ihre-domain.de` mit Ihrer tatsächlichen Domain (z.B. `alarm.example.com`)
+   - Optional: Setzen Sie Ihre E-Mail-Adresse in der `tls` Direktive für Let's Encrypt Benachrichtigungen
+
+**Beispiel-Konfiguration**:
+```
+# In caddy/Caddyfile
+alarm.example.com {
+    # Automatisches HTTPS mit Let's Encrypt
+    tls admin@example.com
+    
+    # Reverse Proxy zum Backend Server
+    reverse_proxy alarm-messenger-server:3000 {
+        # WebSocket-Unterstützung ist automatisch aktiviert
+        
+        # Health Check
+        health_uri /health
+        health_interval 30s
+        health_timeout 10s
+    }
+}
+```
+
+#### Schritt 3: Caddy starten
+
+```bash
+# Mit Caddy-Profil starten
+docker compose --profile with-caddy up -d
+
+# Logs überwachen
+docker compose logs -f caddy
+```
+
+Caddy holt automatisch ein Let's Encrypt Zertifikat und konfiguriert HTTPS!
+
+**Wichtig**: Beim ersten Start kann es 1-2 Minuten dauern, bis das Zertifikat geholt wurde. Beobachten Sie die Logs mit `docker compose logs -f caddy`.
 
 Jetzt ist der Server verfügbar unter:
-- HTTP: `http://localhost:80`
-- HTTPS: `https://localhost:443`
+- HTTP: `http://ihre-domain.de` (wird automatisch zu HTTPS umgeleitet)
+- HTTPS: `https://ihre-domain.de`
+
+### 3. Erweiterte Konfiguration
+
+#### WebSocket-Unterstützung
+
+WebSockets funktionieren automatisch ohne zusätzliche Konfiguration. Caddy erkennt WebSocket-Upgrades und leitet sie korrekt weiter.
+
+#### Rate Limiting aktivieren
+
+Um Rate Limiting zum Schutz vor Missbrauch zu aktivieren, entkommentieren Sie im Caddyfile den `rate_limit` Block:
+
+```
+rate_limit {
+    zone dynamic {
+        key {remote_host}
+        events 100
+        window 1s
+    }
+}
+```
+
+#### Mehrere Domains
+
+Sie können mehrere Domains im Caddyfile konfigurieren:
+
+```
+alarm.example.com {
+    reverse_proxy alarm-messenger-server:3000
+}
+
+admin.example.com {
+    # Nur Admin-Interface
+    reverse_proxy alarm-messenger-server:3000
+}
+```
+
+#### Subdomain für Admin-Interface
+
+Für erhöhte Sicherheit können Sie das Admin-Interface auf einer separaten Subdomain bereitstellen:
+
+```
+admin.example.com {
+    # Automatisches HTTPS
+    tls admin@example.com
+    
+    # Nur Admin-Pfade erlauben
+    @admin {
+        path /admin/*
+    }
+    
+    reverse_proxy @admin alarm-messenger-server:3000
+    
+    # Alle anderen Anfragen blockieren
+    respond 404
+}
+```
+
+### 4. Zertifikatsverwaltung
+
+#### Automatische Erneuerung
+
+Caddy erneuert Let's Encrypt Zertifikate automatisch bevor sie ablaufen. Sie müssen nichts tun!
+
+#### Zertifikate prüfen
+
+```bash
+# Caddy Container Shell aufrufen
+docker compose exec caddy sh
+
+# Zertifikate anzeigen
+ls -la /data/caddy/certificates/
+
+# Container verlassen
+exit
+```
+
+#### Zertifikate manuell erneuern (optional)
+
+```bash
+# Caddy neu laden (holt neue Zertifikate falls nötig)
+docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+```
 
 ## Docker-Befehle
 
@@ -167,7 +296,10 @@ docker compose up -d
 # Spezifischen Service starten
 docker compose up -d alarm-messenger-server
 
-# Mit Nginx starten
+# Mit Caddy starten (empfohlen)
+docker compose --profile with-caddy up -d
+
+# Mit Nginx starten (Legacy)
 docker compose --profile with-nginx up -d
 ```
 
@@ -333,15 +465,15 @@ docker compose exec alarm-messenger-server env | grep FIREBASE
 ## Produktiv-Deployment-Checkliste
 
 - [ ] Ordnungsgemäße `.env`-Datei mit Firebase-Zugangsdaten konfigurieren
-- [ ] SSL/TLS-Zertifikate einrichten
-- [ ] Firewall-Regeln konfigurieren
+- [ ] SSL/TLS mit Caddy einrichten (automatisch mit Let's Encrypt)
+- [ ] Firewall-Regeln konfigurieren (Port 80 und 443 öffnen)
 - [ ] Automatisierte Backups einrichten
 - [ ] Log-Rotation konfigurieren
 - [ ] Monitoring und Alerts einrichten
 - [ ] Einsatzbenachrichtigungs-Ablauf testen
 - [ ] Automatischen Container-Neustart bei Fehler einrichten
 - [ ] Deployment für Team dokumentieren
-- [ ] Reverse Proxy (Nginx) konfigurieren
+- [ ] Reverse Proxy (Caddy) konfigurieren
 - [ ] Domainnamen und DNS einrichten
 
 ## Systemd-Service (Optional)
@@ -449,4 +581,5 @@ Bei Problemen:
 - [Docker-Dokumentation](https://docs.docker.com/)
 - [Docker Compose-Dokumentation](https://docs.docker.com/compose/)
 - [Linux-Server-Administration](https://ubuntu.com/server/docs)
-- [Nginx-Dokumentation](https://nginx.org/en/docs/)
+- [Caddy-Dokumentation](https://caddyserver.com/docs/)
+- [Caddy Caddyfile-Syntax](https://caddyserver.com/docs/caddyfile)

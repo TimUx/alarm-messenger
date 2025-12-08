@@ -60,7 +60,34 @@ Für die Entwicklung mit Hot-Reload:
 docker compose -f docker-compose.dev.yml up
 ```
 
-## Mit SSL/TLS (Nginx)
+## Mit SSL/TLS (Caddy - Empfohlen)
+
+### Lokales Testen
+
+```bash
+# Mit Caddy starten (keine weitere Konfiguration nötig)
+docker compose --profile with-caddy up -d
+```
+
+### Produktiv mit echter Domain
+
+```bash
+# 1. Caddyfile bearbeiten
+nano caddy/Caddyfile
+# - Lokalen Block auskommentieren (:80)
+# - Produktiv-Block aktivieren und 'ihre-domain.de' ersetzen
+
+# 2. Firewall-Ports öffnen
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# 3. Mit Caddy starten
+docker compose --profile with-caddy up -d
+```
+
+Caddy holt automatisch ein Let's Encrypt Zertifikat - keine manuelle Zertifikatsverwaltung nötig!
+
+## Mit SSL/TLS (Nginx - Legacy)
 
 ```bash
 # Selbstsigniertes Zertifikat generieren (nur zum Testen)

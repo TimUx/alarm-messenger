@@ -115,7 +115,178 @@ docker compose -f docker-compose.dev.yml up
 # The server will restart automatically when you edit files in server/src/
 ```
 
-## Using Nginx Reverse Proxy
+## Using Caddy Reverse Proxy
+
+To add SSL/TLS support with Caddy:
+
+### Why Caddy?
+
+Caddy offers the following advantages over other reverse proxies like nginx:
+- **Automatic HTTPS**: Let's Encrypt certificates are automatically obtained and renewed
+- **Simple Configuration**: Very easy to read and write
+- **WebSocket Support**: Works out-of-the-box without additional configuration
+- **HTTP/2 and HTTP/3**: Automatically enabled
+- **Modern Features**: Built-in rate limiting, health checks, and more
+
+### 1. Local Testing (without domain)
+
+For local testing, no further configuration is needed:
+
+```bash
+# Start with Caddy
+docker compose --profile with-caddy up -d
+```
+
+The server will be available at:
+- HTTP: `http://localhost:80`
+
+### 2. Production Deployment with real domain
+
+#### Step 1: Prepare domain
+
+Make sure that:
+- Your domain points to your server's IP address with an A record
+- Ports 80 and 443 are open in your firewall
+
+```bash
+# Open firewall ports
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+```
+
+#### Step 2: Edit Caddyfile
+
+```bash
+# Edit Caddyfile
+nano caddy/Caddyfile
+```
+
+1. **Comment out the local block** (lines with `:80 { ... }`)
+2. **Activate production block**:
+   - Remove comment marks from the `your-domain.com { ... }` block
+   - Replace `your-domain.com` with your actual domain (e.g., `alarm.example.com`)
+   - Optional: Set your email address in the `tls` directive for Let's Encrypt notifications
+
+**Example configuration**:
+```
+# In caddy/Caddyfile
+alarm.example.com {
+    # Automatic HTTPS with Let's Encrypt
+    tls admin@example.com
+    
+    # Reverse proxy to backend server
+    reverse_proxy alarm-messenger-server:3000 {
+        # WebSocket support is automatically enabled
+        
+        # Health check
+        health_uri /health
+        health_interval 30s
+        health_timeout 10s
+    }
+}
+```
+
+#### Step 3: Start Caddy
+
+```bash
+# Start with Caddy profile
+docker compose --profile with-caddy up -d
+
+# Monitor logs
+docker compose logs -f caddy
+```
+
+Caddy will automatically fetch a Let's Encrypt certificate and configure HTTPS!
+
+**Important**: On first start, it may take 1-2 minutes to fetch the certificate. Watch the logs with `docker compose logs -f caddy`.
+
+Now the server is available at:
+- HTTP: `http://your-domain.com` (automatically redirects to HTTPS)
+- HTTPS: `https://your-domain.com`
+
+### 3. Advanced Configuration
+
+#### WebSocket Support
+
+WebSockets work automatically without additional configuration. Caddy recognizes WebSocket upgrades and forwards them correctly.
+
+#### Enable Rate Limiting
+
+To enable rate limiting for protection against abuse, uncomment the `rate_limit` block in the Caddyfile:
+
+```
+rate_limit {
+    zone dynamic {
+        key {remote_host}
+        events 100
+        window 1s
+    }
+}
+```
+
+#### Multiple Domains
+
+You can configure multiple domains in the Caddyfile:
+
+```
+alarm.example.com {
+    reverse_proxy alarm-messenger-server:3000
+}
+
+admin.example.com {
+    # Admin interface only
+    reverse_proxy alarm-messenger-server:3000
+}
+```
+
+#### Subdomain for Admin Interface
+
+For increased security, you can serve the admin interface on a separate subdomain:
+
+```
+admin.example.com {
+    # Automatic HTTPS
+    tls admin@example.com
+    
+    # Only allow admin paths
+    @admin {
+        path /admin/*
+    }
+    
+    reverse_proxy @admin alarm-messenger-server:3000
+    
+    # Block all other requests
+    respond 404
+}
+```
+
+### 4. Certificate Management
+
+#### Automatic Renewal
+
+Caddy automatically renews Let's Encrypt certificates before they expire. You don't need to do anything!
+
+#### Check Certificates
+
+```bash
+# Access Caddy container shell
+docker compose exec caddy sh
+
+# View certificates
+ls -la /data/caddy/certificates/
+
+# Exit container
+exit
+```
+
+#### Manually Renew Certificates (optional)
+
+```bash
+# Reload Caddy (fetches new certificates if needed)
+docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+```
+
+## Using Nginx Reverse Proxy (Legacy)
 
 To add SSL/TLS support with Nginx:
 
@@ -167,7 +338,10 @@ docker compose up -d
 # Start specific service
 docker compose up -d alarm-messenger-server
 
-# Start with Nginx
+# Start with Caddy (recommended)
+docker compose --profile with-caddy up -d
+
+# Start with Nginx (legacy)
 docker compose --profile with-nginx up -d
 ```
 
@@ -333,15 +507,15 @@ docker compose exec alarm-messenger-server env | grep FIREBASE
 ## Production Deployment Checklist
 
 - [ ] Configure proper `.env` file with Firebase credentials
-- [ ] Setup SSL/TLS certificates
-- [ ] Configure firewall rules
+- [ ] Setup SSL/TLS with Caddy (automatic with Let's Encrypt)
+- [ ] Configure firewall rules (open ports 80 and 443)
 - [ ] Setup automated backups
 - [ ] Configure log rotation
 - [ ] Setup monitoring and alerts
 - [ ] Test emergency notification flow
 - [ ] Setup automatic container restart on failure
 - [ ] Document deployment for team
-- [ ] Configure reverse proxy (Nginx)
+- [ ] Configure reverse proxy (Caddy)
 - [ ] Setup domain name and DNS
 
 ## Systemd Service (Optional)
@@ -449,4 +623,5 @@ For issues:
 - [Docker Documentation](https://docs.docker.com/)
 - [Docker Compose Documentation](https://docs.docker.com/compose/)
 - [Linux Server Administration](https://ubuntu.com/server/docs)
-- [Nginx Documentation](https://nginx.org/en/docs/)
+- [Caddy Documentation](https://caddyserver.com/docs/)
+- [Caddy Caddyfile Syntax](https://caddyserver.com/docs/caddyfile)
