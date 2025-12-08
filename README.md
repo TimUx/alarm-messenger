@@ -2,60 +2,60 @@
 
 Alarmierungs System für Einsätze auf Mobile Devices mit Rückmeldefunktion
 
-## System Overview
+## System-Übersicht
 
-The Alarm Messenger system is a complete emergency notification solution consisting of:
+Das Alarm Messenger System ist eine vollständige Alarmierungslösung bestehend aus:
 
-1. **Backend Server** - Node.js/Express API for managing emergencies and device registrations
-2. **Mobile App** - React Native app for iOS and Android with push notifications
+1. **Backend Server** - Node.js/Express API zur Verwaltung von Einsätzen und Geräteregistrierungen
+2. **Mobile App** - React Native App für iOS und Android mit Push-Benachrichtigungen
 
-## Features
+## Funktionen
 
 ### Backend Server
-- ✅ RESTful API for emergency management
-- ✅ Device registration with QR code generation
-- ✅ **WebSocket-based push notifications** (no external dependencies)
-- ✅ Encrypted HTTPS/TLS communication
-- ✅ SQLite database for data persistence
-- ✅ Response tracking (participation yes/no)
-- ✅ API endpoint to retrieve participating personnel
-- ✅ **API Key authentication for emergency creation**
-- ✅ **JWT-based admin authentication**
-- ✅ **Extended device/responder information storage**
+- ✅ RESTful API zur Einsatzverwaltung
+- ✅ Geräteregistrierung mit QR-Code-Generierung
+- ✅ **WebSocket-basierte Push-Benachrichtigungen** (keine externen Abhängigkeiten)
+- ✅ Verschlüsselte HTTPS/TLS-Kommunikation
+- ✅ SQLite-Datenbank zur Datenpersistenz
+- ✅ Rückmelde-Tracking (Teilnahme ja/nein)
+- ✅ API-Endpunkt zum Abrufen teilnehmender Einsatzkräfte
+- ✅ **API-Key-Authentifizierung für Einsatzerstellung**
+- ✅ **JWT-basierte Admin-Authentifizierung**
+- ✅ **Erweiterte Geräte-/Einsatzkraft-Informationsspeicherung**
 
-### Admin Web Interface (NEW)
-- ✅ Password-protected admin login
-- ✅ QR code generation and display
-- ✅ Device/responder management dashboard
-- ✅ Edit responder information (name, qualifications, leadership role)
-- ✅ Dark theme matching alarm-monitor design (#1a1a1a background, #dc3545 accents)
-- ✅ Responsive design for desktop and mobile
+### Admin Web-Interface (NEU)
+- ✅ Passwortgeschützter Admin-Login
+- ✅ QR-Code-Generierung und Anzeige
+- ✅ Geräte-/Einsatzkraft-Verwaltungs-Dashboard
+- ✅ Bearbeitung von Einsatzkraft-Informationen (Name, Qualifikationen, Führungsrolle)
+- ✅ Dunkles Theme passend zum alarm-monitor Design (#1a1a1a Hintergrund, #dc3545 Akzente)
+- ✅ Responsives Design für Desktop und Mobil
 
-### Responder Information Management (NEW)
-- ✅ Name storage for each registered device
-- ✅ Training qualifications tracking:
-  - Maschinist (Driver/Operator)
-  - AGT (Atemschutzgeräteträger - Breathing Apparatus Wearer)
-  - Sanitäter (Paramedic)
-  - TH-VU (Technical Rescue - Traffic Accidents)
-  - TH-BAU (Technical Rescue - Construction)
-- ✅ Leadership role designation (Fahrzeugführer - Vehicle Commander)
+### Einsatzkraft-Informationsverwaltung (NEU)
+- ✅ Namens-Speicherung für jedes registrierte Gerät
+- ✅ Tracking von Ausbildungsqualifikationen:
+  - Maschinist
+  - AGT (Atemschutzgeräteträger)
+  - Sanitäter
+  - TH-VU (Technische Hilfeleistung - Verkehrsunfall)
+  - TH-BAU (Technische Hilfeleistung - Bau)
+- ✅ Führungsrollen-Festlegung (Fahrzeugführer)
 
 ### Mobile App
-- ✅ QR code scanner for device registration
-- ✅ **WebSocket-based real-time notifications**
-- ✅ Emergency alert UI with alarm sounds
-- ✅ Two response buttons (participate/decline)
-- ✅ Emergency history view
-- ✅ Cross-platform support (iOS & Android)
-- ✅ **Dark/Light/Auto theme modes**
-- ✅ **No external dependencies** - fully self-contained
+- ✅ QR-Code-Scanner zur Geräteregistrierung
+- ✅ **WebSocket-basierte Echtzeit-Benachrichtigungen**
+- ✅ Einsatzalarm-UI mit Alarmtönen
+- ✅ Zwei Antwort-Buttons (Teilnehmen/Ablehnen)
+- ✅ Einsatzverlaufs-Ansicht
+- ✅ Plattformübergreifende Unterstützung (iOS & Android)
+- ✅ **Hell/Dunkel/Auto Theme-Modi**
+- ✅ **Keine externen Abhängigkeiten** - vollständig eigenständig
 
-## Architecture
+## Architektur
 
 ```
 ┌─────────────────┐
-│  External API   │ (e.g., Alarm Monitor)
+│  Externe API    │ (z.B. Alarm Monitor)
 │  (POST)         │
 └────────┬────────┘
          │
@@ -64,79 +64,79 @@ The Alarm Messenger system is a complete emergency notification solution consist
 │  Backend Server │
 │  (Node.js)      │
 │  - API Routes   │
-│  - Database     │
+│  - Datenbank    │
 │  - WebSocket    │
 └────────┬────────┘
-         │ WebSocket Push Notifications
+         │ WebSocket Push-Benachrichtigungen
          ▼
 ┌─────────────────┐
-│  Mobile Devices │
+│  Mobile Geräte  │
 │  (iOS/Android)  │
-│  - Alert UI     │
-│  - Response     │
+│  - Alarm UI     │
+│  - Rückmeldung  │
 └─────────────────┘
 ```
 
-## Project Structure
+## Projektstruktur
 
 ```
 alarm-messenger/
-├── server/              # Backend server
+├── server/              # Backend Server
 │   ├── src/
-│   │   ├── index.ts    # Main server entry point
-│   │   ├── models/     # Data models
-│   │   ├── routes/     # API routes
-│   │   ├── services/   # Business logic
-│   │   └── utils/      # Utilities
-│   ├── data/           # SQLite database
+│   │   ├── index.ts    # Haupteinstiegspunkt des Servers
+│   │   ├── models/     # Datenmodelle
+│   │   ├── routes/     # API-Routen
+│   │   ├── services/   # Geschäftslogik
+│   │   └── utils/      # Hilfsfunktionen
+│   ├── data/           # SQLite-Datenbank
 │   ├── package.json
 │   └── tsconfig.json
 │
-├── mobile/             # Mobile app
+├── mobile/             # Mobile App
 │   ├── src/
-│   │   ├── App.tsx     # Main app component
-│   │   ├── screens/    # UI screens
-│   │   ├── services/   # API & notification services
-│   │   ├── components/ # Reusable components
-│   │   └── types/      # TypeScript types
-│   ├── android/        # Android native code
-│   ├── ios/           # iOS native code
+│   │   ├── App.tsx     # Haupt-App-Komponente
+│   │   ├── screens/    # UI-Bildschirme
+│   │   ├── services/   # API & Benachrichtigungsdienste
+│   │   ├── components/ # Wiederverwendbare Komponenten
+│   │   └── types/      # TypeScript-Typen
+│   ├── android/        # Android Native-Code
+│   ├── ios/           # iOS Native-Code
 │   ├── package.json
 │   └── tsconfig.json
 │
-└── docs/              # Documentation
+└── docs/              # Dokumentation
     ├── API.md
     ├── SETUP.md
     └── MOBILE.md
 ```
 
-## Quick Start
+## Schnellstart
 
-### Prerequisites
+### Voraussetzungen
 - Node.js 18+
-- npm or yarn
-- **For Docker:** Docker and Docker Compose
-- For mobile development:
-  - Xcode (for iOS)
-  - Android Studio (for Android)
+- npm oder yarn
+- **Für Docker:** Docker und Docker Compose
+- Für Mobile-Entwicklung:
+  - Xcode (für iOS)
+  - Android Studio (für Android)
   - React Native CLI
 
-**Note:** Firebase is no longer required! The system now uses WebSocket for push notifications.
+**Hinweis:** Firebase wird nicht mehr benötigt! Das System verwendet jetzt WebSocket für Push-Benachrichtigungen.
 
-### Backend Setup
+### Backend-Setup
 
-#### Option 1: Docker (Recommended for Linux)
+#### Option 1: Docker (Empfohlen für Linux)
 
 ```bash
 cd alarm-messenger
 cp .env.example .env
-# Edit .env with your API keys (Firebase no longer needed!)
+# .env mit API-Schlüsseln bearbeiten (Firebase nicht mehr benötigt!)
 docker compose up -d
 ```
 
-The server will start on `http://localhost:3000`
+Der Server startet auf `http://localhost:3000`
 
-See [DOCKER-QUICKSTART.md](DOCKER-QUICKSTART.md) for more details.
+Siehe [DOCKER-QUICKSTART.md](DOCKER-QUICKSTART.md) für weitere Details.
 
 #### Option 2: Native Installation
 
@@ -144,12 +144,12 @@ See [DOCKER-QUICKSTART.md](DOCKER-QUICKSTART.md) for more details.
 cd server
 npm install
 cp .env.example .env
-# Edit .env with your API keys (Firebase no longer needed!)
+# .env mit API-Schlüsseln bearbeiten (Firebase nicht mehr benötigt!)
 npm run build
 npm start
 ```
 
-The server will start on `http://localhost:3000`
+Der Server startet auf `http://localhost:3000`
 
 ### Mobile App Setup
 
@@ -157,114 +157,114 @@ The server will start on `http://localhost:3000`
 cd mobile
 npm install
 
-# For iOS
+# Für iOS
 cd ios && pod install && cd ..
 npm run ios
 
-# For Android
+# Für Android
 npm run android
 ```
 
-## API Endpoints
+## API-Endpunkte
 
-### Admin Authentication
+### Admin-Authentifizierung
 
-- `POST /api/admin/init` - Initialize first admin user (unprotected, only works when no users exist)
-- `POST /api/admin/login` - Admin login (returns JWT token)
-- `POST /api/admin/users` - Create additional admin users (requires JWT token)
-- `PUT /api/admin/devices/:id` - Update device/responder information (requires JWT token)
+- `POST /api/admin/init` - Ersten Admin-Benutzer initialisieren (ungeschützt, funktioniert nur wenn keine Benutzer existieren)
+- `POST /api/admin/login` - Admin-Login (gibt JWT-Token zurück)
+- `POST /api/admin/users` - Zusätzliche Admin-Benutzer erstellen (benötigt JWT-Token)
+- `PUT /api/admin/devices/:id` - Geräte-/Einsatzkraft-Informationen aktualisieren (benötigt JWT-Token)
 
-### Emergencies
+### Einsätze
 
-- `POST /api/emergencies` - Create new emergency (requires API key via X-API-Key header)
-- `GET /api/emergencies` - Get all emergencies
-- `GET /api/emergencies/:id` - Get specific emergency
-- `POST /api/emergencies/:id/responses` - Submit response
-- `GET /api/emergencies/:id/participants` - Get participants
-- `GET /api/emergencies/:id/responses` - Get all responses
+- `POST /api/emergencies` - Neuen Einsatz erstellen (benötigt API-Key über X-API-Key Header)
+- `GET /api/emergencies` - Alle Einsätze abrufen
+- `GET /api/emergencies/:id` - Spezifischen Einsatz abrufen
+- `POST /api/emergencies/:id/responses` - Rückmeldung absenden
+- `GET /api/emergencies/:id/participants` - Teilnehmer abrufen
+- `GET /api/emergencies/:id/responses` - Alle Rückmeldungen abrufen
 
-### Devices
+### Geräte
 
-- `POST /api/devices/registration-token` - Generate QR code
-- `POST /api/devices/register` - Register device (with optional responder info)
-- `GET /api/devices` - Get all devices
-- `GET /api/devices/:id` - Get specific device
-- `DELETE /api/devices/:id` - Deactivate device
+- `POST /api/devices/registration-token` - QR-Code generieren
+- `POST /api/devices/register` - Gerät registrieren (mit optionalen Einsatzkraft-Infos)
+- `GET /api/devices` - Alle Geräte abrufen
+- `GET /api/devices/:id` - Spezifisches Gerät abrufen
+- `DELETE /api/devices/:id` - Gerät deaktivieren
 
-## Usage Flow
+## Verwendungsablauf
 
-1. **Admin initializes account** via `POST /api/admin/init` (first time only)
-2. **Admin logs in** at `/admin/login.html`
-3. **Admin generates QR code** via admin dashboard
-4. **Admin enters responder information** for the device (name, qualifications, leadership role)
-5. **User scans QR code** in mobile app
-6. **Device registers** with server and establishes WebSocket connection
-7. **External system creates emergency** via `POST /api/emergencies` with API key
-8. **Server sends push notifications** to all registered devices via WebSocket
-9. **Mobile app displays alert** with alarm sound
-10. **User responds** (participate or decline)
-11. **Response saved** in database with responder information
-12. **External system retrieves participants** via `GET /api/emergencies/:id/participants` with full responder details
+1. **Admin initialisiert Konto** über `POST /api/admin/init` (nur beim ersten Mal)
+2. **Admin meldet sich an** unter `/admin/login.html`
+3. **Admin generiert QR-Code** über das Admin-Dashboard
+4. **Admin gibt Einsatzkraft-Informationen ein** für das Gerät (Name, Qualifikationen, Führungsrolle)
+5. **Benutzer scannt QR-Code** in der Mobile App
+6. **Gerät registriert sich** beim Server und stellt WebSocket-Verbindung her
+7. **Externes System erstellt Einsatz** über `POST /api/emergencies` mit API-Key
+8. **Server sendet Push-Benachrichtigungen** an alle registrierten Geräte über WebSocket
+9. **Mobile App zeigt Alarm an** mit Alarmton
+10. **Benutzer antwortet** (Teilnehmen oder Ablehnen)
+11. **Antwort wird gespeichert** in der Datenbank mit Einsatzkraft-Informationen
+12. **Externes System ruft Teilnehmer ab** über `GET /api/emergencies/:id/participants` mit vollständigen Einsatzkraft-Details
 
-## Security
+## Sicherheit
 
-- HTTPS/TLS encryption for all API communication
-- API Key authentication for emergency creation (X-API-Key header)
-- JWT-based authentication for admin interface
-- Password hashing with bcrypt for admin users
-- **WebSocket-based push notifications** (no external dependencies)
-- Rate limiting to prevent abuse
-- Helmet middleware for security headers
-- Device token validation
+- HTTPS/TLS-Verschlüsselung für alle API-Kommunikation
+- API-Key-Authentifizierung für Einsatzerstellung (X-API-Key Header)
+- JWT-basierte Authentifizierung für Admin-Interface
+- Passwort-Hashing mit bcrypt für Admin-Benutzer
+- **WebSocket-basierte Push-Benachrichtigungen** (keine externen Abhängigkeiten)
+- Rate Limiting zur Verhinderung von Missbrauch
+- Helmet-Middleware für Sicherheits-Header
+- Geräte-Token-Validierung
 
-## Admin Interface
+## Admin-Interface
 
-The admin interface is accessible at `http://your-server:3000/admin/` and features:
-- Light/Dark theme toggle (light mode is default)
-- Persistent theme preference
-- Alarm-monitor inspired design
+Das Admin-Interface ist erreichbar unter `http://dein-server:3000/admin/` und bietet:
+- Hell/Dunkel Theme-Umschaltung (Hell-Modus ist Standard)
+- Persistente Theme-Einstellung
+- Am alarm-monitor inspiriertes Design
 
-### Login - Light Mode (Default)
+### Login - Hell-Modus (Standard)
 ![Admin Login Light](https://github.com/user-attachments/assets/4e31daa6-e7c9-4056-92c9-f76eea14a1c5)
 
-### Login - Dark Mode
+### Login - Dunkel-Modus
 ![Admin Login Dark](https://github.com/user-attachments/assets/4879ddf7-62b2-497b-9562-87ae9c5ede5b)
 
-### Dashboard with QR Code Generation - Light Mode
+### Dashboard mit QR-Code-Generierung - Hell-Modus
 ![Admin Dashboard Light](https://github.com/user-attachments/assets/6a4b9baf-c02d-4682-9494-99f0d36a851c)
 
-### Dashboard - Dark Mode
+### Dashboard - Dunkel-Modus
 ![Admin Dashboard Dark](https://github.com/user-attachments/assets/72ec7d0a-edc2-4ea8-b45c-68eb1fd9f0c3)
 
-### QR Code Display
+### QR-Code-Anzeige
 ![QR Code Generation](https://github.com/user-attachments/assets/4c3b4cc3-fedd-4f6b-9892-d95aabc55f2d)
 
-### Responder Information Management
+### Einsatzkraft-Informationsverwaltung
 ![Edit Responder](https://github.com/user-attachments/assets/14457c74-b918-44e3-aba2-8e22532ae3e0)
 
-### Initial Admin Setup
+### Initiale Admin-Einrichtung
 
-Before using the admin interface, create the first admin user:
+Vor der Verwendung des Admin-Interfaces, erstellen Sie den ersten Admin-Benutzer:
 
 ```bash
 curl -X POST http://localhost:3000/api/admin/init \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"your-secure-password"}'
+  -d '{"username":"admin","password":"ihr-sicheres-passwort"}'
 ```
 
-This endpoint only works when no admin users exist yet. After that, use the login page at `/admin/login.html`.
+Dieser Endpunkt funktioniert nur wenn noch keine Admin-Benutzer existieren. Danach verwenden Sie die Login-Seite unter `/admin/login.html`.
 
-## Integration with Alarm Monitor
+## Integration mit Alarm Monitor
 
-The system is designed to integrate with the [alarm-monitor](https://github.com/TimUx/alarm-monitor) project:
+Das System ist für die Integration mit dem [alarm-monitor](https://github.com/TimUx/alarm-monitor) Projekt konzipiert:
 
 ```javascript
-// Example: Create emergency from alarm monitor
+// Beispiel: Einsatz von alarm-monitor erstellen
 const response = await fetch('http://alarm-messenger-server:3000/api/emergencies', {
   method: 'POST',
   headers: { 
     'Content-Type': 'application/json',
-    'X-API-Key': 'your-api-secret-key'  // Required for authentication
+    'X-API-Key': 'ihr-api-geheim-schlüssel'  // Erforderlich für Authentifizierung
   },
   body: JSON.stringify({
     emergencyNumber: '2024-001',
@@ -275,15 +275,15 @@ const response = await fetch('http://alarm-messenger-server:3000/api/emergencies
   })
 });
 
-// Retrieve participants with responder information
+// Teilnehmer mit Einsatzkraft-Informationen abrufen
 const participants = await fetch(
   `http://alarm-messenger-server:3000/api/emergencies/${emergencyId}/participants`,
   {
-    headers: { 'X-API-Key': 'your-api-secret-key' }
+    headers: { 'X-API-Key': 'ihr-api-geheim-schlüssel' }
   }
 ).then(r => r.json());
 
-// participants now includes responder details:
+// participants enthält nun Einsatzkraft-Details:
 // - name
 // - qualifications (machinist, agt, paramedic, thVu, thBau)
 // - isSquadLeader
@@ -293,98 +293,98 @@ const participants = await fetch(
 
 ### Mobile App
 
-The mobile app design is based on the alarm-monitor project with:
-- Dark theme (#1a1a1a background)
-- Light theme (#f5f5f5 background)
-- Auto theme mode (follows system preference)
-- Theme toggle in settings accessible from home screen
-- Persistent theme preference saved locally
-- High contrast for emergency information
-- Large, clearly visible action buttons
-- Red accent color (#dc3545) for emergencies
-- Material Icons for consistent iconography
+Das Design der Mobile App basiert auf dem alarm-monitor Projekt mit:
+- Dunkles Theme (#1a1a1a Hintergrund)
+- Helles Theme (#f5f5f5 Hintergrund)
+- Auto Theme-Modus (folgt System-Einstellung)
+- Theme-Umschaltung in Einstellungen vom Startbildschirm aus zugänglich
+- Persistente Theme-Einstellung lokal gespeichert
+- Hoher Kontrast für Einsatzinformationen
+- Große, gut sichtbare Action-Buttons
+- Rote Akzentfarbe (#dc3545) für Notfälle
+- Material Icons für konsistente Ikonographie
 
-The mobile app includes:
-- QR code scanner for registration
-- Push notification support
-- Emergency alert screen with alarm sound
-- Response buttons (participate/decline)
-- Emergency history view
-- Theme selection (Light/Dark/Auto modes)
+Die Mobile App beinhaltet:
+- QR-Code-Scanner zur Registrierung
+- Push-Benachrichtigungs-Unterstützung
+- Einsatzalarm-Bildschirm mit Alarmton
+- Antwort-Buttons (Teilnehmen/Ablehnen)
+- Einsatzverlaufs-Ansicht
+- Theme-Auswahl (Hell/Dunkel/Auto-Modi)
 
 #### Mobile App Screenshots
 
-> **Note**: To add screenshots of the mobile app, please run the app on a device or emulator and capture screenshots of:
-> - Registration screen (QR code scanner)
-> - Home screen in Light mode
-> - Home screen in Dark mode
-> - Theme selector modal
-> - Emergency alert screen
+> **Hinweis**: Um Screenshots der Mobile App hinzuzufügen, führen Sie bitte die App auf einem Gerät oder Emulator aus und erstellen Screenshots von:
+> - Registrierungsbildschirm (QR-Code-Scanner)
+> - Startbildschirm im Hell-Modus
+> - Startbildschirm im Dunkel-Modus
+> - Theme-Auswahl-Modal
+> - Einsatzalarm-Bildschirm
 > 
-> Upload screenshots to GitHub and replace the placeholders below with actual image links.
+> Laden Sie Screenshots auf GitHub hoch und ersetzen Sie die Platzhalter unten mit tatsächlichen Bild-Links.
 
-**Home Screen - Light Mode**
+**Startbildschirm - Hell-Modus**
 <!-- ![Mobile Home Light](screenshot-url-here) -->
-*Screenshot placeholder: Home screen showing emergency list in light theme*
+*Screenshot-Platzhalter: Startbildschirm zeigt Einsatzliste im hellen Theme*
 
-**Home Screen - Dark Mode**
+**Startbildschirm - Dunkel-Modus**
 <!-- ![Mobile Home Dark](screenshot-url-here) -->
-*Screenshot placeholder: Home screen showing emergency list in dark theme*
+*Screenshot-Platzhalter: Startbildschirm zeigt Einsatzliste im dunklen Theme*
 
-**Theme Selector**
+**Theme-Auswahl**
 <!-- ![Mobile Theme Selector](screenshot-url-here) -->
-*Screenshot placeholder: Modal showing Light/Dark/Auto theme options*
+*Screenshot-Platzhalter: Modal zeigt Hell/Dunkel/Auto Theme-Optionen*
 
-**Emergency Alert Screen**
+**Einsatzalarm-Bildschirm**
 <!-- ![Mobile Emergency Alert](screenshot-url-here) -->
-*Screenshot placeholder: Emergency alert with participate/decline buttons*
+*Screenshot-Platzhalter: Einsatzalarm mit Teilnehmen/Ablehnen-Buttons*
 
-**Registration Screen**
+**Registrierungsbildschirm**
 <!-- ![Mobile Registration](screenshot-url-here) -->
-*Screenshot placeholder: QR code scanner for device registration*
+*Screenshot-Platzhalter: QR-Code-Scanner zur Geräteregistrierung*
 
-### Admin Web Interface
+### Admin Web-Interface
 
-The admin interface follows the alarm-monitor design style with switchable themes:
+Das Admin-Interface folgt dem alarm-monitor Design-Stil mit umschaltbaren Themes:
 
-**Light Mode (Default)**
-- Clean, modern appearance with light backgrounds
-- High contrast for easy readability
-- Professional color palette
+**Hell-Modus (Standard)**
+- Sauberes, modernes Erscheinungsbild mit hellen Hintergründen
+- Hoher Kontrast für einfache Lesbarkeit
+- Professionelle Farbpalette
 
-**Dark Mode**
-- Dark theme (#1a1a1a background) matching alarm-monitor standby
-- Red accent color (#dc3545) for emphasis
-- Reduced eye strain for low-light environments
+**Dunkel-Modus**
+- Dunkles Theme (#1a1a1a Hintergrund) passend zum alarm-monitor Standby
+- Rote Akzentfarbe (#dc3545) zur Hervorhebung
+- Reduzierte Augenbelastung für Umgebungen mit wenig Licht
 
-**Common Features**
-- Theme toggle button (🌙/☀️) for instant switching
-- Persistent theme preference saved in browser
-- Smooth transitions between themes
-- Responsive design for all screen sizes
-- Intuitive navigation and controls
-- Card-based layout for content organization
+**Gemeinsame Funktionen**
+- Theme-Umschalt-Button (🌙/☀️) für sofortiges Umschalten
+- Persistente Theme-Einstellung im Browser gespeichert
+- Weiche Übergänge zwischen Themes
+- Responsives Design für alle Bildschirmgrößen
+- Intuitive Navigation und Bedienung
+- Kartenbasiertes Layout für Inhalts-Organisation
 
-## Deployment Options
+## Deployment-Optionen
 
-### Linux Native
-Run directly on Linux with Node.js. See [docs/SETUP.md](docs/SETUP.md)
+### Linux Nativ
+Direkt auf Linux mit Node.js ausführen. Siehe [docs/SETUP.md](docs/SETUP.md)
 
 ### Docker Container
-Run in Docker container with docker-compose. See [DOCKER-QUICKSTART.md](DOCKER-QUICKSTART.md) or [docs/DOCKER.md](docs/DOCKER.md)
+In Docker Container mit docker-compose ausführen. Siehe [DOCKER-QUICKSTART.md](DOCKER-QUICKSTART.md) oder [docs/DOCKER.md](docs/DOCKER.md)
 
-### Production Deployment
-- Use Docker with Nginx reverse proxy for SSL/TLS
-- Configure systemd for automatic startup
-- Setup automated backups
-- Use PM2 for process management (native installation)
+### Produktiv-Deployment
+- Docker mit Nginx Reverse Proxy für SSL/TLS verwenden
+- Systemd für automatischen Start konfigurieren
+- Automatisierte Backups einrichten
+- PM2 für Prozessmanagement verwenden (native Installation)
 
-See [docs/DOCKER.md](docs/DOCKER.md) for complete deployment instructions.
+Siehe [docs/DOCKER.md](docs/DOCKER.md) für vollständige Deployment-Anweisungen.
 
-## License
+## Lizenz
 
 MIT
 
 ## Support
 
-For issues and questions, please open an issue on GitHub.
+Für Probleme und Fragen öffnen Sie bitte ein Issue auf GitHub.

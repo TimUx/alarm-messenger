@@ -1,91 +1,91 @@
-# Server Setup Guide
+# Server-Setup-Anleitung
 
-## Prerequisites
+## Voraussetzungen
 
-- Node.js 18 or higher
-- npm or yarn
-- Firebase project (for push notifications)
-- SQLite3 (included in dependencies)
+- Node.js 18 oder höher
+- npm oder yarn
+- Firebase-Projekt (für Push-Benachrichtigungen)
+- SQLite3 (in Abhängigkeiten enthalten)
 
-## Step 1: Install Dependencies
+## Schritt 1: Abhängigkeiten installieren
 
 ```bash
 cd server
 npm install
 ```
 
-## Step 2: Configure Firebase
+## Schritt 2: Firebase konfigurieren
 
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create a new project or select an existing one
-3. Go to Project Settings > Service Accounts
-4. Click "Generate New Private Key"
-5. Save the JSON file securely
+1. Gehen Sie zur [Firebase Console](https://console.firebase.google.com/)
+2. Erstellen Sie ein neues Projekt oder wählen Sie ein bestehendes aus
+3. Gehen Sie zu Projekteinstellungen > Service-Konten
+4. Klicken Sie auf "Neuen privaten Schlüssel generieren"
+5. Speichern Sie die JSON-Datei sicher
 
-## Step 3: Configure Environment Variables
+## Schritt 3: Umgebungsvariablen konfigurieren
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` file with your configuration:
+Bearbeiten Sie die `.env`-Datei mit Ihrer Konfiguration:
 
 ```env
-# Server Configuration
+# Server-Konfiguration
 PORT=3000
 NODE_ENV=production
 
-# Firebase Configuration
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour private key here\n-----END PRIVATE KEY-----\n"
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project-id.iam.gserviceaccount.com
+# Firebase-Konfiguration
+FIREBASE_PROJECT_ID=ihre-projekt-id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nIhr privater Schlüssel hier\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@ihre-projekt-id.iam.gserviceaccount.com
 
-# Database
+# Datenbank
 DATABASE_PATH=./data/alarm-messenger.db
 
-# Security
-API_SECRET_KEY=your-secret-key-here
+# Sicherheit
+API_SECRET_KEY=ihr-geheim-schlüssel-hier
 
-# Optional: Server URL for QR codes
+# Optional: Server-URL für QR-Codes
 SERVER_URL=http://localhost:3000
 ```
 
-**Important:** 
-- Keep your Firebase credentials secure
-- Never commit `.env` file to version control
-- Replace newlines in `FIREBASE_PRIVATE_KEY` with `\n`
+**Wichtig:** 
+- Halten Sie Ihre Firebase-Zugangsdaten sicher
+- Checken Sie niemals die `.env`-Datei in die Versionskontrolle ein
+- Ersetzen Sie Zeilenumbrüche in `FIREBASE_PRIVATE_KEY` durch `\n`
 
-## Step 4: Build the Application
+## Schritt 4: Anwendung bauen
 
 ```bash
 npm run build
 ```
 
-This will compile TypeScript to JavaScript in the `dist` directory.
+Dies kompiliert TypeScript zu JavaScript im `dist`-Verzeichnis.
 
-## Step 5: Start the Server
+## Schritt 5: Server starten
 
-### Development Mode
+### Entwicklungsmodus
 ```bash
 npm run dev
 ```
 
-### Production Mode
+### Produktivmodus
 ```bash
 npm start
 ```
 
-The server will start on the port specified in `.env` (default: 3000).
+Der Server startet auf dem in `.env` angegebenen Port (Standard: 3000).
 
-## Step 6: Verify Installation
+## Schritt 6: Installation verifizieren
 
-Test the health endpoint:
+Testen Sie den Gesundheitsendpunkt:
 
 ```bash
 curl http://localhost:3000/health
 ```
 
-Expected response:
+Erwartete Antwort:
 ```json
 {
   "status": "ok",
@@ -93,11 +93,11 @@ Expected response:
 }
 ```
 
-## Database
+## Datenbank
 
-The SQLite database is automatically created at first run in the `data` directory.
+Die SQLite-Datenbank wird beim ersten Start automatisch im `data`-Verzeichnis erstellt.
 
-### Database Schema
+### Datenbankschema
 
 **emergencies**
 - `id` (TEXT, PRIMARY KEY)
@@ -124,33 +124,33 @@ The SQLite database is automatically created at first run in the `data` director
 - `participating` (INTEGER)
 - `responded_at` (TEXT)
 
-### Backup Database
+### Datenbank sichern
 
 ```bash
 cp data/alarm-messenger.db data/alarm-messenger.db.backup
 ```
 
-## Production Deployment
+## Produktiv-Deployment
 
-### Using PM2
+### PM2 verwenden
 
 ```bash
-# Install PM2 globally
+# PM2 global installieren
 npm install -g pm2
 
-# Start server with PM2
+# Server mit PM2 starten
 pm2 start dist/index.js --name alarm-messenger
 
-# Save PM2 configuration
+# PM2-Konfiguration speichern
 pm2 save
 
-# Setup PM2 to start on boot
+# PM2 für Autostart beim Booten einrichten
 pm2 startup
 ```
 
-### Using Docker
+### Docker verwenden
 
-Create `Dockerfile`:
+`Dockerfile` erstellen:
 
 ```dockerfile
 FROM node:18-alpine
@@ -168,16 +168,16 @@ EXPOSE 3000
 CMD ["node", "dist/index.js"]
 ```
 
-Build and run:
+Bauen und ausführen:
 
 ```bash
 docker build -t alarm-messenger-server .
 docker run -p 3000:3000 --env-file .env -v $(pwd)/data:/app/data alarm-messenger-server
 ```
 
-### Using systemd
+### systemd verwenden
 
-Create `/etc/systemd/system/alarm-messenger.service`:
+Erstellen Sie `/etc/systemd/system/alarm-messenger.service`:
 
 ```ini
 [Unit]
@@ -196,7 +196,7 @@ Environment=NODE_ENV=production
 WantedBy=multi-user.target
 ```
 
-Enable and start:
+Aktivieren und starten:
 
 ```bash
 sudo systemctl enable alarm-messenger
@@ -204,21 +204,21 @@ sudo systemctl start alarm-messenger
 sudo systemctl status alarm-messenger
 ```
 
-## HTTPS/SSL Setup
+## HTTPS/SSL-Setup
 
-### Using Nginx as Reverse Proxy
+### Nginx als Reverse Proxy verwenden
 
-Install Nginx:
+Nginx installieren:
 ```bash
 sudo apt-get install nginx
 ```
 
-Create `/etc/nginx/sites-available/alarm-messenger`:
+Erstellen Sie `/etc/nginx/sites-available/alarm-messenger`:
 
 ```nginx
 server {
     listen 80;
-    server_name your-domain.com;
+    server_name ihre-domain.de;
 
     location / {
         proxy_pass http://localhost:3000;
@@ -231,30 +231,30 @@ server {
 }
 ```
 
-Enable site:
+Site aktivieren:
 ```bash
 sudo ln -s /etc/nginx/sites-available/alarm-messenger /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-Setup SSL with Let's Encrypt:
+SSL mit Let's Encrypt einrichten:
 ```bash
 sudo apt-get install certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
+sudo certbot --nginx -d ihre-domain.de
 ```
 
-### Using Caddy
+### Caddy verwenden
 
-Create `Caddyfile`:
+`Caddyfile` erstellen:
 
 ```
-your-domain.com {
+ihre-domain.de {
     reverse_proxy localhost:3000
 }
 ```
 
-Run Caddy:
+Caddy ausführen:
 ```bash
 caddy run
 ```
@@ -263,7 +263,7 @@ caddy run
 
 ### Logs
 
-View logs:
+Logs anzeigen:
 ```bash
 # PM2
 pm2 logs alarm-messenger
@@ -275,102 +275,102 @@ sudo journalctl -u alarm-messenger -f
 docker logs -f container-name
 ```
 
-### Health Checks
+### Gesundheitsprüfungen
 
-Setup a cron job to check server health:
+Cronjob einrichten um Server-Gesundheit zu prüfen:
 
 ```bash
-# Add to crontab
+# Zu crontab hinzufügen
 */5 * * * * curl -f http://localhost:3000/health || echo "Server down" | mail -s "Alert" admin@example.com
 ```
 
-## Performance Tuning
+## Performance-Tuning
 
-### Node.js Options
+### Node.js-Optionen
 
 ```bash
-# Increase memory limit
+# Speicherlimit erhöhen
 NODE_OPTIONS="--max-old-space-size=4096" npm start
 ```
 
-### Database Optimization
+### Datenbankoptimierung
 
 ```bash
-# Vacuum database periodically
+# Datenbank periodisch bereinigen
 sqlite3 data/alarm-messenger.db "VACUUM;"
 ```
 
-## Security Checklist
+## Sicherheits-Checkliste
 
-- [ ] Use HTTPS in production
-- [ ] Keep Firebase credentials secure
-- [ ] Enable firewall rules
-- [ ] Implement API authentication
-- [ ] Regular security updates
-- [ ] Monitor access logs
-- [ ] Backup database regularly
-- [ ] Use strong API_SECRET_KEY
-- [ ] Limit CORS origins in production
-- [ ] Enable rate limiting
+- [ ] HTTPS im Produktivbetrieb verwenden
+- [ ] Firebase-Zugangsdaten sicher aufbewahren
+- [ ] Firewall-Regeln aktivieren
+- [ ] API-Authentifizierung implementieren
+- [ ] Regelmäßige Sicherheitsupdates
+- [ ] Zugriffsprotokolle überwachen
+- [ ] Datenbank regelmäßig sichern
+- [ ] Starken API_SECRET_KEY verwenden
+- [ ] CORS-Origins im Produktivbetrieb begrenzen
+- [ ] Rate Limiting aktivieren
 
-## Troubleshooting
+## Problembehandlung
 
-### Server won't start
+### Server startet nicht
 
-1. Check Node.js version: `node --version`
-2. Check if port is available: `lsof -i :3000`
-3. Check environment variables: `cat .env`
-4. Check logs for errors
+1. Node.js-Version prüfen: `node --version`
+2. Prüfen ob Port verfügbar ist: `lsof -i :3000`
+3. Umgebungsvariablen prüfen: `cat .env`
+4. Logs auf Fehler prüfen
 
-### Firebase errors
+### Firebase-Fehler
 
-1. Verify Firebase credentials are correct
-2. Ensure Firebase project has Cloud Messaging enabled
-3. Check Firebase service account permissions
+1. Firebase-Zugangsdaten sind korrekt überprüfen
+2. Sicherstellen dass Cloud Messaging im Firebase-Projekt aktiviert ist
+3. Service-Konto-Berechtigungen prüfen
 
-### Database errors
+### Datenbankfehler
 
-1. Ensure `data` directory exists and is writable
-2. Check database file permissions
-3. Verify SQLite3 is installed
+1. Sicherstellen dass `data`-Verzeichnis existiert und beschreibbar ist
+2. Dateiberechtigungen der Datenbank prüfen
+3. SQLite3 ist installiert überprüfen
 
-### Push notifications not working
+### Push-Benachrichtigungen funktionieren nicht
 
-1. Verify Firebase configuration
-2. Check device FCM tokens are valid
-3. Ensure Cloud Messaging is enabled in Firebase
-4. Check server logs for FCM errors
+1. Firebase-Konfiguration überprüfen
+2. Prüfen dass Geräte-FCM-Tokens gültig sind
+3. Sicherstellen dass Cloud Messaging in Firebase aktiviert ist
+4. Server-Logs auf FCM-Fehler prüfen
 
-## Updating
+## Aktualisieren
 
 ```bash
-# Pull latest changes
+# Neueste Änderungen pullen
 git pull
 
-# Install dependencies
+# Abhängigkeiten installieren
 npm install
 
-# Rebuild
+# Neu bauen
 npm run build
 
-# Restart server
+# Server neu starten
 pm2 restart alarm-messenger
 ```
 
 ## Support
 
-For issues, check:
-1. Server logs
-2. Database integrity
-3. Network connectivity
-4. Firebase status
-5. GitHub issues
+Bei Problemen prüfen Sie:
+1. Server-Logs
+2. Datenbankintegrität
+3. Netzwerkverbindung
+4. Firebase-Status
+5. GitHub-Issues
 
-## Next Steps
+## Nächste Schritte
 
-After setup:
-1. Test API endpoints
-2. Generate QR codes for device registration
-3. Setup monitoring
-4. Configure backups
-5. Setup mobile apps
+Nach dem Setup:
+1. API-Endpunkte testen
+2. QR-Codes für Geräteregistrierung generieren
+3. Monitoring einrichten
+4. Backups konfigurieren
+5. Mobile Apps einrichten

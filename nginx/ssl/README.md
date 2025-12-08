@@ -1,11 +1,11 @@
-# SSL Certificate Files
+# SSL-Zertifikat-Dateien
 
-Place your SSL certificates here:
+Platzieren Sie Ihre SSL-Zertifikate hier:
 
-- `cert.pem` - SSL certificate
-- `key.pem` - Private key
+- `cert.pem` - SSL-Zertifikat
+- `key.pem` - Privater Schlüssel
 
-## Generating Self-Signed Certificates (for testing)
+## Selbstsignierte Zertifikate generieren (zum Testen)
 
 ```bash
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
@@ -14,22 +14,22 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -subj "/CN=localhost"
 ```
 
-## Using Let's Encrypt
+## Let's Encrypt verwenden
 
-For production, use Let's Encrypt certificates:
+Für den Produktivbetrieb verwenden Sie Let's Encrypt Zertifikate:
 
 ```bash
-# Install certbot
+# Certbot installieren
 sudo apt-get install certbot
 
-# Generate certificate
-sudo certbot certonly --standalone -d your-domain.com
+# Zertifikat generieren
+sudo certbot certonly --standalone -d ihre-domain.de
 
-# Copy certificates
-sudo cp /etc/letsencrypt/live/your-domain.com/fullchain.pem nginx/ssl/cert.pem
-sudo cp /etc/letsencrypt/live/your-domain.com/privkey.pem nginx/ssl/key.pem
+# Zertifikate kopieren
+sudo cp /etc/letsencrypt/live/ihre-domain.de/fullchain.pem nginx/ssl/cert.pem
+sudo cp /etc/letsencrypt/live/ihre-domain.de/privkey.pem nginx/ssl/key.pem
 ```
 
-## Security
+## Sicherheit
 
-**Important:** Do not commit SSL certificates to version control!
+**Wichtig:** SSL-Zertifikate nicht in die Versionskontrolle einchecken!

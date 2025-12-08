@@ -1,26 +1,26 @@
-# API-Dokumentation
+# API Documentation
 
-## Basis-URL
+## Base URL
 
 ```
 http://localhost:3000/api
 ```
 
-Für den Produktivbetrieb ersetzen Sie dies mit Ihrer Server-URL.
+For production, replace with your server URL.
 
-## Authentifizierung
+## Authentication
 
-Derzeit erfordert die API keine Authentifizierung. Für den Produktivbetrieb implementieren Sie API-Keys oder OAuth2.
+Currently, the API does not require authentication. For production use, implement API keys or OAuth2.
 
-## Endpunkte
+## Endpoints
 
-### Gesundheitsprüfung
+### Health Check
 
-Prüfen, ob der Server läuft.
+Check if the server is running.
 
-**Endpunkt:** `GET /health`
+**Endpoint:** `GET /health`
 
-**Antwort:**
+**Response:**
 ```json
 {
   "status": "ok",
@@ -30,13 +30,13 @@ Prüfen, ob der Server läuft.
 
 ---
 
-## Einsatzverwaltung
+## Emergency Management
 
-### Einsatz erstellen
+### Create Emergency
 
-Erstellt einen neuen Einsatz und löst Push-Benachrichtigungen an alle registrierten Geräte aus.
+Create a new emergency and trigger push notifications to all registered devices.
 
-**Endpunkt:** `POST /api/emergencies`
+**Endpoint:** `POST /api/emergencies`
 
 **Request Body:**
 ```json
@@ -49,7 +49,7 @@ Erstellt einen neuen Einsatz und löst Push-Benachrichtigungen an alle registrie
 }
 ```
 
-**Antwort:** `201 Created`
+**Response:** `201 Created`
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -63,19 +63,19 @@ Erstellt einen neuen Einsatz und löst Push-Benachrichtigungen an alle registrie
 }
 ```
 
-**Fehlerantworten:**
-- `400 Bad Request` - Erforderliche Felder fehlen
-- `500 Internal Server Error` - Serverfehler
+**Error Responses:**
+- `400 Bad Request` - Missing required fields
+- `500 Internal Server Error` - Server error
 
 ---
 
-### Alle Einsätze abrufen
+### Get All Emergencies
 
-Ruft alle Einsätze sortiert nach Erstellungsdatum ab (neueste zuerst).
+Retrieve all emergencies ordered by creation date (newest first).
 
-**Endpunkt:** `GET /api/emergencies`
+**Endpoint:** `GET /api/emergencies`
 
-**Antwort:** `200 OK`
+**Response:** `200 OK`
 ```json
 [
   {
@@ -93,13 +93,13 @@ Ruft alle Einsätze sortiert nach Erstellungsdatum ab (neueste zuerst).
 
 ---
 
-### Einsatz nach ID abrufen
+### Get Emergency by ID
 
-Ruft einen spezifischen Einsatz ab.
+Retrieve a specific emergency.
 
-**Endpunkt:** `GET /api/emergencies/:id`
+**Endpoint:** `GET /api/emergencies/:id`
 
-**Antwort:** `200 OK`
+**Response:** `200 OK`
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -113,16 +113,16 @@ Ruft einen spezifischen Einsatz ab.
 }
 ```
 
-**Fehlerantworten:**
-- `404 Not Found` - Einsatz nicht gefunden
+**Error Responses:**
+- `404 Not Found` - Emergency not found
 
 ---
 
-### Rückmeldung zu Einsatz abgeben
+### Submit Response to Emergency
 
-Sendet die Rückmeldung eines Geräts (Teilnahme oder Ablehnung) zu einem Einsatz.
+Submit a device's response (participate or decline) to an emergency.
 
-**Endpunkt:** `POST /api/emergencies/:id/responses`
+**Endpoint:** `POST /api/emergencies/:id/responses`
 
 **Request Body:**
 ```json
@@ -132,7 +132,7 @@ Sendet die Rückmeldung eines Geräts (Teilnahme oder Ablehnung) zu einem Einsat
 }
 ```
 
-**Antwort:** `201 Created`
+**Response:** `201 Created`
 ```json
 {
   "id": "response-uuid",
@@ -143,19 +143,19 @@ Sendet die Rückmeldung eines Geräts (Teilnahme oder Ablehnung) zu einem Einsat
 }
 ```
 
-**Fehlerantworten:**
-- `400 Bad Request` - Erforderliche Felder fehlen
-- `404 Not Found` - Einsatz oder Gerät nicht gefunden
+**Error Responses:**
+- `400 Bad Request` - Missing required fields
+- `404 Not Found` - Emergency or device not found
 
 ---
 
-### Einsatz-Teilnehmer abrufen
+### Get Emergency Participants
 
-Ruft alle Geräte ab, die ihre Teilnahme an einem Einsatz bestätigt haben.
+Retrieve all devices that confirmed participation for an emergency.
 
-**Endpunkt:** `GET /api/emergencies/:id/participants`
+**Endpoint:** `GET /api/emergencies/:id/participants`
 
-**Antwort:** `200 OK`
+**Response:** `200 OK`
 ```json
 {
   "emergencyId": "550e8400-e29b-41d4-a716-446655440000",
@@ -177,18 +177,18 @@ Ruft alle Geräte ab, die ihre Teilnahme an einem Einsatz bestätigt haben.
 }
 ```
 
-**Fehlerantworten:**
-- `404 Not Found` - Einsatz nicht gefunden
+**Error Responses:**
+- `404 Not Found` - Emergency not found
 
 ---
 
-### Alle Rückmeldungen abrufen
+### Get All Responses
 
-Ruft alle Rückmeldungen (sowohl Teilnahme als auch Ablehnung) für einen Einsatz ab.
+Retrieve all responses (both participating and declining) for an emergency.
 
-**Endpunkt:** `GET /api/emergencies/:id/responses`
+**Endpoint:** `GET /api/emergencies/:id/responses`
 
-**Antwort:** `200 OK`
+**Response:** `200 OK`
 ```json
 [
   {
@@ -212,15 +212,15 @@ Ruft alle Rückmeldungen (sowohl Teilnahme als auch Ablehnung) für einen Einsat
 
 ---
 
-## Geräteverwaltung
+## Device Management
 
-### Registrierungs-Token generieren
+### Generate Registration Token
 
-Generiert einen QR-Code für die Geräteregistrierung.
+Generate a QR code for device registration.
 
-**Endpunkt:** `POST /api/devices/registration-token`
+**Endpoint:** `POST /api/devices/registration-token`
 
-**Antwort:** `200 OK`
+**Response:** `200 OK`
 ```json
 {
   "deviceToken": "generated-uuid",
@@ -234,11 +234,11 @@ Generiert einen QR-Code für die Geräteregistrierung.
 
 ---
 
-### Gerät registrieren
+### Register Device
 
-Registriert ein mobiles Gerät beim Server.
+Register a mobile device with the server.
 
-**Endpunkt:** `POST /api/devices/register`
+**Endpoint:** `POST /api/devices/register`
 
 **Request Body:**
 ```json
@@ -249,12 +249,12 @@ Registriert ein mobiles Gerät beim Server.
 }
 ```
 
-**Parameter:**
-- `deviceToken` - Token vom QR-Code
-- `registrationToken` - FCM-Token vom Gerät
-- `platform` - Entweder "ios" oder "android"
+**Parameters:**
+- `deviceToken` - Token from QR code
+- `registrationToken` - FCM token from the device
+- `platform` - Either "ios" or "android"
 
-**Antwort:** `201 Created` (oder `200 OK` bei Aktualisierung eines existierenden)
+**Response:** `201 Created` (or `200 OK` if updating existing)
 ```json
 {
   "id": "device-uuid",
@@ -266,18 +266,18 @@ Registriert ein mobiles Gerät beim Server.
 }
 ```
 
-**Fehlerantworten:**
-- `400 Bad Request` - Erforderliche Felder fehlen oder ungültige Plattform
+**Error Responses:**
+- `400 Bad Request` - Missing required fields or invalid platform
 
 ---
 
-### Alle Geräte abrufen
+### Get All Devices
 
-Ruft alle registrierten und aktiven Geräte ab.
+Retrieve all registered and active devices.
 
-**Endpunkt:** `GET /api/devices`
+**Endpoint:** `GET /api/devices`
 
-**Antwort:** `200 OK`
+**Response:** `200 OK`
 ```json
 [
   {
@@ -293,13 +293,13 @@ Ruft alle registrierten und aktiven Geräte ab.
 
 ---
 
-### Gerät nach ID abrufen
+### Get Device by ID
 
-Ruft ein spezifisches Gerät ab.
+Retrieve a specific device.
 
-**Endpunkt:** `GET /api/devices/:id`
+**Endpoint:** `GET /api/devices/:id`
 
-**Antwort:** `200 OK`
+**Response:** `200 OK`
 ```json
 {
   "id": "device-uuid",
@@ -311,39 +311,39 @@ Ruft ein spezifisches Gerät ab.
 }
 ```
 
-**Fehlerantworten:**
-- `404 Not Found` - Gerät nicht gefunden
+**Error Responses:**
+- `404 Not Found` - Device not found
 
 ---
 
-### Gerät deaktivieren
+### Deactivate Device
 
-Deaktiviert ein registriertes Gerät (Soft Delete).
+Deactivate a registered device (soft delete).
 
-**Endpunkt:** `DELETE /api/devices/:id`
+**Endpoint:** `DELETE /api/devices/:id`
 
-**Antwort:** `200 OK`
+**Response:** `200 OK`
 ```json
 {
   "message": "Device deactivated successfully"
 }
 ```
 
-**Fehlerantworten:**
-- `404 Not Found` - Gerät nicht gefunden
+**Error Responses:**
+- `404 Not Found` - Device not found
 
 ---
 
-## Integrationsbeispiele
+## Integration Examples
 
-### Node.js-Beispiel
+### Node.js Example
 
 ```javascript
 const axios = require('axios');
 
 const API_BASE_URL = 'http://localhost:3000/api';
 
-// Einsatz erstellen
+// Create an emergency
 async function createEmergency() {
   const response = await axios.post(`${API_BASE_URL}/emergencies`, {
     emergencyNumber: '2024-001',
@@ -353,31 +353,31 @@ async function createEmergency() {
     emergencyLocation: 'Hauptstraße 123, 12345 Stadt'
   });
   
-  console.log('Einsatz erstellt:', response.data);
+  console.log('Emergency created:', response.data);
   return response.data.id;
 }
 
-// Teilnehmer abrufen
+// Get participants
 async function getParticipants(emergencyId) {
   const response = await axios.get(
     `${API_BASE_URL}/emergencies/${emergencyId}/participants`
   );
   
-  console.log('Teilnehmer:', response.data);
+  console.log('Participants:', response.data);
   return response.data.participants;
 }
 
-// Verwendung
+// Usage
 (async () => {
   const emergencyId = await createEmergency();
-  // Etwas Zeit für Rückmeldungen warten...
+  // Wait some time for responses...
   setTimeout(async () => {
     const participants = await getParticipants(emergencyId);
   }, 60000);
 })();
 ```
 
-### Python-Beispiel
+### Python Example
 
 ```python
 import requests
@@ -399,7 +399,7 @@ def create_emergency():
     response.raise_for_status()
     
     emergency = response.json()
-    print('Einsatz erstellt:', emergency)
+    print('Emergency created:', emergency)
     return emergency['id']
 
 def get_participants(emergency_id):
@@ -409,18 +409,18 @@ def get_participants(emergency_id):
     response.raise_for_status()
     
     data = response.json()
-    print(f"Gesamt Teilnehmer: {data['totalParticipants']}")
+    print(f"Total participants: {data['totalParticipants']}")
     return data['participants']
 
-# Verwendung
+# Usage
 emergency_id = create_emergency()
 participants = get_participants(emergency_id)
 ```
 
-### cURL-Beispiele
+### cURL Examples
 
 ```bash
-# Einsatz erstellen
+# Create emergency
 curl -X POST http://localhost:3000/api/emergencies \
   -H "Content-Type: application/json" \
   -d '{
@@ -431,52 +431,52 @@ curl -X POST http://localhost:3000/api/emergencies \
     "emergencyLocation": "Hauptstraße 123, 12345 Stadt"
   }'
 
-# Teilnehmer abrufen
+# Get participants
 curl http://localhost:3000/api/emergencies/{emergency-id}/participants
 
-# Registrierungs-QR-Code generieren
+# Generate registration QR code
 curl -X POST http://localhost:3000/api/devices/registration-token
 
-# Alle Geräte abrufen
+# Get all devices
 curl http://localhost:3000/api/devices
 ```
 
 ## Rate Limiting
 
-Die API implementiert Rate Limiting:
-- **Limit:** 100 Anfragen pro 15 Minuten pro IP-Adresse
-- **Antwort bei Überschreitung:** `429 Too Many Requests`
+The API implements rate limiting:
+- **Limit:** 100 requests per 15 minutes per IP address
+- **Response when exceeded:** `429 Too Many Requests`
 
-## Fehlerbehandlung
+## Error Handling
 
-Alle Fehler folgen diesem Format:
+All errors follow this format:
 
 ```json
 {
-  "error": "Fehlerbeschreibung"
+  "error": "Error message description"
 }
 ```
 
-Häufige HTTP-Statuscodes:
-- `200 OK` - Erfolgreiche GET-Anfrage
-- `201 Created` - Erfolgreiche POST-Anfrage
-- `400 Bad Request` - Ungültige Anfragedaten
-- `404 Not Found` - Ressource nicht gefunden
-- `429 Too Many Requests` - Rate Limit überschritten
-- `500 Internal Server Error` - Serverfehler
+Common HTTP status codes:
+- `200 OK` - Successful GET request
+- `201 Created` - Successful POST request
+- `400 Bad Request` - Invalid request data
+- `404 Not Found` - Resource not found
+- `429 Too Many Requests` - Rate limit exceeded
+- `500 Internal Server Error` - Server error
 
-## Webhooks (Zukünftige Funktion)
+## Webhooks (Future Feature)
 
-In zukünftigen Versionen kann das System Webhooks unterstützen, um externe Systeme über Ereignisse zu benachrichtigen:
-- Neuer Einsatz erstellt
-- Gerät registriert
-- Rückmeldung abgegeben
+In future versions, the system may support webhooks to notify external systems of events:
+- New emergency created
+- Device registered
+- Response submitted
 
 ## Best Practices
 
-1. **Antworten immer validieren** - HTTP-Statuscodes vor der Verarbeitung prüfen
-2. **Fehler elegant behandeln** - Wiederholungslogik für Netzwerkfehler implementieren
-3. **HTTPS im Produktivbetrieb verwenden** - Niemals sensible Daten über HTTP übertragen
-4. **Authentifizierung implementieren** - API-Keys für Produktivbetrieb hinzufügen
-5. **Rate Limits überwachen** - Exponentielles Backoff implementieren bei Rate Limiting
-6. **Alle API-Aufrufe protokollieren** - Für Debugging und Audit-Zwecke
+1. **Always validate responses** - Check HTTP status codes before processing
+2. **Handle errors gracefully** - Implement retry logic for network failures
+3. **Use HTTPS in production** - Never transmit sensitive data over HTTP
+4. **Implement authentication** - Add API keys for production use
+5. **Monitor rate limits** - Implement exponential backoff if rate limited
+6. **Log all API calls** - For debugging and audit purposes
