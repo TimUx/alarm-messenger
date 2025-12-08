@@ -13,24 +13,42 @@
 import crypto from 'crypto';
 
 /**
- * Checks if a string is Base64 encoded
- * A valid Base64 string contains only A-Z, a-z, 0-9, +, /, and = (padding)
- * Note: This is a heuristic check; the actual decoding attempt is the final validation
+ * Checks if a string looks like Base64 encoded
+ * This is a conservative heuristic - when in doubt, treat as plain text
+ * The actual decoding attempt is the final validation
  */
-function isBase64(str: string): boolean {
+function looksLikeBase64(str: string): boolean {
   if (!str || str.length === 0) {
     return false;
   }
   
-  // Check if string contains only valid Base64 characters
-  const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+  // Must contain only Base64 characters (including padding)
+  const base64Regex = /^[A-Za-z0-9+/]+(={0,2})?$/;
   if (!base64Regex.test(str)) {
     return false;
   }
   
-  // Valid Base64 strings should have length divisible by 4
-  // But we're lenient here and let the actual decode attempt be the final validator
-  return str.length % 4 === 0;
+  // Conservative length check: properly padded Base64 should be divisible by 4
+  // This helps distinguish between Base64 and plain hex/alphanumeric strings
+  if (str.length % 4 !== 0) {
+    return false;
+  }
+  
+  // Additional heuristic: Base64 typically has a mix of cases or special chars
+  // Plain passwords like "password123" or "admin" rarely look like valid Base64
+  // Check if it has at least one of: uppercase, special chars (+, /, =)
+  const hasUpperCase = /[A-Z]/.test(str);
+  const hasLowerCase = /[a-z]/.test(str);
+  const hasSpecialChars = /[+/=]/.test(str);
+  
+  // If it has padding, it's likely Base64
+  if (str.endsWith('=')) {
+    return true;
+  }
+  
+  // If it has both cases or has special Base64 chars, likely Base64
+  // Otherwise, treat as plain text (conservative approach)
+  return (hasUpperCase && hasLowerCase) || hasSpecialChars;
 }
 
 /**
@@ -46,7 +64,7 @@ export function decodeSecret(secret: string | undefined): string | undefined {
   }
   
   // If the secret looks like Base64, try to decode it
-  if (isBase64(secret)) {
+  if (looksLikeBase64(secret)) {
     try {
       const decoded = Buffer.from(secret, 'base64').toString('utf-8');
       // Ensure decoded string contains meaningful content (not just whitespace)
@@ -54,8 +72,8 @@ export function decodeSecret(secret: string | undefined): string | undefined {
         return decoded;
       }
     } catch (error) {
-      // If decoding fails, treat it as plain text
-      console.warn('⚠️  WARNING: Configuration value processing failed, using original value');
+      // If decoding fails, treat it as plain text (backward compatibility)
+      // Use a generic message to avoid leaking implementation details
     }
   }
   
