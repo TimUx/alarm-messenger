@@ -165,8 +165,9 @@ Das System erkennt automatisch, ob ein Secret Base64-kodiert ist:
 
 1. **Prüfung auf gültige Base64-Zeichen**: `A-Z`, `a-z`, `0-9`, `+`, `/`, `=`
 2. **Länge muss durch 4 teilbar sein**: Base64 verwendet 4-Zeichen-Blöcke
-3. **Dekodierung versuchen**: Wenn erfolgreich, wird dekodierter Wert verwendet
-4. **Fallback zu Plain-Text**: Bei Fehlschlag wird Original-Wert verwendet
+3. **Heuristische Prüfung**: Gemischte Groß-/Kleinschreibung oder Sonderzeichen
+4. **Dekodierung versuchen**: Wenn erfolgreich, wird dekodierter Wert verwendet
+5. **Fallback zu Plain-Text**: Bei Fehlschlag wird Original-Wert verwendet
 
 ### Code-Implementierung
 
@@ -178,12 +179,12 @@ export function decodeSecret(secret: string | undefined): string | undefined {
     return undefined;
   }
   
-  // Prüfen, ob Base64-kodiert
-  if (isBase64(secret)) {
+  // Prüfen, ob Base64-ähnlich (konservativ)
+  if (looksLikeBase64(secret)) {
     try {
       return Buffer.from(secret, 'base64').toString('utf-8');
     } catch (error) {
-      console.warn('⚠️  WARNING: Failed to decode Base64 secret, using as plain text');
+      // Bei Fehler: Plain-Text verwenden (silent fallback)
     }
   }
   
