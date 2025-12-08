@@ -23,7 +23,8 @@ function looksLikeBase64(str: string): boolean {
   }
   
   // Must contain only Base64 characters (including padding)
-  const base64Regex = /^[A-Za-z0-9+/]+(={0,2})?$/;
+  // Valid Base64 can have 0, 1, or 2 padding characters at the end
+  const base64Regex = /^[A-Za-z0-9+/]+(={0,2})$/;
   if (!base64Regex.test(str)) {
     return false;
   }
@@ -73,7 +74,10 @@ export function decodeSecret(secret: string | undefined): string | undefined {
       }
     } catch (error) {
       // If decoding fails, treat it as plain text (backward compatibility)
-      // Use a generic message to avoid leaking implementation details
+      // Silent fallback for security reasons (avoid leaking implementation details)
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️  DEBUG: Failed to decode potential Base64 secret, using as plain text');
+      }
     }
   }
   
