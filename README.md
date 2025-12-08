@@ -109,6 +109,7 @@ alarm-messenger/
     ├── API.md                        # API-Referenz
     ├── API.en.md                     # API-Referenz (Englisch)
     ├── AUTHENTIFIZIERUNG.md          # Authentifizierungsleitfaden
+    ├── RUECKMELDUNGEN-API.md         # Rückmeldungen und Einsatzkraft-Details API
     ├── SERVER-KONFIGURATION.md       # Server-Konfiguration und URL-Setup
     ├── SETUP.md                      # Setup-Anleitung
     ├── DOCKER.md                     # Docker-Deployment
@@ -325,18 +326,27 @@ const response = await fetch('http://alarm-messenger-server:3000/api/emergencies
   })
 });
 
-// Teilnehmer mit Einsatzkraft-Informationen abrufen
+// Teilnehmer mit vollständigen Einsatzkraft-Informationen abrufen
 const participants = await fetch(
   `http://alarm-messenger-server:3000/api/emergencies/${emergencyId}/participants`,
   {
-    headers: { 'X-API-Key': 'ihr-api-geheim-schlüssel' }
+    headers: { 'X-API-Key': 'ihr-api-geheim-schlüssel' }  // Erforderlich für Authentifizierung
   }
 ).then(r => r.json());
 
-// participants enthält nun Einsatzkraft-Details:
-// - name
-// - qualifications (machinist, agt, paramedic, thVu, thBau)
-// - isSquadLeader
+// participants enthält nun vollständige Einsatzkraft-Details:
+// - responder.firstName, responder.lastName
+// - responder.qualifications (machinist, agt, paramedic)
+// - responder.leadershipRole (none, groupLeader, platoonLeader)
+// Beispiel:
+participants.forEach(p => {
+  console.log(`${p.responder.firstName} ${p.responder.lastName} - ${p.responder.leadershipRole}`);
+});
+```
+
+**📚 Detaillierte Dokumentation:**
+- Siehe [docs/RUECKMELDUNGEN-API.md](docs/RUECKMELDUNGEN-API.md) für vollständige Rückmeldungs-API-Dokumentation
+- Siehe [docs/API.md](docs/API.md) für vollständige API-Referenz
 ```
 
 ## Design
