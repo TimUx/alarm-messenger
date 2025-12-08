@@ -70,7 +70,13 @@ Das Alarm Messenger System wurde vollständig implementiert gemäß den Anforder
    - docker-compose.yml für einfaches Deployment
    - docker-compose.dev.yml für Entwicklung
    
-3. **Nginx Reverse Proxy**
+3. **Caddy Reverse Proxy (empfohlen)**
+   - Automatisches HTTPS mit Let's Encrypt
+   - WebSocket-Unterstützung
+   - Rate Limiting
+   - Optional mit docker-compose --profile with-caddy
+   
+4. **Nginx Reverse Proxy (Legacy)**
    - SSL/TLS-Terminierung
    - Rate Limiting
    - Optional mit docker-compose --profile with-nginx
@@ -163,7 +169,11 @@ alarm-messenger/
 │   ├── DOCKER.md             # Docker Deployment
 │   └── MOBILE.md             # Mobile App Setup
 │
-├── nginx/                     # Nginx Reverse Proxy
+├── caddy/                    # Caddy Reverse Proxy (empfohlen)
+│   ├── Caddyfile
+│   └── README.md
+│
+├── nginx/                     # Nginx Reverse Proxy (Legacy)
 │   ├── nginx.conf
 │   └── ssl/
 │
@@ -211,7 +221,23 @@ npm run ios
 npm run android
 ```
 
-### Option 3: Mit SSL/TLS (Nginx)
+### Option 3: Mit SSL/TLS (Caddy - Empfohlen)
+
+```bash
+# Für lokales Testen
+docker compose --profile with-caddy up -d
+
+# Für Produktiv mit echter Domain:
+# 1. caddy/Caddyfile bearbeiten und Domain anpassen
+# 2. Firewall-Ports öffnen
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# 3. Mit Caddy starten (holt automatisch Let's Encrypt Zertifikat)
+docker compose --profile with-caddy up -d
+```
+
+### Option 4: Mit SSL/TLS (Nginx - Legacy)
 
 ```bash
 # SSL-Zertifikate generieren
