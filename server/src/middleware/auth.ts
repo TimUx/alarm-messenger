@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { decodeSecret } from '../utils/secrets';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
+const JWT_SECRET = decodeSecret(process.env.JWT_SECRET) || 'change-this-secret-in-production';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 if (JWT_SECRET === 'change-this-secret-in-production') {
@@ -41,7 +42,7 @@ export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction)
 // Middleware to verify API key for emergency creation
 export const verifyApiKey = (req: Request, res: Response, next: NextFunction) => {
   const apiKey = req.headers['x-api-key'] as string;
-  const validApiKey = process.env.API_SECRET_KEY || 'change-me-in-production';
+  const validApiKey = decodeSecret(process.env.API_SECRET_KEY) || 'change-me-in-production';
 
   if (validApiKey === 'change-me-in-production') {
     const message = '⚠️  WARNING: API_SECRET_KEY is using default value. Set a secure API_SECRET_KEY in your .env file for production!';
