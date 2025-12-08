@@ -10,6 +10,8 @@
  * - Maintains compatibility with plain text secrets (automatic fallback)
  */
 
+import crypto from 'crypto';
+
 /**
  * Checks if a string is Base64 encoded
  * A valid Base64 string contains only A-Z, a-z, 0-9, +, /, and = (padding)
@@ -78,9 +80,8 @@ export function encodeSecret(secret: string): string {
  * @returns Object with plain and base64 encoded secret
  */
 export function generateSecret(length: number = 32): { plain: string; base64: string } {
-  const crypto = require('crypto');
   const randomBytes = crypto.randomBytes(length);
-  const plain = randomBytes.toString('base64');
+  const plain = randomBytes.toString('hex');
   const base64 = encodeSecret(plain);
   
   return { plain, base64 };
