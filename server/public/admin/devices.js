@@ -79,90 +79,6 @@ async function refreshDevices() {
     }
 }
 
-function createDeviceCard(device) {
-    let registeredDate;
-    try {
-        registeredDate = new Date(device.registeredAt).toLocaleString('de-DE');
-    } catch (e) {
-        registeredDate = 'Ungültiges Datum';
-    }
-    
-    const firstName = device.firstName || '';
-    const lastName = device.lastName || '';
-    const deviceName = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : 'Nicht zugewiesen';
-    const qualifications = device.qualifications || {};
-    
-    const qualBadges = [];
-    if (qualifications.machinist) qualBadges.push('Maschinist');
-    if (qualifications.agt) qualBadges.push('AGT');
-    if (qualifications.paramedic) qualBadges.push('Sanitäter');
-    
-    // Leadership role badge
-    let leaderBadge = '';
-    if (device.leadershipRole === 'groupLeader') {
-        leaderBadge = '<div class="leader-badge">⭐ Gruppenführer</div>';
-    } else if (device.leadershipRole === 'platoonLeader') {
-        leaderBadge = '<div class="leader-badge">⭐⭐ Zugführer</div>';
-    }
-    
-    // Assigned groups
-    const assignedGroups = device.assignedGroups || [];
-    const groupBadges = assignedGroups.map(code => {
-        const group = currentGroups.find(g => g.code === code);
-        const groupName = group ? group.name : code;
-        return `<span class="group-badge" title="${escapeHtml(groupName)}">${escapeHtml(code)}</span>`;
-    }).join('');
-    
-    // Escape all user-provided or dynamic content
-    const escapedDeviceName = escapeHtml(deviceName);
-    const escapedPlatform = escapeHtml(device.platform);
-    const escapedDeviceId = escapeHtml(device.id);
-    const escapedDeviceIdShort = escapeHtml(device.id.substring(0, 8));
-    
-    const cardHtml = `
-        <div class="device-card">
-            <div class="device-header">
-                <div class="device-name">${escapedDeviceName}</div>
-                <div class="device-platform">${escapedPlatform}</div>
-            </div>
-            <div class="device-info">
-                <div class="device-info-row">
-                    <span class="device-info-label">Registriert:</span>
-                    <span class="device-info-value">${registeredDate}</span>
-                </div>
-                <div class="device-info-row">
-                    <span class="device-info-label">Device ID:</span>
-                    <span class="device-info-value">${escapedDeviceIdShort}...</span>
-                </div>
-            </div>
-            ${qualBadges.length > 0 ? `
-                <div class="qualifications">
-                    <h4>Ausbildungen:</h4>
-                    <div class="qual-badges">
-                        ${qualBadges.map(q => `<span class="qual-badge">${escapeHtml(q)}</span>`).join('')}
-                    </div>
-                </div>
-            ` : ''}
-            ${leaderBadge}
-            ${assignedGroups.length > 0 ? `
-                <div class="qualifications">
-                    <h4>Zugeordnete Gruppen:</h4>
-                    <div class="qual-badges">
-                        ${groupBadges}
-                    </div>
-                </div>
-            ` : ''}
-            <div class="device-actions">
-                <button class="btn btn-secondary" data-action="show-qr" data-device-id="${escapedDeviceId}">QR-Code anzeigen</button>
-                <button class="btn btn-secondary" data-action="edit" data-device-id="${escapedDeviceId}">Bearbeiten</button>
-                <button class="btn btn-secondary" data-action="deactivate" data-device-id="${escapedDeviceId}">Deaktivieren</button>
-            </div>
-        </div>
-    `;
-    
-    return cardHtml;
-}
-
 function displayDevices(devices) {
     const container = document.getElementById('devices-list');
     
@@ -171,7 +87,90 @@ function displayDevices(devices) {
         return;
     }
     
-    container.innerHTML = devices.map(device => createDeviceCard(device)).join('');
+    // Create table
+    let tableHtml = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Plattform</th>
+                    <th>Registriert</th>
+                    <th>Ausbildungen</th>
+                    <th>Führungsrolle</th>
+                    <th>Gruppen</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    devices.forEach(device => {
+        const firstName = device.firstName || '';
+        const lastName = device.lastName || '';
+        const deviceName = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : 'Nicht zugewiesen';
+        const qualifications = device.qualifications || {};
+        
+        let registeredDate;
+        try {
+            registeredDate = new Date(device.registeredAt).toLocaleString('de-DE');
+        } catch (e) {
+            registeredDate = 'Ungültiges Datum';
+        }
+        
+        // Qualifications
+        const qualBadges = [];
+        if (qualifications.machinist) qualBadges.push('Maschinist');
+        if (qualifications.agt) qualBadges.push('AGT');
+        if (qualifications.paramedic) qualBadges.push('Sanitäter');
+        const qualText = qualBadges.length > 0 
+            ? qualBadges.map(q => `<span class="qual-badge">${escapeHtml(q)}</span>`).join(' ')
+            : '-';
+        
+        // Leadership role
+        let leaderText = '-';
+        if (device.leadershipRole === 'groupLeader') {
+            leaderText = '<span class="leader-badge-small">⭐ Gruppenführer</span>';
+        } else if (device.leadershipRole === 'platoonLeader') {
+            leaderText = '<span class="leader-badge-small">⭐⭐ Zugführer</span>';
+        }
+        
+        // Assigned groups
+        const assignedGroups = device.assignedGroups || [];
+        const groupText = assignedGroups.length > 0
+            ? assignedGroups.map(code => {
+                const group = currentGroups.find(g => g.code === code);
+                const groupName = group ? group.name : code;
+                return `<span class="group-badge" title="${escapeHtml(groupName)}">${escapeHtml(code)}</span>`;
+            }).join(' ')
+            : '-';
+        
+        const escapedDeviceName = escapeHtml(deviceName);
+        const escapedPlatform = escapeHtml(device.platform);
+        const escapedDeviceId = escapeHtml(device.id);
+        
+        tableHtml += `
+            <tr>
+                <td><strong>${escapedDeviceName}</strong></td>
+                <td><span class="platform-badge">${escapedPlatform}</span></td>
+                <td>${registeredDate}</td>
+                <td>${qualText}</td>
+                <td>${leaderText}</td>
+                <td>${groupText}</td>
+                <td class="actions-cell">
+                    <button class="btn-icon" title="Bearbeiten" data-action="edit" data-device-id="${escapedDeviceId}">✏️</button>
+                    <button class="btn-icon" title="QR-Code" data-action="show-qr" data-device-id="${escapedDeviceId}">📱</button>
+                    <button class="btn-icon" title="Deaktivieren" data-action="deactivate" data-device-id="${escapedDeviceId}">🗑️</button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tableHtml += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = tableHtml;
     
     // Add event listeners to device action buttons
     container.querySelectorAll('[data-action="show-qr"]').forEach(btn => {

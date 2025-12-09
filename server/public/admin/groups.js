@@ -98,37 +98,44 @@ function displayGroups(groups) {
         return;
     }
     
-    const groupsHtml = groups.map(group => {
+    // Create table
+    let tableHtml = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Kürzel</th>
+                    <th>Name</th>
+                    <th>Beschreibung</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    groups.forEach(group => {
         const escapedCode = escapeHtml(group.code);
         const escapedName = escapeHtml(group.name);
-        const escapedDescription = escapeHtml(group.description || '');
+        const escapedDescription = escapeHtml(group.description || '-');
         
-        return `
-            <div class="device-card">
-                <div class="device-header">
-                    <div class="device-name">${escapedCode}</div>
-                </div>
-                <div class="device-info">
-                    <div class="device-info-row">
-                        <span class="device-info-label">Name:</span>
-                        <span class="device-info-value">${escapedName}</span>
-                    </div>
-                    ${escapedDescription ? `
-                        <div class="device-info-row">
-                            <span class="device-info-label">Beschreibung:</span>
-                            <span class="device-info-value">${escapedDescription}</span>
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="device-actions">
-                    <button class="btn btn-secondary" data-action="edit-group" data-group-code="${escapedCode}">Bearbeiten</button>
-                    <button class="btn btn-secondary" data-action="delete-group" data-group-code="${escapedCode}">Löschen</button>
-                </div>
-            </div>
+        tableHtml += `
+            <tr>
+                <td><strong>${escapedCode}</strong></td>
+                <td>${escapedName}</td>
+                <td>${escapedDescription}</td>
+                <td class="actions-cell">
+                    <button class="btn-icon" title="Bearbeiten" data-action="edit-group" data-group-code="${escapedCode}">✏️</button>
+                    <button class="btn-icon" title="Löschen" data-action="delete-group" data-group-code="${escapedCode}">🗑️</button>
+                </td>
+            </tr>
         `;
-    }).join('');
+    });
     
-    container.innerHTML = groupsHtml;
+    tableHtml += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = tableHtml;
     
     // Add event listeners
     container.querySelectorAll('[data-action="edit-group"]').forEach(btn => {
