@@ -101,7 +101,7 @@ Das Admin-Interface bietet vier Hauptbereiche:
 
 ```
 ┌──────────────────────┐
-│  Externes System     │  (z.B. alarm-monitor)
+│  Externes System     │  (z.B. alarm-mail)
 │  Einsatzerstellung   │
 └──────────┬───────────┘
            │ POST /api/emergencies
@@ -134,7 +134,7 @@ Das Admin-Interface bietet vier Hauptbereiche:
 
 ### Ablauf einer Alarmierung
 
-1. **Externes System** (z.B. alarm-monitor) erstellt Einsatz via API
+1. **Externes System** (z.B. alarm-mail) erstellt Einsatz via API
 2. **Backend** empfängt Einsatz und speichert in Datenbank
 3. **Backend** ermittelt betroffene Geräte (alle oder nach Gruppen gefiltert)
 4. **Backend** sendet Push-Benachrichtigungen via WebSocket
@@ -167,7 +167,9 @@ Dashboard mit Statistiken, QR-Code-Generierung und Schnellzugriff.
 
 Verwaltung aller registrierten Geräte und Einsatzkräfte unter `/admin/devices.html`.
 
-> **Hinweis:** Screenshots für diese Seite werden noch erstellt.
+| Hell-Modus | Dunkel-Modus |
+|:----------:|:------------:|
+| <img src="screenshots/admin-devices-light.png" width="400"> | <img src="screenshots/admin-devices-dark.png" width="400"> |
 
 **Funktionen:**
 - Liste aller Einsatzkräfte mit Qualifikationen und Rollen
@@ -185,7 +187,9 @@ Verwaltung aller registrierten Geräte und Einsatzkräfte unter `/admin/devices.
 
 Verwaltung von Alarmierungsgruppen unter `/admin/groups.html`.
 
-> **Hinweis:** Screenshots für diese Seite werden noch erstellt.
+| Hell-Modus | Dunkel-Modus |
+|:----------:|:------------:|
+| <img src="screenshots/admin-groups-light.png" width="400"> | <img src="screenshots/admin-groups-dark.png" width="400"> |
 
 #### Gruppe hinzufügen/bearbeiten
 
@@ -205,7 +209,9 @@ CSV-Format: `code,name,description`
 
 Vollständige Übersicht aller Einsätze mit Detailansicht unter `/admin/history.html`.
 
-> **Hinweis:** Screenshots für diese Seite werden noch erstellt.
+| Hell-Modus | Dunkel-Modus |
+|:----------:|:------------:|
+| <img src="screenshots/admin-history-light.png" width="400"> | <img src="screenshots/admin-history-dark.png" width="400"> |
 
 **Funktionen:**
 - Chronologische Liste aller Einsätze
