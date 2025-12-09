@@ -2,6 +2,20 @@
 
 Dieses Dokument erklärt, wie Mobile Geräte die Server-URL erfahren und wie die Kommunikation zwischen Server und Geräten konfiguriert wird.
 
+## Inhaltsverzeichnis
+
+- [Übersicht](#übersicht)
+- [Wie erfahren Geräte die Server-URL?](#wie-erfahren-geräte-die-server-url)
+  - [QR-Code-Generierung (Server-Seite)](#1-qr-code-generierung-server-seite)
+  - [QR-Code-Scannen (Mobile App)](#2-qr-code-scannen-mobile-app)
+  - [Lokale Speicherung](#3-lokale-speicherung)
+  - [WebSocket-Verbindung](#4-websocket-verbindung)
+- [Konfiguration der SERVER_URL](#konfiguration-der-server_url)
+  - [Entwicklung](#entwicklung)
+  - [Produktion](#produktion)
+- [Häufige Szenarien](#häufige-szenarien)
+- [Troubleshooting](#troubleshooting)
+
 ## Übersicht
 
 Das Alarm Messenger System verwendet einen **QR-Code-basierten Registrierungsprozess**, bei dem Geräte automatisch die Server-Konfiguration erhalten. Dies ermöglicht eine einfache und sichere Geräteregistrierung ohne manuelle Konfiguration.

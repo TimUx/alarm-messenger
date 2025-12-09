@@ -1,5 +1,32 @@
 # API Documentation
 
+## Table of Contents
+
+- [Base URL](#base-url)
+- [Authentication](#authentication)
+- [Endpoints](#endpoints)
+  - [Health Check](#health-check)
+- [Emergency Management](#emergency-management)
+  - [Create Emergency](#create-emergency)
+  - [Get All Emergencies](#get-all-emergencies)
+  - [Get Emergency by ID](#get-emergency-by-id)
+  - [Submit Response to Emergency](#submit-response-to-emergency)
+  - [Get Emergency Participants](#get-emergency-participants)
+  - [Get All Responses](#get-all-responses)
+- [Device Management](#device-management)
+  - [Generate Registration Token](#generate-registration-token)
+  - [Register Device](#register-device)
+  - [Get All Devices](#get-all-devices)
+  - [Get Device by ID](#get-device-by-id)
+  - [Deactivate Device](#deactivate-device)
+- [Integration Examples](#integration-examples)
+  - [Node.js Example](#nodejs-example)
+  - [Python Example](#python-example)
+  - [cURL Examples](#curl-examples)
+- [Rate Limiting](#rate-limiting)
+- [Error Handling](#error-handling)
+- [Best Practices](#best-practices)
+
 ## Base URL
 
 ```

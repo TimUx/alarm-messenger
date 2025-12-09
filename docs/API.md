@@ -1,5 +1,32 @@
 # API-Dokumentation
 
+## Inhaltsverzeichnis
+
+- [Basis-URL](#basis-url)
+- [Authentifizierung](#authentifizierung)
+- [Endpunkte](#endpunkte)
+  - [Gesundheitsprüfung](#gesundheitsprüfung)
+- [Einsatzverwaltung](#einsatzverwaltung)
+  - [Einsatz erstellen](#einsatz-erstellen)
+  - [Alle Einsätze abrufen](#alle-einsätze-abrufen)
+  - [Einsatz nach ID abrufen](#einsatz-nach-id-abrufen)
+  - [Rückmeldung zu Einsatz abgeben](#rückmeldung-zu-einsatz-abgeben)
+  - [Einsatz-Teilnehmer abrufen](#einsatz-teilnehmer-abrufen)
+  - [Alle Rückmeldungen abrufen](#alle-rückmeldungen-abrufen)
+- [Geräteverwaltung](#geräteverwaltung)
+  - [Registrierungs-Token generieren](#registrierungs-token-generieren)
+  - [Gerät registrieren](#gerät-registrieren)
+  - [Alle Geräte abrufen](#alle-geräte-abrufen)
+  - [Gerät nach ID abrufen](#gerät-nach-id-abrufen)
+  - [Gerät deaktivieren](#gerät-deaktivieren)
+- [Integrationsbeispiele](#integrationsbeispiele)
+  - [Node.js-Beispiel](#nodejs-beispiel)
+  - [Python-Beispiel](#python-beispiel)
+  - [cURL-Beispiele](#curl-beispiele)
+- [Rate Limiting](#rate-limiting)
+- [Fehlerbehandlung](#fehlerbehandlung)
+- [Best Practices](#best-practices)
+
 ## Basis-URL
 
 ```

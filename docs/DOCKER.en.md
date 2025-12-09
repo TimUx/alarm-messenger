@@ -2,6 +2,29 @@
 
 This guide explains how to deploy the Alarm Messenger server on Linux using Docker and docker-compose.
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+  - [System Requirements](#system-requirements)
+  - [Install Docker](#install-docker)
+    - [Ubuntu/Debian](#ubuntudebian)
+    - [CentOS/RHEL](#centosrhel)
+- [Quick Start](#quick-start)
+- [Development Mode](#development-mode)
+- [Using Caddy Reverse Proxy](#using-caddy-reverse-proxy)
+  - [Why Caddy?](#why-caddy)
+  - [Local Testing](#1-local-testing-without-domain)
+  - [Production Deployment](#2-production-deployment-with-real-domain)
+  - [Advanced Configuration](#3-advanced-configuration)
+- [Nginx Reverse Proxy (Legacy)](#nginx-reverse-proxy-legacy)
+- [Docker Commands](#docker-commands)
+- [Maintenance](#maintenance)
+  - [Logs](#logs)
+  - [Backup](#backup)
+  - [Updates](#updates)
+- [Troubleshooting](#troubleshooting)
+- [Security Notes](#security-notes)
+
 ## Prerequisites
 
 ### System Requirements
