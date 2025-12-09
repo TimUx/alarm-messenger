@@ -451,45 +451,75 @@ Siehe [docs/DOCKER.md](docs/DOCKER.md) für vollständige Deployment-Anweisungen
 
 ### Admin Interface
 
-#### Dashboard mit Navigation
-Das Admin Dashboard bietet eine übersichtliche Navigation zu allen wichtigen Funktionen:
-- QR-Code Generierung für neue Geräte
-- Verwaltung registrierter Einsatzkräfte
-- Verwaltung von Alarmierungsgruppen
+Das Admin Interface bietet vier Hauptbereiche mit übersichtlicher Navigation:
 
-![Admin Dashboard](https://github.com/user-attachments/assets/a25fabc6-ce62-44be-9039-fb3a8e693294)
+#### 1. Dashboard - Übersicht und QR-Code Generierung
 
-#### QR-Code Generierung
-QR-Codes werden automatisch gespeichert und können jederzeit erneut abgerufen werden. Dies ermöglicht eine einfache Neuregistrierung bei Gerätewechsel ohne Datenverlust.
+Das Dashboard zeigt wichtige Statistiken auf einen Blick und ermöglicht die Generierung neuer QR-Codes für Geräteregistrierungen.
+
+**Light Mode** | **Dark Mode**
+:---:|:---:
+![Dashboard Light](https://github.com/user-attachments/assets/7798a109-5e2c-4693-9f36-e4238fb61732) | ![Dashboard Dark](https://github.com/user-attachments/assets/a25fabc6-ce62-44be-9039-fb3a8e693294)
+
+**Funktionen:**
+- 📊 Statistik-Karten mit Echtzeitdaten
+- 📱 Anzahl registrierter Geräte (aktiv/inaktiv)
+- 👥 Anzahl Alarmierungsgruppen
+- 🚨 Anzahl Einsätze (Gesamt, aktuelles Jahr, aktueller Monat)
+- 🔄 QR-Code Generierung mit automatischer Speicherung
+
+#### 2. Einsatzkräfte - Geräteverwaltung
+
+Zentrale Verwaltung aller registrierten Geräte und Einsatzkräfte mit vollständiger Bearbeitungsfunktion.
+
+**Funktionen:**
+- Bearbeitung von Einsatzkraft-Informationen (Name, Qualifikationen, Führungsrolle)
+- QR-Code erneut anzeigen und herunterladen
+- Geräte deaktivieren
+- Zuordnung zu Alarmierungsgruppen
+
+#### 3. Alarm-Gruppen - Gruppenverwaltung
+
+Verwaltung von Alarmierungsgruppen mit CSV-Import Funktion für schnelles Einrichten.
+
+**Funktionen:**
+- Erstellen, Bearbeiten und Löschen von Gruppen
+- CSV-Import für Massen-Import
+- Gruppen-Zuordnung zu Einsatzkräften
+
+#### 4. Einsatz-Historie - Vollständige Einsatzdokumentation
+
+Übersicht aller eingegangenen Einsätze mit detaillierter Ansicht inklusive aller Rückmeldungen.
+
+**Light Mode** | **Dark Mode**
+:---:|:---:
+![Historie Light](https://github.com/user-attachments/assets/9e50b691-b7e1-4a32-ac43-3384d8d325ce) | *Dark Mode Screenshot*
+
+**Funktionen:**
+- Chronologische Liste aller Einsätze
+- Detailansicht mit allen Einsatzkraft-Rückmeldungen
+- Anzeige von Qualifikationen und Führungsrollen
+- Statistiken (Teilnehmer, Absagen)
+- Pagination für große Datenmengen
+
+### Weitere Screenshots
+
+#### QR-Code Generierung mit Persistenz
+
+QR-Codes werden automatisch in der Datenbank gespeichert und können jederzeit erneut abgerufen werden.
 
 ![QR-Code Generierung](https://github.com/user-attachments/assets/ec8c073c-ed06-4393-a3f9-81986f1ba526)
 
-#### Einsatz Historie
-Die neue Einsatz-Historie zeigt alle eingegangenen Einsätze mit den wichtigsten Informationen auf einen Blick:
-- Datum und Uhrzeit
-- Einsatzstichwort
-- Einsatzort
-- Einsatznummer und Beschreibung
+**Vorteile:**
+- Neuregistrierung bei Gerätewechsel ohne Datenverlust
+- Token bleibt gleich
+- Alle Einsatzkraft-Informationen bleiben erhalten
 
-![Einsatz Historie](https://github.com/user-attachments/assets/9e50b691-b7e1-4a32-ac43-3384d8d325ce)
+#### CSV Import für Alarm-Gruppen
 
-#### CSV Import
-Der CSV-Import wurde auf eine eigene Seite ausgelagert für bessere Übersichtlichkeit:
+Schnelles Importieren mehrerer Gruppen über CSV-Format.
 
 ![CSV Import](https://github.com/user-attachments/assets/aea28810-f4a4-4205-8ad9-dbee5249b3ec)
-
-### Features der neuen Historie-Funktion
-- **Übersichtliche Liste**: Alle Einsätze chronologisch sortiert
-- **Pagination**: Seitenweise Navigation durch große Einsatzzahlen
-- **Detail-Ansicht**: Klick auf "Details anzeigen" zeigt vollständige Einsatzinformationen
-- **Rückmeldungen**: Anzeige aller Einsatzkraft-Rückmeldungen mit Namen und Qualifikationen
-- **Statistiken**: Zusammenfassung der Teilnehmer und Absagen
-
-### QR-Code Persistenz
-- QR-Codes werden automatisch in der Datenbank gespeichert
-- "QR-Code anzeigen" Button bei jedem registrierten Gerät
-- Ermöglicht Neuregistrierung ohne Datenverlust
-- Token bleibt gleich, alle Einsatzkraft-Informationen bleiben erhalten
 
 ## Häufig gestellte Fragen (FAQ)
 
