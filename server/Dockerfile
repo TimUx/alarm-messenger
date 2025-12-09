@@ -19,6 +19,9 @@ RUN npm ci
 # Copy source code
 COPY src ./src
 
+# Copy public directory for admin UI static files
+COPY public ./public
+
 # Build TypeScript
 RUN npm run build
 
