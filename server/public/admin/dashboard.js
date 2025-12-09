@@ -219,6 +219,7 @@ function createDeviceCard(device) {
                 </div>
             ` : ''}
             <div class="device-actions">
+                <button class="btn btn-secondary" data-action="show-qr" data-device-id="${escapedDeviceId}">QR-Code anzeigen</button>
                 <button class="btn btn-secondary" data-action="edit" data-device-id="${escapedDeviceId}">Bearbeiten</button>
                 <button class="btn btn-secondary" data-action="deactivate" data-device-id="${escapedDeviceId}">Deaktivieren</button>
             </div>
@@ -239,6 +240,13 @@ function displayDevices(devices) {
     container.innerHTML = devices.map(device => createDeviceCard(device)).join('');
     
     // Add event listeners to device action buttons
+    container.querySelectorAll('[data-action="show-qr"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const deviceId = e.target.getAttribute('data-device-id');
+            showDeviceQRCode(deviceId);
+        });
+    });
+    
     container.querySelectorAll('[data-action="edit"]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const deviceId = e.target.getAttribute('data-device-id');
@@ -258,6 +266,29 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+async function showDeviceQRCode(deviceId) {
+    try {
+        const response = await apiRequest(`${API_BASE}/devices/${deviceId}/qr-code`);
+        
+        if (!response.ok) {
+            throw new Error('Fehler beim Laden des QR-Codes');
+        }
+        
+        const data = await response.json();
+        currentQRData = data;
+        
+        // Display QR code
+        document.getElementById('qr-code-image').src = data.qrCode;
+        document.getElementById('device-token').textContent = data.deviceToken;
+        document.getElementById('qr-code-display').style.display = 'block';
+        
+        // Scroll to QR code
+        document.getElementById('qr-code-display').scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+        alert('Fehler beim Laden des QR-Codes: ' + error.message);
+    }
 }
 
 function editDevice(deviceId) {

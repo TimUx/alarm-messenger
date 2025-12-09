@@ -155,6 +155,7 @@ export const dbAll = (sql: string, params: any[] = []): Promise<any[]> => {
  * 3. Adds 'groups' column to emergencies table for comma-separated group codes
  * 4. Adds 'first_name' and 'last_name' columns to devices table (replaces responder_name)
  * 5. Migrates existing responder_name values by splitting into first and last name
+ * 6. Adds 'qr_code_data' column to devices table to store QR code for re-scanning
  * 
  * Note: Old columns (qual_th_vu, qual_th_bau, is_squad_leader, responder_name) are not dropped
  * to maintain backward compatibility with existing data. They are simply ignored
@@ -221,6 +222,15 @@ async function migrateDatabase(): Promise<void> {
       }
       
       console.log('✓ first_name and last_name columns added and data migrated');
+    }
+    
+    // Check if devices table needs qr_code_data column
+    const hasQRCodeColumn = tableInfo.some((col: any) => col.name === 'qr_code_data');
+    
+    if (!hasQRCodeColumn) {
+      console.log('🔄 Adding qr_code_data column to devices...');
+      await dbRun('ALTER TABLE devices ADD COLUMN qr_code_data TEXT');
+      console.log('✓ qr_code_data column added');
     }
   } catch (error) {
     console.error('⚠️  Database migration warning:', error);
