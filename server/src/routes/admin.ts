@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { dbRun, dbGet, dbAll } from '../services/database';
-import { verifyToken, generateToken, AuthRequest } from '../middleware/auth';
+import { verifyToken, generateToken, verifyAdmin, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -17,7 +17,7 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     const user = await dbGet(
-      'SELECT * FROM admin_users WHERE username = ?',
+      'SELECT id, username, password_hash, role, full_name FROM admin_users WHERE username = ?',
       [username]
     );
 
@@ -33,13 +33,15 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    const token = generateToken(user.id, user.username);
+    const token = generateToken(user.id, user.username, user.role || 'admin');
 
     res.json({
       token,
       user: {
         id: user.id,
         username: user.username,
+        role: user.role || 'admin',
+        fullName: user.full_name,
       },
     });
   } catch (error) {
@@ -48,13 +50,19 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 });
 
-// Create admin user (protected - only for initial setup or existing admins)
-router.post('/users', verifyToken, async (req: AuthRequest, res: Response) => {
+// Create admin user (protected - only for admins)
+router.post('/users', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, fullName, role } = req.body;
 
     if (!username || !password) {
       res.status(400).json({ error: 'Username and password are required' });
+      return;
+    }
+
+    // Validate role
+    if (role && role !== 'admin' && role !== 'operator') {
+      res.status(400).json({ error: 'Invalid role. Must be "admin" or "operator"' });
       return;
     }
 
@@ -72,15 +80,18 @@ router.post('/users', verifyToken, async (req: AuthRequest, res: Response) => {
     const id = uuidv4();
     const passwordHash = await bcrypt.hash(password, 10);
     const createdAt = new Date().toISOString();
+    const userRole = role || 'operator';
 
     await dbRun(
-      'INSERT INTO admin_users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)',
-      [id, username, passwordHash, createdAt]
+      'INSERT INTO admin_users (id, username, password_hash, full_name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, username, passwordHash, fullName || null, userRole, createdAt]
     );
 
     res.status(201).json({
       id,
       username,
+      fullName: fullName || null,
+      role: userRole,
       createdAt,
     });
   } catch (error) {
@@ -117,11 +128,11 @@ router.post('/init', async (req: Request, res: Response) => {
     const createdAt = new Date().toISOString();
 
     await dbRun(
-      'INSERT INTO admin_users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)',
-      [id, username, passwordHash, createdAt]
+      'INSERT INTO admin_users (id, username, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)',
+      [id, username, passwordHash, 'admin', createdAt]
     );
 
-    const token = generateToken(id, username);
+    const token = generateToken(id, username, 'admin');
 
     res.status(201).json({
       token,
@@ -137,8 +148,182 @@ router.post('/init', async (req: Request, res: Response) => {
   }
 });
 
+// Get all users (protected - admin only)
+router.get('/users', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const users = await dbAll(
+      'SELECT id, username, full_name, role, created_at FROM admin_users ORDER BY created_at DESC',
+      []
+    );
+
+    res.json({
+      users: users.map((user: any) => ({
+        id: user.id,
+        username: user.username,
+        fullName: user.full_name,
+        role: user.role || 'admin',
+        createdAt: user.created_at,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Update user (protected - admin only)
+router.put('/users/:id', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { username, fullName, role } = req.body;
+
+    // Cannot edit yourself
+    if (id === req.userId) {
+      res.status(400).json({ error: 'Cannot edit your own user. Use profile endpoint instead.' });
+      return;
+    }
+
+    // Validate role
+    if (role && role !== 'admin' && role !== 'operator') {
+      res.status(400).json({ error: 'Invalid role. Must be "admin" or "operator"' });
+      return;
+    }
+
+    const user = await dbGet('SELECT * FROM admin_users WHERE id = ?', [id]);
+    
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Check if username is already taken by another user
+    if (username && username !== user.username) {
+      const existing = await dbGet(
+        'SELECT * FROM admin_users WHERE username = ? AND id != ?',
+        [username, id]
+      );
+
+      if (existing) {
+        res.status(409).json({ error: 'Username already exists' });
+        return;
+      }
+    }
+
+    await dbRun(
+      'UPDATE admin_users SET username = ?, full_name = ?, role = ? WHERE id = ?',
+      [username || user.username, fullName || null, role || user.role, id]
+    );
+
+    res.json({ message: 'User updated successfully' });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// Delete user (protected - admin only)
+router.delete('/users/:id', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Cannot delete yourself
+    if (id === req.userId) {
+      res.status(400).json({ error: 'Cannot delete your own user account' });
+      return;
+    }
+
+    const user = await dbGet('SELECT * FROM admin_users WHERE id = ?', [id]);
+    
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    await dbRun('DELETE FROM admin_users WHERE id = ?', [id]);
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// Change password (protected - any authenticated user)
+router.put('/users/:id/password', verifyToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    // Users can only change their own password unless they are admin
+    if (id !== req.userId && req.userRole !== 'admin') {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    if (!newPassword) {
+      res.status(400).json({ error: 'New password is required' });
+      return;
+    }
+
+    const user = await dbGet('SELECT * FROM admin_users WHERE id = ?', [id]);
+    
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // If changing own password, verify current password
+    if (id === req.userId) {
+      if (!currentPassword) {
+        res.status(400).json({ error: 'Current password is required' });
+        return;
+      }
+
+      const validPassword = await bcrypt.compare(currentPassword, user.password_hash);
+      if (!validPassword) {
+        res.status(401).json({ error: 'Current password is incorrect' });
+        return;
+      }
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    await dbRun('UPDATE admin_users SET password_hash = ? WHERE id = ?', [newPasswordHash, id]);
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// Get current user profile
+router.get('/profile', verifyToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await dbGet(
+      'SELECT id, username, full_name, role, created_at FROM admin_users WHERE id = ?',
+      [req.userId]
+    );
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    res.json({
+      id: user.id,
+      username: user.username,
+      fullName: user.full_name,
+      role: user.role || 'admin',
+      createdAt: user.created_at,
+    });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
 // Update device/responder information
-router.put('/devices/:id', verifyToken, async (req: AuthRequest, res: Response) => {
+router.put('/devices/:id', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const {

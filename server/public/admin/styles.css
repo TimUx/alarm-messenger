@@ -1119,3 +1119,27 @@ body {
         padding: 4px 6px;
     }
 }
+
+/* User Management Styles */
+.user-info {
+    margin-right: 15px;
+    font-weight: 500;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.role-admin {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.role-operator {
+    background-color: var(--btn-secondary-bg);
+    color: white;
+}

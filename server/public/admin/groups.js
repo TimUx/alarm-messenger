@@ -13,6 +13,9 @@ window.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('username-display').textContent = username;
     
+    // Load and display user info
+    loadUserInfo();
+    
     // Setup event listeners
     document.getElementById('logout-btn').addEventListener('click', logout);
     document.getElementById('add-group-btn').addEventListener('click', () => openGroupModal());
@@ -69,6 +72,21 @@ async function apiRequest(url, options = {}) {
     }
     
     return response;
+}
+
+async function loadUserInfo() {
+    try {
+        const response = await apiRequest(`${API_BASE}/admin/profile`);
+        
+        if (response && response.ok) {
+            const user = await response.json();
+            const roleText = user.role === 'admin' ? 'Administrator' : 'Operator';
+            const displayName = user.fullName || user.username;
+            document.getElementById('username-display').textContent = `${displayName} (${roleText})`;
+        }
+    } catch (error) {
+        console.error('Error loading user info:', error);
+    }
 }
 
 // ===== Group Management Functions =====

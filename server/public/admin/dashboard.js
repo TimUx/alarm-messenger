@@ -11,7 +11,8 @@ window.addEventListener('DOMContentLoaded', () => {
         return;
     }
     
-    document.getElementById('username-display').textContent = username;
+    // Load and display user info
+    loadUserInfo();
     
     // Set current year
     document.getElementById('current-year').textContent = new Date().getFullYear();
@@ -57,6 +58,25 @@ async function apiRequest(url, options = {}) {
     }
     
     return response;
+}
+
+async function loadUserInfo() {
+    try {
+        const response = await apiRequest(`${API_BASE}/admin/profile`);
+        
+        if (response && response.ok) {
+            const user = await response.json();
+            const roleText = user.role === 'admin' ? 'Administrator' : 'Operator';
+            const displayName = user.fullName || user.username;
+            document.getElementById('username-display').textContent = `${displayName} (${roleText})`;
+        } else {
+            // Fallback to username from localStorage
+            document.getElementById('username-display').textContent = localStorage.getItem('username');
+        }
+    } catch (error) {
+        console.error('Error loading user info:', error);
+        document.getElementById('username-display').textContent = localStorage.getItem('username');
+    }
 }
 
 async function generateQRCode() {

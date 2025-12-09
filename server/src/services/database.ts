@@ -156,6 +156,7 @@ export const dbAll = (sql: string, params: any[] = []): Promise<any[]> => {
  * 4. Adds 'first_name' and 'last_name' columns to devices table (replaces responder_name)
  * 5. Migrates existing responder_name values by splitting into first and last name
  * 6. Adds 'qr_code_data' column to devices table to store QR code for re-scanning
+ * 7. Adds 'role' and 'full_name' columns to admin_users table for user management
  * 
  * Note: Old columns (qual_th_vu, qual_th_bau, is_squad_leader, responder_name) are not dropped
  * to maintain backward compatibility with existing data. They are simply ignored
@@ -231,6 +232,26 @@ async function migrateDatabase(): Promise<void> {
       console.log('🔄 Adding qr_code_data column to devices...');
       await dbRun('ALTER TABLE devices ADD COLUMN qr_code_data TEXT');
       console.log('✓ qr_code_data column added');
+    }
+    
+    // Check if admin_users table needs role and full_name columns
+    const adminUsersTableInfo = await dbAll("PRAGMA table_info(admin_users)", []);
+    const hasRoleColumn = adminUsersTableInfo.some((col: any) => col.name === 'role');
+    const hasFullNameColumn = adminUsersTableInfo.some((col: any) => col.name === 'full_name');
+    
+    if (!hasRoleColumn || !hasFullNameColumn) {
+      console.log('🔄 Adding role and full_name columns to admin_users...');
+      
+      if (!hasRoleColumn) {
+        await dbRun('ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT "admin"');
+        // Set existing users to admin role
+        await dbRun('UPDATE admin_users SET role = "admin" WHERE role IS NULL');
+      }
+      if (!hasFullNameColumn) {
+        await dbRun('ALTER TABLE admin_users ADD COLUMN full_name TEXT');
+      }
+      
+      console.log('✓ role and full_name columns added to admin_users');
     }
   } catch (error) {
     console.error('⚠️  Database migration warning:', error);

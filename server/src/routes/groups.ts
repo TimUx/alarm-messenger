@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { dbRun, dbGet, dbAll } from '../services/database';
-import { verifyToken, AuthRequest } from '../middleware/auth';
+import { verifyToken, verifyAdmin, AuthRequest } from '../middleware/auth';
 import { Group, CreateGroupRequest, ImportGroupsRequest } from '../models/types';
 
 const router = Router();
@@ -53,7 +53,7 @@ router.get('/:code', verifyToken, async (req: AuthRequest, res: Response) => {
 });
 
 // Create a new group
-router.post('/', verifyToken, async (req: AuthRequest, res: Response) => {
+router.post('/', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { code, name, description }: CreateGroupRequest = req.body;
 
@@ -98,7 +98,7 @@ router.post('/', verifyToken, async (req: AuthRequest, res: Response) => {
 });
 
 // Update a group
-router.put('/:code', verifyToken, async (req: AuthRequest, res: Response) => {
+router.put('/:code', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { code } = req.params;
     const { name, description } = req.body;
@@ -127,7 +127,7 @@ router.put('/:code', verifyToken, async (req: AuthRequest, res: Response) => {
 });
 
 // Delete a group
-router.delete('/:code', verifyToken, async (req: AuthRequest, res: Response) => {
+router.delete('/:code', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { code } = req.params;
 
@@ -148,7 +148,7 @@ router.delete('/:code', verifyToken, async (req: AuthRequest, res: Response) => 
 });
 
 // Import multiple groups from CSV
-router.post('/import', verifyToken, async (req: AuthRequest, res: Response) => {
+router.post('/import', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { groups }: ImportGroupsRequest = req.body;
 
@@ -228,7 +228,7 @@ router.get('/device/:deviceId', verifyToken, async (req: AuthRequest, res: Respo
 });
 
 // Assign groups to a device
-router.put('/device/:deviceId', verifyToken, async (req: AuthRequest, res: Response) => {
+router.put('/device/:deviceId', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { deviceId } = req.params;
     const { groupCodes } = req.body;
