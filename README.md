@@ -97,6 +97,11 @@ Das Admin-Interface bietet vier Hauptbereiche:
 - Hell/Dunkel/Auto Theme-Modi
 - Plattformübergreifend (iOS & Android)
 
+**📱 Mobile App Build:**
+- 🔨 [Linux Build-Anleitung](docs/BUILD-ANLEITUNG-LINUX.md) - Schritt-für-Schritt Android APK erstellen
+- 📖 [Vollständige Mobile Dokumentation](docs/MOBILE.md) - iOS & Android, GitHub Actions
+- ⚙️ Automatische Builds via GitHub Actions bei Code-Änderungen
+
 ## Architektur
 
 ```
@@ -507,7 +512,8 @@ Alle Dokumentation ist im `/docs` Verzeichnis verfügbar:
 ### Setup & Deployment
 - [SETUP.md](docs/SETUP.md) - Native Installation und Konfiguration
 - [DOCKER.md](docs/DOCKER.md) - Docker-Deployment mit Caddy/Nginx
-- [MOBILE.md](docs/MOBILE.md) - Mobile App Setup und Entwicklung
+- [MOBILE.md](docs/MOBILE.md) - Mobile App Setup und Entwicklung (iOS & Android)
+- [BUILD-ANLEITUNG-LINUX.md](docs/BUILD-ANLEITUNG-LINUX.md) - 🆕 Android Build unter Linux (Schritt-für-Schritt)
 
 ### API & Integration
 - [API.md](docs/API.md) - Vollständige API-Referenz
@@ -593,6 +599,23 @@ A:
 **F: Funktionieren Push-Benachrichtigungen im Hintergrund?**
 
 A: Ja, solange die WebSocket-Verbindung aktiv ist. Bei iOS kann dies durch Hintergrund-Modi optimiert werden.
+
+**F: Wie baue ich die Mobile App unter Linux?**
+
+A: Vollständige Schritt-für-Schritt-Anleitung in [docs/BUILD-ANLEITUNG-LINUX.md](docs/BUILD-ANLEITUNG-LINUX.md). Android APK kann komplett unter Linux gebaut werden.
+
+**F: Kann ich iOS Apps unter Linux bauen?**
+
+A: Nein, iOS benötigt macOS und Xcode. Nutze GitHub Actions für automatische iOS-Builds auf macOS-Runnern.
+
+**F: Wie funktionieren automatische Builds mit GitHub Actions?**
+
+A: Der Workflow `.github/workflows/mobile-build.yml` baut automatisch:
+- Debug APK bei jedem Push in `mobile/`
+- Release APK/AAB bei Git Tags (z.B. `mobile-v1.0.0`)
+- GitHub Release mit Download-Links
+
+**Mehr Details:** [docs/MOBILE.md](docs/MOBILE.md)
 
 **F: Welche Betriebssysteme werden unterstützt?**
 

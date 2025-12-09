@@ -5,6 +5,7 @@ Dieses Dokument erklärt detailliert, wie die Android und iOS Apps kompiliert, i
 ## Inhaltsverzeichnis
 
 - [Übersicht](#übersicht)
+- [📖 Linux Build-Anleitung](#-linux-build-anleitung)
 - [Voraussetzungen](#voraussetzungen)
   - [Für beide Plattformen](#für-beide-plattformen)
   - [Für iOS Development](#für-ios-development)
@@ -22,6 +23,22 @@ Die Alarm Messenger Mobile App ist eine React Native Anwendung, die:
 - Über **WebSocket** direkt mit dem Server kommuniziert
 - Vollständig **lokal kompilierbar** ist
 - Auf iOS und Android läuft
+
+## 📖 Linux Build-Anleitung
+
+**Für Linux-Benutzer gibt es eine separate, detaillierte Schritt-für-Schritt-Anleitung:**
+
+➡️ **[BUILD-ANLEITUNG-LINUX.md](BUILD-ANLEITUNG-LINUX.md)** - Vollständige Anleitung für Android unter Linux
+
+Diese Anleitung enthält:
+- ✅ Komplette System-Vorbereitung (Ubuntu/Debian/Fedora)
+- ✅ Installation aller erforderlichen Tools (JDK, Android Studio, Node.js)
+- ✅ Schritt-für-Schritt Android APK Build
+- ✅ Release-Signing Konfiguration
+- ✅ Troubleshooting für Linux-spezifische Probleme
+- ✅ GitHub Actions Setup für automatische Builds
+
+**Hinweis:** iOS-Apps können nicht unter Linux gebaut werden (nur macOS). Nutzen Sie GitHub Actions für automatische iOS-Builds.
 
 ## Voraussetzungen
 
@@ -305,145 +322,121 @@ defaultConfig {
 
 ## GitHub Actions für automatische Releases
 
-### Ja, es ist möglich! Hier ist die Lösung:
+### ✅ Ja, es ist möglich! Die Lösung ist bereits implementiert!
 
-Erstelle `.github/workflows/mobile-release.yml`:
-
-```yaml
-name: Mobile App Release
-
-on:
-  push:
-    tags:
-      - 'mobile-v*'
-  workflow_dispatch:
-
-jobs:
-  android:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '11'
-          
-      - name: Install dependencies
-        working-directory: mobile
-        run: npm ci
-        
-      - name: Decode Keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > mobile/android/app/alarm-messenger.keystore
-          
-      - name: Build Release APK
-        working-directory: mobile/android
-        env:
-          MYAPP_RELEASE_STORE_FILE: alarm-messenger.keystore
-          MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
-          MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
-        
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release.apk
-          path: mobile/android/app/build/outputs/apk/release/app-release.apk
-          
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: mobile/android/app/build/outputs/apk/release/app-release.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  ios:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          
-      - name: Install dependencies
-        working-directory: mobile
-        run: npm ci
-        
-      - name: Install CocoaPods
-        working-directory: mobile/ios
-        run: pod install
-        
-      - name: Build iOS App
-        working-directory: mobile/ios
-        run: |
-          xcodebuild -workspace AlarmMessenger.xcworkspace \
-            -scheme AlarmMessenger \
-            -configuration Release \
-            -archivePath $PWD/build/AlarmMessenger.xcarchive \
-            archive
-            
-      - name: Export IPA
-        working-directory: mobile/ios
-        run: |
-          xcodebuild -exportArchive \
-            -archivePath $PWD/build/AlarmMessenger.xcarchive \
-            -exportPath $PWD/build \
-            -exportOptionsPlist ExportOptions.plist
-            
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: AlarmMessenger.ipa
-          path: mobile/ios/build/AlarmMessenger.ipa
-          
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: mobile/ios/build/AlarmMessenger.ipa
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+Die GitHub Actions Workflow-Datei ist im Repository verfügbar unter:
+```
+.github/workflows/mobile-build.yml
 ```
 
-### GitHub Secrets einrichten
+**Was wird automatisch gebaut:**
+- ✅ **Android Debug APK** - Bei jedem Push in mobile/
+- ✅ **Android Release APK** - Bei Git Tags (mobile-v*) oder manuellem Trigger
+- ✅ **Android AAB** - Bei Git Tags für Play Store Upload
+- ℹ️ **iOS Debug Build** - Validierung auf macOS-Runner
+- ℹ️ **iOS Release IPA** - Erfordert Apple Developer Setup (siehe unten)
 
-Für Android in Repository Settings > Secrets:
+### Workflow-Trigger
 
-1. **ANDROID_KEYSTORE_BASE64**: 
+Der Workflow startet automatisch bei:
+
+1. **Push zu main/master mit Änderungen in mobile/**
    ```bash
-   base64 -i android/app/alarm-messenger.keystore | pbcopy
-   # Oder unter Linux:
-   base64 -w 0 android/app/alarm-messenger.keystore
+   git add mobile/
+   git commit -m "Update mobile app"
+   git push
    ```
-   
-2. **ANDROID_KEY_ALIAS**: `alarm-messenger`
-3. **ANDROID_STORE_PASSWORD**: Dein Keystore-Passwort
-4. **ANDROID_KEY_PASSWORD**: Dein Key-Passwort
+   → Erstellt Debug-APK
+
+2. **Git Tag erstellen (für Release-Builds)**
+   ```bash
+   git tag mobile-v1.0.0
+   git push origin mobile-v1.0.0
+   ```
+   → Erstellt Release-APK, AAB und GitHub Release
+
+3. **Pull Request mit Änderungen in mobile/**
+   → Validiert, dass die App noch kompiliert
+
+4. **Manueller Trigger**
+   - GitHub → Actions → "Mobile App Build" → "Run workflow"
+
+### Erforderliche GitHub Secrets für Android-Releases
+
+Für Android in Repository Settings > Secrets and variables > Actions:
+
+**Schritt 1: Keystore erstellen (falls noch nicht vorhanden)**
+
+```bash
+cd mobile/android/app
+keytool -genkey -v -keystore alarm-messenger.keystore \
+  -alias alarm-messenger \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 10000
+```
+
+**Schritt 2: Keystore zu Base64 konvertieren**
+
+```bash
+# Linux/macOS
+base64 -w 0 alarm-messenger.keystore
+# oder
+base64 -i alarm-messenger.keystore | tr -d '\n'
+
+# Das Ergebnis kopieren
+```
+
+**Schritt 3: Secrets in GitHub hinzufügen**
+
+Gehe zu: Repository → Settings → Secrets and variables → Actions → New repository secret
+
+| Secret Name | Wert | Beschreibung |
+|------------|------|--------------|
+| `ANDROID_KEYSTORE_BASE64` | `<base64-string>` | Base64-kodierter Keystore |
+| `ANDROID_KEY_ALIAS` | `alarm-messenger` | Keystore Alias |
+| `ANDROID_STORE_PASSWORD` | `<dein-passwort>` | Keystore Passwort |
+| `ANDROID_KEY_PASSWORD` | `<dein-passwort>` | Key Passwort |
+
+### Build-Artifacts herunterladen
+
+Nach jedem Build findet man die APK-Dateien unter:
+- GitHub → Actions → Workflow Run auswählen → "Artifacts" Section
+
+**Verfügbare Artifacts:**
+- `app-debug` - Debug APK (bei jedem Push)
+- `app-release` - Release APK (bei Tags)
+- `app-release-bundle` - AAB für Play Store (bei Tags)
 
 ### Release erstellen
 
-```bash
-# Tag erstellen und pushen
-git tag mobile-v1.0.0
-git push origin mobile-v1.0.0
+**Automatisches Release:**
 
-# GitHub Actions baut automatisch APK/IPA und erstellt einen Release
+```bash
+# Version in package.json aktualisieren
+cd mobile
+npm version 1.0.0
+
+# Tag erstellen und pushen
+git add .
+git commit -m "Release mobile app v1.0.0"
+git tag mobile-v1.0.0
+git push origin main
+git push origin mobile-v1.0.0
 ```
 
-Die Apps werden dann unter "Releases" zum Download bereitgestellt!
+GitHub Actions:
+1. Baut automatisch Android APK und AAB
+2. Erstellt ein GitHub Release
+3. Lädt APK und AAB zum Release hoch
+4. Release ist unter "Releases" verfügbar
+
+**Download-Links teilen:**
+
+Nach dem Release kannst du direkt auf die APK verlinken:
+```
+https://github.com/TimUx/alarm-messenger/releases/download/mobile-v1.0.0/app-release.apk
+```
 
 ### iOS Code Signing in GitHub Actions
 
