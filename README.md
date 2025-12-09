@@ -165,11 +165,9 @@ Dashboard mit Statistiken, QR-Code-Generierung und Schnellzugriff.
 
 #### Einsatzkräfte-Verwaltung
 
-Verwaltung aller registrierten Geräte und Einsatzkräfte.
+Verwaltung aller registrierten Geräte und Einsatzkräfte unter `/admin/devices.html`.
 
-| Hell-Modus | Dunkel-Modus |
-|:----------:|:------------:|
-| <img src="screenshots/admin-devices-light.png" width="400"> | <img src="screenshots/admin-devices-dark.png" width="400"> |
+> **Hinweis:** Screenshots für diese Seite werden noch erstellt.
 
 **Funktionen:**
 - Liste aller Einsatzkräfte mit Qualifikationen und Rollen
@@ -185,11 +183,9 @@ Verwaltung aller registrierten Geräte und Einsatzkräfte.
 
 #### Alarm-Gruppen-Verwaltung
 
-Verwaltung von Alarmierungsgruppen.
+Verwaltung von Alarmierungsgruppen unter `/admin/groups.html`.
 
-| Hell-Modus | Dunkel-Modus |
-|:----------:|:------------:|
-| <img src="screenshots/admin-groups-light.png" width="400"> | <img src="screenshots/admin-groups-dark.png" width="400"> |
+> **Hinweis:** Screenshots für diese Seite werden noch erstellt.
 
 #### Gruppe hinzufügen/bearbeiten
 
@@ -207,11 +203,9 @@ CSV-Format: `code,name,description`
 
 #### Einsatz-Historie
 
-Vollständige Übersicht aller Einsätze mit Detailansicht.
+Vollständige Übersicht aller Einsätze mit Detailansicht unter `/admin/history.html`.
 
-| Hell-Modus | Dunkel-Modus |
-|:----------:|:------------:|
-| <img src="screenshots/admin-history-light.png" width="400"> | <img src="screenshots/admin-history-dark.png" width="400"> |
+> **Hinweis:** Screenshots für diese Seite werden noch erstellt.
 
 **Funktionen:**
 - Chronologische Liste aller Einsätze
