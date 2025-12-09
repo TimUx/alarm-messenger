@@ -243,9 +243,9 @@ async function migrateDatabase(): Promise<void> {
       console.log('🔄 Adding role and full_name columns to admin_users...');
       
       if (!hasRoleColumn) {
-        await dbRun('ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT "admin"');
-        // Set existing users to admin role
-        await dbRun('UPDATE admin_users SET role = "admin" WHERE role IS NULL');
+        await dbRun('ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT "operator"');
+        // Set existing users to admin role (they were created before roles existed)
+        await dbRun('UPDATE admin_users SET role = "admin" WHERE role IS NULL OR role = "operator"');
       }
       if (!hasFullNameColumn) {
         await dbRun('ALTER TABLE admin_users ADD COLUMN full_name TEXT');
