@@ -44,14 +44,15 @@ Das Alarm Messenger System ist eine moderne, eigenständige Lösung zur Alarmier
 - SQLite-Datenbank zur Datenpersistenz
 - Geräteregistrierung mit QR-Code-Generierung und Persistenz
 - API-Key-Authentifizierung für Einsatzerstellung
-- JWT-basierte Admin-Authentifizierung
+- JWT-basierte Admin-Authentifizierung mit rollenbasierter Zugriffskontrolle
+- Benutzerverwaltung mit zwei Rollen (Administrator und Operator)
 - Base64-Kodierung für Secrets (optional)
 - Alarmierungsgruppen-System mit CSV-Import
 - Einsatz-Historie mit vollständiger Rückmeldedokumentation
 
 ### Admin Web-Interface
 
-Das Admin-Interface bietet vier Hauptbereiche:
+Das Admin-Interface bietet fünf Hauptbereiche:
 
 #### 1. **Dashboard** 
 - Statistik-Übersicht (Geräte, Gruppen, Einsätze)
@@ -80,6 +81,13 @@ Das Admin-Interface bietet vier Hauptbereiche:
 - Alle Rückmeldungen mit Einsatzkraft-Details
 - Statistiken (Teilnehmer, Absagen)
 - Pagination für große Datenmengen
+
+#### 5. **Benutzerverwaltung**
+- Verwaltung von Admin-Benutzern
+- Zwei Rollen: Administrator (Vollzugriff) und Operator (Nur-Lesen)
+- Benutzer erstellen, bearbeiten und löschen
+- Passwort-Änderung für alle Benutzer
+- Rollenbasierte Zugriffskontrolle auf alle Admin-Funktionen
 
 **Design:**
 - Hell/Dunkel-Theme-Umschaltung
@@ -218,6 +226,26 @@ Vollständige Übersicht aller Einsätze mit Detailansicht unter `/admin/history
 - Detailansicht mit allen Rückmeldungen
 - Anzeige von Qualifikationen und Führungsrollen
 - Pagination
+
+#### Benutzerverwaltung
+
+Verwaltung von Admin-Benutzern und Zugriffskontrolle unter `/admin/users.html`.
+
+| Hell-Modus | Dunkel-Modus |
+|:----------:|:------------:|
+| <img src="screenshots/user-management-light.png" width="400"> | <img src="screenshots/user-management-dark.png" width="400"> |
+
+**Funktionen:**
+- Benutzer anlegen, bearbeiten und löschen
+- Zwei Rollen: **Administrator** (Vollzugriff) und **Operator** (Nur-Lesen)
+- Passwort-Änderung für alle Benutzer
+- Eigenes Passwort selbst ändern
+- Anzeige des aktuellen Benutzers im Header mit Rolle
+- Vollständige Zugriffskontrolle auf alle Admin-Funktionen
+
+**Rollen:**
+- **Administrator:** Kann alle Funktionen nutzen (Geräte registrieren, Gruppen erstellen, Benutzer verwalten, Daten bearbeiten)
+- **Operator:** Hat nur Lesezugriff und kann keine Änderungen vornehmen
 
 #### QR-Code mit Persistenz
 
@@ -411,7 +439,14 @@ participants.forEach(p => {
 **Admin-Authentifizierung:**
 - `POST /api/admin/init` - Ersten Admin-Benutzer erstellen
 - `POST /api/admin/login` - Anmelden (JWT-Token erhalten)
-- `POST /api/admin/users` - Weiteren Admin-Benutzer erstellen (benötigt JWT)
+- `GET /api/admin/profile` - Eigenes Profil abrufen (benötigt JWT)
+
+**Benutzerverwaltung (nur Administratoren):**
+- `GET /api/admin/users` - Alle Benutzer auflisten (benötigt JWT + Admin-Rolle)
+- `POST /api/admin/users` - Neuen Benutzer erstellen (benötigt JWT + Admin-Rolle)
+- `PUT /api/admin/users/:id` - Benutzer bearbeiten (benötigt JWT + Admin-Rolle)
+- `DELETE /api/admin/users/:id` - Benutzer löschen (benötigt JWT + Admin-Rolle)
+- `PUT /api/admin/users/:id/password` - Passwort ändern (benötigt JWT)
 
 **Einsätze:**
 - `POST /api/emergencies` - Einsatz erstellen (benötigt API-Key)
@@ -425,15 +460,16 @@ participants.forEach(p => {
 - `POST /api/devices/registration-token` - QR-Code generieren (benötigt JWT)
 - `POST /api/devices/register` - Gerät registrieren (Mobile App)
 - `GET /api/devices` - Alle Geräte abrufen (benötigt JWT)
-- `PUT /api/devices/:id` - Geräte-/Einsatzkraft-Informationen aktualisieren (benötigt JWT)
-- `DELETE /api/devices/:id` - Gerät deaktivieren (benötigt JWT)
+- `PUT /api/admin/devices/:id` - Geräte-/Einsatzkraft-Informationen aktualisieren (benötigt JWT + Admin-Rolle)
+- `DELETE /api/devices/:id` - Gerät deaktivieren (benötigt JWT + Admin-Rolle)
 
 **Gruppen:**
 - `GET /api/groups` - Alle Gruppen abrufen (benötigt JWT)
-- `POST /api/groups` - Gruppe erstellen (benötigt JWT)
-- `PUT /api/groups/:code` - Gruppe aktualisieren (benötigt JWT)
-- `DELETE /api/groups/:code` - Gruppe löschen (benötigt JWT)
-- `POST /api/groups/import` - CSV-Import (benötigt JWT)
+- `POST /api/groups` - Gruppe erstellen (benötigt JWT + Admin-Rolle)
+- `PUT /api/groups/:code` - Gruppe aktualisieren (benötigt JWT + Admin-Rolle)
+- `DELETE /api/groups/:code` - Gruppe löschen (benötigt JWT + Admin-Rolle)
+- `POST /api/groups/import` - CSV-Import (benötigt JWT + Admin-Rolle)
+- `PUT /api/groups/device/:deviceId` - Gerät zu Gruppen zuordnen (benötigt JWT + Admin-Rolle)
 
 **📚 Vollständige API-Dokumentation:** [docs/API.md](docs/API.md)
 
