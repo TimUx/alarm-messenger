@@ -18,6 +18,13 @@
             </div>
         </header>
 
+        <nav class="admin-nav">
+            <a href="index.html" class="active">Dashboard</a>
+            <a href="devices.html">Einsatzkräfte</a>
+            <a href="groups.html">Alarm-Gruppen</a>
+            <a href="history.html">Einsatz-Historie</a>
+        </nav>
+
         <main class="dashboard-content">
             <section class="section">
                 <div class="section-header">
@@ -39,143 +46,54 @@
 
             <section class="section">
                 <div class="section-header">
-                    <h2>Registrierte Einsatzkräfte</h2>
-                    <button class="btn btn-secondary" id="refresh-devices-btn">🔄 Aktualisieren</button>
+                    <h2>Systemübersicht</h2>
+                    <button class="btn btn-secondary" id="refresh-stats-btn">🔄 Aktualisieren</button>
                 </div>
-                <div id="devices-list" class="devices-list">
-                    <p class="loading">Lade Daten...</p>
+                <div class="stats-grid" id="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📱</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-devices">-</div>
+                            <div class="stat-label">Registrierte Geräte</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-groups">-</div>
+                            <div class="stat-label">Alarmierungsgruppen</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🚨</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-emergencies-total">-</div>
+                            <div class="stat-label">Einsätze Gesamt</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📅</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-emergencies-year">-</div>
+                            <div class="stat-label">Einsätze <span id="current-year"></span></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-emergencies-month">-</div>
+                            <div class="stat-label">Einsätze Diesen Monat</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-devices-active">-</div>
+                            <div class="stat-label">Aktive Geräte</div>
+                        </div>
+                    </div>
                 </div>
             </section>
-
-            <section class="section">
-                <div class="section-header">
-                    <h2>Alarmierungsgruppen</h2>
-                    <div class="header-actions">
-                        <button class="btn btn-secondary" id="import-groups-btn">📤 CSV Import</button>
-                        <button class="btn btn-primary" id="add-group-btn">Neue Gruppe</button>
-                    </div>
-                </div>
-                <div id="groups-list" class="groups-list">
-                    <p class="loading">Lade Gruppen...</p>
-                </div>
-            </section>
-
-            <!-- Edit Device Modal -->
-            <div id="edit-modal" class="modal" style="display: none;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>Einsatzkraft bearbeiten</h3>
-                        <button class="close-btn" id="close-modal-btn">&times;</button>
-                    </div>
-                    <form id="editDeviceForm">
-                        <input type="hidden" id="edit-device-id">
-                        <div class="form-group">
-                            <label for="edit-first-name">Vorname</label>
-                            <input type="text" id="edit-first-name" name="firstName" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-last-name">Nachname</label>
-                            <input type="text" id="edit-last-name" name="lastName" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Ausbildungsstand</label>
-                            <div class="checkbox-group">
-                                <label>
-                                    <input type="checkbox" name="qual_machinist" id="edit-qual-machinist">
-                                    Maschinist
-                                </label>
-                                <label>
-                                    <input type="checkbox" name="qual_agt" id="edit-qual-agt">
-                                    AGT (Atemschutzgeräteträger)
-                                </label>
-                                <label>
-                                    <input type="checkbox" name="qual_paramedic" id="edit-qual-paramedic">
-                                    Sanitäter
-                                </label>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Führungsrolle</label>
-                            <div class="radio-group">
-                                <label>
-                                    <input type="radio" name="leadership_role" value="none" id="edit-role-none" checked>
-                                    Keine
-                                </label>
-                                <label>
-                                    <input type="radio" name="leadership_role" value="groupLeader" id="edit-role-group">
-                                    Gruppenführer
-                                </label>
-                                <label>
-                                    <input type="radio" name="leadership_role" value="platoonLeader" id="edit-role-platoon">
-                                    Zugführer
-                                </label>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-assigned-groups">Zugeordnete Gruppen</label>
-                            <div id="edit-assigned-groups" class="checkbox-group">
-                                <p class="loading">Lade Gruppen...</p>
-                            </div>
-                        </div>
-                        <div class="modal-actions">
-                            <button type="button" class="btn btn-secondary" id="cancel-modal-btn">Abbrechen</button>
-                            <button type="submit" class="btn btn-primary">Speichern</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Add/Edit Group Modal -->
-            <div id="group-modal" class="modal" style="display: none;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 id="group-modal-title">Neue Gruppe</h3>
-                        <button class="close-btn" id="close-group-modal-btn">&times;</button>
-                    </div>
-                    <form id="groupForm">
-                        <input type="hidden" id="edit-group-original-code">
-                        <div class="form-group">
-                            <label for="edit-group-code">Gruppen-Kürzel *</label>
-                            <input type="text" id="edit-group-code" name="code" required placeholder="z.B. WIL26">
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-group-name">Name *</label>
-                            <input type="text" id="edit-group-name" name="name" required placeholder="z.B. WIL Steina M">
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-group-description">Beschreibung</label>
-                            <textarea id="edit-group-description" name="description" rows="3" placeholder="Optionale Beschreibung"></textarea>
-                        </div>
-                        <div class="modal-actions">
-                            <button type="button" class="btn btn-secondary" id="cancel-group-modal-btn">Abbrechen</button>
-                            <button type="submit" class="btn btn-primary">Speichern</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Import Groups Modal -->
-            <div id="import-groups-modal" class="modal" style="display: none;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>Gruppen CSV Import</h3>
-                        <button class="close-btn" id="close-import-modal-btn">&times;</button>
-                    </div>
-                    <div>
-                        <div class="form-group">
-                            <label>CSV-Format: code,name,description (Header optional)</label>
-                            <p style="font-size: 0.9em; color: #999;">Beispiel:<br>
-                            WIL26,WIL Steina M,TME WIL26<br>
-                            SWA11,SWA Trutzhain S,TME SWA11</p>
-                            <textarea id="import-csv-data" rows="10" placeholder="CSV-Daten hier einfügen..."></textarea>
-                        </div>
-                        <div class="modal-actions">
-                            <button type="button" class="btn btn-secondary" id="cancel-import-btn">Abbrechen</button>
-                            <button type="button" class="btn btn-primary" id="confirm-import-btn">Importieren</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </main>
     </div>
     <script src="dashboard.js"></script>

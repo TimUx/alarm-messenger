@@ -27,8 +27,13 @@ Das Alarm Messenger System ist eine vollständige Alarmierungslösung bestehend 
 ### Admin Web-Interface (NEU)
 - ✅ Passwortgeschützter Admin-Login
 - ✅ QR-Code-Generierung und Anzeige
+- ✅ **QR-Code Persistenz** - Gespeicherte QR-Codes können jederzeit erneut abgerufen werden
 - ✅ Geräte-/Einsatzkraft-Verwaltungs-Dashboard
 - ✅ Bearbeitung von Einsatzkraft-Informationen (Name, Qualifikationen, Führungsrolle)
+- ✅ **Einsatz-Historie** - Übersicht aller eingegangenen Einsätze mit Detailansicht
+- ✅ **Detail-Ansicht** - Vollständige Einsatzinformationen inkl. Rückmeldungen aller Einsatzkräfte
+- ✅ **Navigation** - Menüstruktur für einfachen Zugriff auf alle Funktionen
+- ✅ **CSV Import** - Eigene Seite für Gruppen-Import
 - ✅ Dunkles Theme passend zum alarm-monitor Design (#1a1a1a Hintergrund, #dc3545 Akzente)
 - ✅ Responsives Design für Desktop und Mobil
 
@@ -441,6 +446,80 @@ In Docker Container mit docker-compose ausführen. Siehe [DOCKER-QUICKSTART.md](
 - PM2 für Prozessmanagement verwenden (native Installation)
 
 Siehe [docs/DOCKER.md](docs/DOCKER.md) für vollständige Deployment-Anweisungen.
+
+## Screenshots
+
+### Admin Interface
+
+Das Admin Interface bietet vier Hauptbereiche mit übersichtlicher Navigation:
+
+#### 1. Dashboard - Übersicht und QR-Code Generierung
+
+Das Dashboard zeigt wichtige Statistiken auf einen Blick und ermöglicht die Generierung neuer QR-Codes für Geräteregistrierungen.
+
+**Light Mode** | **Dark Mode**
+:---:|:---:
+![Dashboard Light](https://github.com/user-attachments/assets/7798a109-5e2c-4693-9f36-e4238fb61732) | ![Dashboard Dark](https://github.com/user-attachments/assets/a25fabc6-ce62-44be-9039-fb3a8e693294)
+
+**Funktionen:**
+- 📊 Statistik-Karten mit Echtzeitdaten
+- 📱 Anzahl registrierter Geräte (aktiv/inaktiv)
+- 👥 Anzahl Alarmierungsgruppen
+- 🚨 Anzahl Einsätze (Gesamt, aktuelles Jahr, aktueller Monat)
+- 🔄 QR-Code Generierung mit automatischer Speicherung
+
+#### 2. Einsatzkräfte - Geräteverwaltung
+
+Zentrale Verwaltung aller registrierten Geräte und Einsatzkräfte mit vollständiger Bearbeitungsfunktion.
+
+**Funktionen:**
+- Bearbeitung von Einsatzkraft-Informationen (Name, Qualifikationen, Führungsrolle)
+- QR-Code erneut anzeigen und herunterladen
+- Geräte deaktivieren
+- Zuordnung zu Alarmierungsgruppen
+
+#### 3. Alarm-Gruppen - Gruppenverwaltung
+
+Verwaltung von Alarmierungsgruppen mit CSV-Import Funktion für schnelles Einrichten.
+
+**Funktionen:**
+- Erstellen, Bearbeiten und Löschen von Gruppen
+- CSV-Import für Massen-Import
+- Gruppen-Zuordnung zu Einsatzkräften
+
+#### 4. Einsatz-Historie - Vollständige Einsatzdokumentation
+
+Übersicht aller eingegangenen Einsätze mit detaillierter Ansicht inklusive aller Rückmeldungen.
+
+**Light Mode** | **Dark Mode**
+:---:|:---:
+![Historie Light](https://github.com/user-attachments/assets/9e50b691-b7e1-4a32-ac43-3384d8d325ce) | *Dark Mode Screenshot*
+
+**Funktionen:**
+- Chronologische Liste aller Einsätze
+- Detailansicht mit allen Einsatzkraft-Rückmeldungen
+- Anzeige von Qualifikationen und Führungsrollen
+- Statistiken (Teilnehmer, Absagen)
+- Pagination für große Datenmengen
+
+### Weitere Screenshots
+
+#### QR-Code Generierung mit Persistenz
+
+QR-Codes werden automatisch in der Datenbank gespeichert und können jederzeit erneut abgerufen werden.
+
+![QR-Code Generierung](https://github.com/user-attachments/assets/ec8c073c-ed06-4393-a3f9-81986f1ba526)
+
+**Vorteile:**
+- Neuregistrierung bei Gerätewechsel ohne Datenverlust
+- Token bleibt gleich
+- Alle Einsatzkraft-Informationen bleiben erhalten
+
+#### CSV Import für Alarm-Gruppen
+
+Schnelles Importieren mehrerer Gruppen über CSV-Format.
+
+![CSV Import](https://github.com/user-attachments/assets/aea28810-f4a4-4205-8ad9-dbee5249b3ec)
 
 ## Häufig gestellte Fragen (FAQ)
 

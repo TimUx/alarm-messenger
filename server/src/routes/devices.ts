@@ -19,6 +19,26 @@ router.post('/registration-token', async (req: Request, res: Response) => {
     
     const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(registrationData));
     
+    // Store the device token with QR code in database (not yet registered)
+    // This allows later retrieval of the QR code
+    const id = uuidv4();
+    const registeredAt = new Date().toISOString();
+    
+    await dbRun(
+      `INSERT INTO devices (
+        id, device_token, registration_token, platform, registered_at, active, qr_code_data
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        deviceToken,
+        '', // Empty registration token until registered
+        'android', // Default platform, will be updated on registration
+        registeredAt,
+        0, // Not active until registered
+        qrCodeDataUrl,
+      ]
+    );
+    
     res.json({
       deviceToken,
       qrCode: qrCodeDataUrl,
@@ -41,6 +61,7 @@ router.post('/register', async (req: Request, res: Response) => {
       lastName,
       qualifications,
       leadershipRole,
+      qrCodeData, // QR code data to store
     } = req.body;
 
     if (!deviceToken || !registrationToken || !platform) {
@@ -71,7 +92,8 @@ router.post('/register', async (req: Request, res: Response) => {
           qual_machinist = ?,
           qual_agt = ?,
           qual_paramedic = ?,
-          leadership_role = ?
+          leadership_role = ?,
+          qr_code_data = ?
         WHERE device_token = ?`,
         [
           registrationToken, 
@@ -82,6 +104,7 @@ router.post('/register', async (req: Request, res: Response) => {
           qualifications?.agt ? 1 : 0,
           qualifications?.paramedic ? 1 : 0,
           leadershipRole || 'none',
+          qrCodeData || existing.qr_code_data || null, // Keep existing QR if not provided
           deviceToken
         ]
       );
@@ -109,8 +132,8 @@ router.post('/register', async (req: Request, res: Response) => {
         `INSERT INTO devices (
           id, device_token, registration_token, platform, registered_at, active,
           first_name, last_name, qual_machinist, qual_agt, qual_paramedic, 
-          leadership_role
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          leadership_role, qr_code_data
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id, deviceToken, registrationToken, platform, registeredAt, 1,
           firstName || null,
@@ -119,6 +142,7 @@ router.post('/register', async (req: Request, res: Response) => {
           qualifications?.agt ? 1 : 0,
           qualifications?.paramedic ? 1 : 0,
           leadershipRole || 'none',
+          qrCodeData || null,
         ]
       );
 
@@ -225,6 +249,49 @@ router.get('/:id', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching device:', error);
     res.status(500).json({ error: 'Failed to fetch device' });
+  }
+});
+
+// Get QR code for a specific device
+router.get('/:id/qr-code', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const row = await dbGet('SELECT device_token, qr_code_data FROM devices WHERE id = ?', [id]);
+
+    if (!row) {
+      res.status(404).json({ error: 'Device not found' });
+      return;
+    }
+
+    // If QR code is not stored, regenerate it
+    let qrCodeDataUrl = row.qr_code_data;
+    
+    if (!qrCodeDataUrl) {
+      const registrationData = {
+        token: row.device_token,
+        serverUrl: process.env.SERVER_URL || 'http://localhost:3000',
+      };
+      
+      qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(registrationData));
+      
+      // Save it for future use
+      await dbRun(
+        'UPDATE devices SET qr_code_data = ? WHERE id = ?',
+        [qrCodeDataUrl, id]
+      );
+    }
+
+    res.json({
+      deviceToken: row.device_token,
+      qrCode: qrCodeDataUrl,
+      registrationData: {
+        token: row.device_token,
+        serverUrl: process.env.SERVER_URL || 'http://localhost:3000',
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching QR code:', error);
+    res.status(500).json({ error: 'Failed to fetch QR code' });
   }
 });
 
