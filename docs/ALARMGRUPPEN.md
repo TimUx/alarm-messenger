@@ -1,5 +1,21 @@
 # Alarmgruppen-System
 
+## Inhaltsverzeichnis
+
+- [Übersicht](#übersicht)
+- [Komponenten](#komponenten)
+  - [Gruppen-Verwaltung](#1-gruppen-verwaltung)
+  - [Device-Gruppen-Zuordnung](#2-device-gruppen-zuordnung)
+  - [Gefilterte Alarmierung](#3-gefilterte-alarmierung)
+- [API-Endpunkte](#api-endpunkte)
+  - [Gruppen verwalten](#gruppen-verwalten)
+  - [Device-Zuordnungen](#device-zuordnungen)
+  - [CSV-Import](#csv-import)
+- [Verwendung](#verwendung)
+  - [Einsatz mit Gruppen erstellen](#einsatz-mit-gruppen-erstellen)
+  - [Admin-Interface](#admin-interface)
+- [Beispiele](#beispiele)
+
 ## Übersicht
 
 Das Alarmgruppen-System ermöglicht es, Einsatzkräfte in Gruppen zu organisieren und Alarmierungen gezielt an bestimmte Gruppen zu senden. Dies basiert auf den Alarmierungsgruppen, die im XML vom Alarm-Monitor enthalten sind.

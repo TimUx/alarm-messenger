@@ -1,5 +1,21 @@
 # Rückmeldungen und Einsatzkraft-Details API
 
+## Inhaltsverzeichnis
+
+- [Übersicht](#übersicht)
+- [Gespeicherte Informationen](#gespeicherte-informationen)
+  - [Rückmeldungs-Tabelle](#rückmeldungs-tabelle-responses)
+  - [Geräte-/Einsatzkraft-Tabelle](#geräte-einsatzkraft-tabelle-devices)
+  - [Datenmodell-Vorteile](#datenmodell-vorteile)
+- [API-Endpunkte mit Authentifizierung](#api-endpunkte-mit-authentifizierung)
+  - [Teilnehmer mit Details abrufen](#teilnehmer-mit-details-abrufen)
+  - [Alle Rückmeldungen mit Details abrufen](#alle-rückmeldungen-mit-details-abrufen)
+- [Integration mit alarm-monitor](#integration-mit-alarm-monitor)
+  - [JavaScript/TypeScript Beispiel](#javascripttypescript-beispiel)
+  - [Python Beispiel](#python-beispiel)
+- [Datenstruktur-Beispiele](#datenstruktur-beispiele)
+- [Best Practices](#best-practices)
+
 ## Übersicht
 
 Dieses Dokument beschreibt die Datenstruktur der Rückmeldungen (Responses) und wie externe Systeme wie der **alarm-monitor** mit Authentifizierung auf die Rückmeldungen und detaillierten Einsatzkraft-Informationen zugreifen können.

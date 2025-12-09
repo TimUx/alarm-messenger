@@ -2,6 +2,17 @@
 
 Dieses Dokument erklärt die Authentifizierungsmechanismen im Alarm Messenger System für beide Anwendungsfälle: Mobile App und Einsatzerstellung.
 
+## Inhaltsverzeichnis
+
+- [Übersicht](#übersicht)
+- [Authentifizierungsmechanismen](#authentifizierungsmechanismen)
+  - [API-Key-Authentifizierung](#1-api-key-authentifizierung-für-einsatzerstellung)
+  - [JWT-Token-Authentifizierung](#2-jwt-token-authentifizierung-für-admin-interface)
+  - [Device-Token-Authentifizierung](#3-device-token-authentifizierung-für-mobile-app)
+- [Implementierungsdetails](#implementierungsdetails)
+- [Sicherheitshinweise](#sicherheitshinweise)
+- [Best Practices](#best-practices)
+
 ## Übersicht
 
 Das Alarm Messenger System **verwendet bereits Authentifizierung** für kritische Endpunkte. Die Authentifizierung ist vollständig implementiert und sollte im Produktivbetrieb verwendet werden.

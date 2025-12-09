@@ -1,5 +1,20 @@
 # Server-Setup-Anleitung
 
+## Inhaltsverzeichnis
+
+- [Voraussetzungen](#voraussetzungen)
+- [Installation](#installation)
+  - [Schritt 1: Abhängigkeiten installieren](#schritt-1-abhängigkeiten-installieren)
+  - [Schritt 2: Umgebungsvariablen konfigurieren](#schritt-2-umgebungsvariablen-konfigurieren)
+  - [Schritt 3: Anwendung bauen](#schritt-3-anwendung-bauen)
+  - [Schritt 4: Admin-Benutzer erstellen](#schritt-4-admin-benutzer-erstellen)
+  - [Schritt 5: Server starten](#schritt-5-server-starten)
+- [Produktiv-Deployment](#produktiv-deployment)
+  - [Systemd Service](#systemd-service)
+  - [PM2 Process Manager](#pm2-process-manager)
+- [Sicherheit](#sicherheit)
+- [Wartung](#wartung)
+
 ## Voraussetzungen
 
 - Node.js 18 oder höher

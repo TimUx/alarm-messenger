@@ -1,5 +1,18 @@
 # Qualifikationsänderungen
 
+## Inhaltsverzeichnis
+
+- [Übersicht](#übersicht)
+- [Änderungen](#änderungen)
+  - [Entfernte Qualifikationen](#entfernte-qualifikationen)
+  - [Neue Führungsrollen](#neue-führungsrollen)
+- [API-Änderungen](#api-änderungen)
+  - [Device-Registrierung](#device-registrierung)
+  - [Device-Aktualisierung (Admin)](#device-aktualisierung-admin)
+- [Admin-Interface](#admin-interface)
+- [Datenbankschema](#datenbankschema)
+- [Migration](#migration)
+
 ## Übersicht
 
 Die Qualifikationsfelder für Einsatzkräfte wurden gemäß den neuen Anforderungen angepasst.

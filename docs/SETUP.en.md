@@ -1,5 +1,20 @@
 # Server Setup Guide
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+  - [Step 1: Install Dependencies](#step-1-install-dependencies)
+  - [Step 2: Configure Environment Variables](#step-2-configure-environment-variables)
+  - [Step 3: Build Application](#step-3-build-application)
+  - [Step 4: Create Admin User](#step-4-create-admin-user)
+  - [Step 5: Start Server](#step-5-start-server)
+- [Production Deployment](#production-deployment)
+  - [Systemd Service](#systemd-service)
+  - [PM2 Process Manager](#pm2-process-manager)
+- [Security](#security)
+- [Maintenance](#maintenance)
+
 ## Prerequisites
 
 - Node.js 18 or higher

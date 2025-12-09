@@ -1,5 +1,18 @@
 # Base64-Kodierung für Secrets und Keys
 
+## Inhaltsverzeichnis
+
+- [Übersicht](#übersicht)
+- [Warum Base64-Kodierung?](#warum-base64-kodierung)
+  - [Vorteile](#vorteile)
+  - [Wichtige Hinweise](#wichtige-hinweise)
+- [Verwendung](#verwendung)
+  - [Neue Installation](#neue-installation)
+  - [Bestehende Installation](#bestehende-installation)
+- [Technische Details](#technische-details)
+- [Migration](#migration)
+- [Best Practices](#best-practices)
+
 ## Übersicht
 
 Das Alarm Messenger System unterstützt jetzt Base64-kodierte Secrets für `API_SECRET_KEY` und `JWT_SECRET`. Diese Funktion bietet eine zusätzliche Sicherheitsebene durch Verschleierung der Secrets in Konfigurationsdateien.

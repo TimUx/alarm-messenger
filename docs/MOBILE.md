@@ -2,6 +2,19 @@
 
 Dieses Dokument erklärt detailliert, wie die Android und iOS Apps kompiliert, installiert und über GitHub Actions als Release bereitgestellt werden können.
 
+## Inhaltsverzeichnis
+
+- [Übersicht](#übersicht)
+- [Voraussetzungen](#voraussetzungen)
+  - [Für beide Plattformen](#für-beide-plattformen)
+  - [Für iOS Development](#für-ios-development)
+  - [Für Android Development](#für-android-development)
+- [Installation der Dependencies](#installation-der-dependencies)
+- [iOS Build und Installation](#ios-build-und-installation)
+- [Android Build und Installation](#android-build-und-installation)
+- [GitHub Actions CI/CD](#github-actions-cicd)
+- [Troubleshooting](#troubleshooting)
+
 ## Übersicht
 
 Die Alarm Messenger Mobile App ist eine React Native Anwendung, die:
