@@ -20,6 +20,8 @@ services:
     volumes:
       # Mount source code for hot reload
       - ./server/src:/app/src
+      # Mount public directory for admin UI
+      - ./server/public:/app/public
       # Persist database
       - ./server/data:/app/data
       # Persist node_modules
