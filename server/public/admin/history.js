@@ -90,7 +90,23 @@ function displayEmergencies(emergencies) {
         return;
     }
     
-    const emergenciesHtml = emergencies.map(emergency => {
+    // Create table
+    let tableHtml = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Stichwort</th>
+                    <th>Einsatznummer</th>
+                    <th>Ort</th>
+                    <th>Datum/Zeit</th>
+                    <th>Gruppen</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    emergencies.forEach(emergency => {
         let emergencyDateTime;
         try {
             emergencyDateTime = new Date(emergency.emergencyDate).toLocaleString('de-DE');
@@ -98,57 +114,32 @@ function displayEmergencies(emergencies) {
             emergencyDateTime = emergency.emergencyDate;
         }
         
-        let createdDate;
-        try {
-            createdDate = new Date(emergency.createdAt).toLocaleString('de-DE');
-        } catch (e) {
-            createdDate = emergency.createdAt;
-        }
-        
         const escapedKeyword = escapeHtml(emergency.emergencyKeyword);
         const escapedLocation = escapeHtml(emergency.emergencyLocation);
-        const escapedDescription = escapeHtml(emergency.emergencyDescription);
         const escapedNumber = escapeHtml(emergency.emergencyNumber);
         const escapedId = escapeHtml(emergency.id);
+        const groupsText = emergency.groups ? escapeHtml(emergency.groups) : '-';
         
-        return `
-            <div class="emergency-card">
-                <div class="emergency-header">
-                    <div class="emergency-keyword">${escapedKeyword}</div>
-                    <div class="emergency-date">${emergencyDateTime}</div>
-                </div>
-                <div class="emergency-info">
-                    <div class="emergency-info-row">
-                        <span class="emergency-info-label">Ort:</span>
-                        <span class="emergency-info-value">${escapedLocation}</span>
-                    </div>
-                    <div class="emergency-info-row">
-                        <span class="emergency-info-label">Einsatznummer:</span>
-                        <span class="emergency-info-value">${escapedNumber}</span>
-                    </div>
-                    <div class="emergency-info-row">
-                        <span class="emergency-info-label">Beschreibung:</span>
-                        <span class="emergency-info-value">${escapedDescription}</span>
-                    </div>
-                    <div class="emergency-info-row">
-                        <span class="emergency-info-label">Erstellt:</span>
-                        <span class="emergency-info-value">${createdDate}</span>
-                    </div>
-                    ${emergency.groups ? `
-                        <div class="emergency-info-row">
-                            <span class="emergency-info-label">Gruppen:</span>
-                            <span class="emergency-info-value">${escapeHtml(emergency.groups)}</span>
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="emergency-actions">
-                    <button class="btn btn-primary" data-action="view-details" data-emergency-id="${escapedId}">Details anzeigen</button>
-                </div>
-            </div>
+        tableHtml += `
+            <tr>
+                <td><strong class="emergency-keyword-text">${escapedKeyword}</strong></td>
+                <td>${escapedNumber}</td>
+                <td>${escapedLocation}</td>
+                <td>${emergencyDateTime}</td>
+                <td>${groupsText}</td>
+                <td class="actions-cell">
+                    <button class="btn-icon" title="Details anzeigen" data-action="view-details" data-emergency-id="${escapedId}">📋</button>
+                </td>
+            </tr>
         `;
-    }).join('');
+    });
     
-    container.innerHTML = emergenciesHtml;
+    tableHtml += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = tableHtml;
     
     // Add event listeners
     container.querySelectorAll('[data-action="view-details"]').forEach(btn => {
