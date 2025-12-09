@@ -182,4 +182,119 @@ router.put('/devices/:id', verifyToken, async (req: AuthRequest, res: Response) 
   }
 });
 
+// Get emergency history with pagination
+router.get('/emergencies', verifyToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = (page - 1) * limit;
+
+    // Get total count
+    const countResult = await dbGet('SELECT COUNT(*) as total FROM emergencies', []);
+    const total = countResult.total;
+
+    // Get paginated emergencies
+    const rows = await dbAll(
+      'SELECT * FROM emergencies ORDER BY created_at DESC LIMIT ? OFFSET ?',
+      [limit, offset]
+    );
+
+    const emergencies = rows.map((row: any) => ({
+      id: row.id,
+      emergencyNumber: row.emergency_number,
+      emergencyDate: row.emergency_date,
+      emergencyKeyword: row.emergency_keyword,
+      emergencyDescription: row.emergency_description,
+      emergencyLocation: row.emergency_location,
+      createdAt: row.created_at,
+      active: row.active === 1,
+      groups: row.groups,
+    }));
+
+    res.json({
+      emergencies,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching emergencies:', error);
+    res.status(500).json({ error: 'Failed to fetch emergencies' });
+  }
+});
+
+// Get detailed emergency information with all responses
+router.get('/emergencies/:id', verifyToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Get emergency details
+    const emergency = await dbGet('SELECT * FROM emergencies WHERE id = ?', [id]);
+    
+    if (!emergency) {
+      res.status(404).json({ error: 'Emergency not found' });
+      return;
+    }
+
+    // Get all responses with responder details
+    const responseRows = await dbAll(
+      `SELECT r.*, d.platform, d.first_name, d.last_name,
+              d.qual_machinist, d.qual_agt, d.qual_paramedic, d.leadership_role
+       FROM responses r
+       JOIN devices d ON r.device_id = d.id
+       WHERE r.emergency_id = ?
+       ORDER BY r.responded_at ASC`,
+      [id]
+    );
+
+    const responses = responseRows.map((row: any) => ({
+      id: row.id,
+      deviceId: row.device_id,
+      platform: row.platform,
+      participating: row.participating === 1,
+      respondedAt: row.responded_at,
+      responder: {
+        firstName: row.first_name,
+        lastName: row.last_name,
+        qualifications: {
+          machinist: row.qual_machinist === 1,
+          agt: row.qual_agt === 1,
+          paramedic: row.qual_paramedic === 1,
+        },
+        leadershipRole: row.leadership_role || 'none',
+      },
+    }));
+
+    // Count participants
+    const participantsCount = responses.filter(r => r.participating).length;
+    const nonParticipantsCount = responses.filter(r => !r.participating).length;
+
+    res.json({
+      emergency: {
+        id: emergency.id,
+        emergencyNumber: emergency.emergency_number,
+        emergencyDate: emergency.emergency_date,
+        emergencyKeyword: emergency.emergency_keyword,
+        emergencyDescription: emergency.emergency_description,
+        emergencyLocation: emergency.emergency_location,
+        createdAt: emergency.created_at,
+        active: emergency.active === 1,
+        groups: emergency.groups,
+      },
+      responses,
+      summary: {
+        totalResponses: responses.length,
+        participants: participantsCount,
+        nonParticipants: nonParticipantsCount,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching emergency details:', error);
+    res.status(500).json({ error: 'Failed to fetch emergency details' });
+  }
+});
+
 export default router;

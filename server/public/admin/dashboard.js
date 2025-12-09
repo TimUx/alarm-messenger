@@ -39,17 +39,6 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Import groups listeners
-    document.getElementById('import-groups-btn').addEventListener('click', openImportModal);
-    document.getElementById('close-import-modal-btn').addEventListener('click', closeImportModal);
-    document.getElementById('cancel-import-btn').addEventListener('click', closeImportModal);
-    document.getElementById('confirm-import-btn').addEventListener('click', importGroups);
-    document.getElementById('import-groups-modal').addEventListener('click', (e) => {
-        if (e.target.id === 'import-groups-modal') {
-            closeImportModal();
-        }
-    });
-    
     // Load data
     refreshDevices();
     refreshGroups();
@@ -589,78 +578,3 @@ document.getElementById('groupForm').addEventListener('submit', async (e) => {
         alert('Fehler: ' + error.message);
     }
 });
-
-function openImportModal() {
-    document.getElementById('import-csv-data').value = '';
-    document.getElementById('import-groups-modal').style.display = 'flex';
-}
-
-function closeImportModal() {
-    document.getElementById('import-groups-modal').style.display = 'none';
-}
-
-async function importGroups() {
-    const csvData = document.getElementById('import-csv-data').value.trim();
-    
-    if (!csvData) {
-        alert('Bitte CSV-Daten eingeben');
-        return;
-    }
-    
-    try {
-        // Parse CSV
-        const lines = csvData.split('\n').filter(line => line.trim());
-        const groups = [];
-        
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
-            
-            // Skip header if it looks like one
-            if (i === 0 && (line.toLowerCase().includes('code') || line.toLowerCase().includes('name'))) {
-                continue;
-            }
-            
-            // Parse CSV line (simple comma split, doesn't handle quoted values)
-            const parts = line.split(',').map(p => p.trim());
-            
-            if (parts.length >= 2) {
-                groups.push({
-                    code: parts[0],
-                    name: parts[1],
-                    description: parts[2] || ''
-                });
-            }
-        }
-        
-        if (groups.length === 0) {
-            alert('Keine gültigen Gruppen gefunden');
-            return;
-        }
-        
-        // Import groups
-        const response = await apiRequest(`${API_BASE}/groups/import`, {
-            method: 'POST',
-            body: JSON.stringify({ groups })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Fehler beim Importieren');
-        }
-        
-        const result = await response.json();
-        
-        let message = `Import abgeschlossen!\n`;
-        message += `Erstellt: ${result.created}\n`;
-        message += `Aktualisiert: ${result.updated}\n`;
-        if (result.errors.length > 0) {
-            message += `Fehler: ${result.errors.length}\n\n`;
-            message += result.errors.slice(0, 5).join('\n');
-        }
-        
-        alert(message);
-        closeImportModal();
-        refreshGroups();
-    } catch (error) {
-        alert('Fehler beim Importieren: ' + error.message);
-    }
-}

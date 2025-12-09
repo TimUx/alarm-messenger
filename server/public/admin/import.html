@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm Messenger - CSV Import</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>🚨 Alarm Messenger - CSV Import</h1>
+            <div class="header-actions">
+                <button id="theme-toggle" title="Theme wechseln">🌙</button>
+                <span id="username-display"></span>
+                <button class="btn btn-secondary" id="logout-btn">Abmelden</button>
+            </div>
+        </header>
+
+        <nav class="admin-nav">
+            <a href="index.html">Dashboard</a>
+            <a href="history.html">Einsatz Historie</a>
+            <a href="import.html" class="active">CSV Import</a>
+        </nav>
+
+        <main class="dashboard-content">
+            <section class="section">
+                <div class="section-header">
+                    <h2>Gruppen CSV Import</h2>
+                </div>
+                <div class="import-container">
+                    <div class="import-instructions">
+                        <h3>CSV-Format</h3>
+                        <p>Die CSV-Datei sollte folgendes Format haben: <code>code,name,description</code></p>
+                        <p>Der Header ist optional. Beispiel:</p>
+                        <pre>WIL26,WIL Steina M,TME WIL26
+SWA11,SWA Trutzhain S,TME SWA11
+GUL02,GUL Ransbach M,TME GUL02</pre>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="import-csv-data">CSV-Daten einfügen</label>
+                        <textarea id="import-csv-data" rows="15" placeholder="CSV-Daten hier einfügen..."></textarea>
+                    </div>
+                    
+                    <div class="import-actions">
+                        <button class="btn btn-primary" id="import-btn">Importieren</button>
+                        <button class="btn btn-secondary" id="clear-btn">Löschen</button>
+                    </div>
+                    
+                    <div id="import-result" style="display: none; margin-top: 20px;">
+                        <h3>Import Ergebnis</h3>
+                        <div id="import-result-content"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="import.js"></script>
+</body>
+</html>

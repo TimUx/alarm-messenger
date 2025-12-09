@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm Messenger - Einsatz Historie</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>🚨 Alarm Messenger - Einsatz Historie</h1>
+            <div class="header-actions">
+                <button id="theme-toggle" title="Theme wechseln">🌙</button>
+                <span id="username-display"></span>
+                <button class="btn btn-secondary" id="logout-btn">Abmelden</button>
+            </div>
+        </header>
+
+        <nav class="admin-nav">
+            <a href="index.html">Dashboard</a>
+            <a href="history.html" class="active">Einsatz Historie</a>
+            <a href="import.html">CSV Import</a>
+        </nav>
+
+        <main class="dashboard-content">
+            <section class="section">
+                <div class="section-header">
+                    <h2>Alle Einsätze</h2>
+                    <button class="btn btn-secondary" id="refresh-btn">🔄 Aktualisieren</button>
+                </div>
+                <div id="emergencies-list" class="emergencies-list">
+                    <p class="loading">Lade Einsätze...</p>
+                </div>
+                <div id="pagination" class="pagination" style="display: none;">
+                    <button class="btn btn-secondary" id="prev-page-btn" disabled>← Vorherige</button>
+                    <span id="page-info"></span>
+                    <button class="btn btn-secondary" id="next-page-btn">Nächste →</button>
+                </div>
+            </section>
+
+            <!-- Emergency Details Modal -->
+            <div id="details-modal" class="modal" style="display: none;">
+                <div class="modal-content modal-large">
+                    <div class="modal-header">
+                        <h3>Einsatz Details</h3>
+                        <button class="close-btn" id="close-details-modal-btn">&times;</button>
+                    </div>
+                    <div id="emergency-details-content">
+                        <p class="loading">Lade Details...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="history.js"></script>
+</body>
+</html>

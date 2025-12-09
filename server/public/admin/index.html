@@ -18,6 +18,12 @@
             </div>
         </header>
 
+        <nav class="admin-nav">
+            <a href="index.html" class="active">Dashboard</a>
+            <a href="history.html">Einsatz Historie</a>
+            <a href="import.html">CSV Import</a>
+        </nav>
+
         <main class="dashboard-content">
             <section class="section">
                 <div class="section-header">
@@ -51,7 +57,6 @@
                 <div class="section-header">
                     <h2>Alarmierungsgruppen</h2>
                     <div class="header-actions">
-                        <button class="btn btn-secondary" id="import-groups-btn">📤 CSV Import</button>
                         <button class="btn btn-primary" id="add-group-btn">Neue Gruppe</button>
                     </div>
                 </div>
@@ -151,29 +156,6 @@
                             <button type="submit" class="btn btn-primary">Speichern</button>
                         </div>
                     </form>
-                </div>
-            </div>
-
-            <!-- Import Groups Modal -->
-            <div id="import-groups-modal" class="modal" style="display: none;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>Gruppen CSV Import</h3>
-                        <button class="close-btn" id="close-import-modal-btn">&times;</button>
-                    </div>
-                    <div>
-                        <div class="form-group">
-                            <label>CSV-Format: code,name,description (Header optional)</label>
-                            <p style="font-size: 0.9em; color: #999;">Beispiel:<br>
-                            WIL26,WIL Steina M,TME WIL26<br>
-                            SWA11,SWA Trutzhain S,TME SWA11</p>
-                            <textarea id="import-csv-data" rows="10" placeholder="CSV-Daten hier einfügen..."></textarea>
-                        </div>
-                        <div class="modal-actions">
-                            <button type="button" class="btn btn-secondary" id="cancel-import-btn">Abbrechen</button>
-                            <button type="button" class="btn btn-primary" id="confirm-import-btn">Importieren</button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </main>
