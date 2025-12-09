@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm Messenger - Gruppenverwaltung</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>🚨 Alarm Messenger - Gruppenverwaltung</h1>
+            <div class="header-actions">
+                <button id="theme-toggle" title="Theme wechseln">🌙</button>
+                <span id="username-display"></span>
+                <button class="btn btn-secondary" id="logout-btn">Abmelden</button>
+            </div>
+        </header>
+
+        <nav class="admin-nav">
+            <a href="index.html">Dashboard</a>
+            <a href="history.html">Einsatz Historie</a>
+            <a href="groups.html" class="active">Gruppen</a>
+        </nav>
+
+        <main class="dashboard-content">
+            <section class="section">
+                <div class="section-header">
+                    <h2>Alarmierungsgruppen</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" id="import-groups-btn">📤 CSV Import</button>
+                        <button class="btn btn-primary" id="add-group-btn">Neue Gruppe</button>
+                    </div>
+                </div>
+                <div id="groups-list" class="groups-list">
+                    <p class="loading">Lade Gruppen...</p>
+                </div>
+            </section>
+
+            <!-- Add/Edit Group Modal -->
+            <div id="group-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 id="group-modal-title">Neue Gruppe</h3>
+                        <button class="close-btn" id="close-group-modal-btn">&times;</button>
+                    </div>
+                    <form id="groupForm">
+                        <input type="hidden" id="edit-group-original-code">
+                        <div class="form-group">
+                            <label for="edit-group-code">Gruppen-Kürzel *</label>
+                            <input type="text" id="edit-group-code" name="code" required placeholder="z.B. WIL26">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-group-name">Name *</label>
+                            <input type="text" id="edit-group-name" name="name" required placeholder="z.B. WIL Steina M">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-group-description">Beschreibung</label>
+                            <textarea id="edit-group-description" name="description" rows="3" placeholder="Optionale Beschreibung"></textarea>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="cancel-group-modal-btn">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary">Speichern</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Import Groups Modal -->
+            <div id="import-groups-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Gruppen CSV Import</h3>
+                        <button class="close-btn" id="close-import-modal-btn">&times;</button>
+                    </div>
+                    <div>
+                        <div class="import-instructions">
+                            <h3>CSV-Format</h3>
+                            <p>Die CSV-Datei sollte folgendes Format haben: <code>code,name,description</code></p>
+                            <p>Der Header ist optional. Beispiel:</p>
+                            <pre>WIL26,WIL Steina M,TME WIL26
+SWA11,SWA Trutzhain S,TME SWA11
+GUL02,GUL Ransbach M,TME GUL02</pre>
+                        </div>
+                        <div class="form-group">
+                            <label for="import-csv-data">CSV-Daten einfügen</label>
+                            <textarea id="import-csv-data" rows="10" placeholder="CSV-Daten hier einfügen..."></textarea>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="cancel-import-btn">Abbrechen</button>
+                            <button type="button" class="btn btn-primary" id="confirm-import-btn">Importieren</button>
+                        </div>
+                        <div id="import-result" style="display: none; margin-top: 20px;">
+                            <h3>Import Ergebnis</h3>
+                            <div id="import-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="groups.js"></script>
+</body>
+</html>

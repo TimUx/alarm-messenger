@@ -1,6 +1,6 @@
 const API_BASE = window.location.origin + '/api';
 let currentDevices = [];
-let currentGroups = [];
+let currentGroups = []; // Needed for device group assignment
 let currentQRData = null;
 
 // Check authentication on page load
@@ -29,19 +29,9 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Group management listeners
-    document.getElementById('add-group-btn').addEventListener('click', () => openGroupModal());
-    document.getElementById('close-group-modal-btn').addEventListener('click', closeGroupModal);
-    document.getElementById('cancel-group-modal-btn').addEventListener('click', closeGroupModal);
-    document.getElementById('group-modal').addEventListener('click', (e) => {
-        if (e.target.id === 'group-modal') {
-            closeGroupModal();
-        }
-    });
-    
     // Load data
     refreshDevices();
-    refreshGroups();
+    refreshGroups(); // Load groups for device assignment
 });
 
 function logout() {
@@ -409,8 +399,7 @@ async function deactivateDevice(deviceId) {
     }
 }
 
-// ===== Group Management Functions =====
-
+// Load groups for device assignment (but don't display them on dashboard)
 async function refreshGroups() {
     try {
         const response = await apiRequest(`${API_BASE}/groups`);
@@ -421,160 +410,8 @@ async function refreshGroups() {
         
         const groups = await response.json();
         currentGroups = groups;
-        displayGroups(groups);
     } catch (error) {
-        document.getElementById('groups-list').innerHTML = 
-            `<p class="loading" style="color: #dc3545;">Fehler beim Laden: ${error.message}</p>`;
+        console.error('Fehler beim Laden der Gruppen:', error);
+        currentGroups = [];
     }
 }
-
-function displayGroups(groups) {
-    const container = document.getElementById('groups-list');
-    
-    if (groups.length === 0) {
-        container.innerHTML = '<p class="loading">Keine Gruppen gefunden. Erstellen Sie eine neue Gruppe oder importieren Sie Gruppen aus einer CSV-Datei.</p>';
-        return;
-    }
-    
-    const groupsHtml = groups.map(group => {
-        const escapedCode = escapeHtml(group.code);
-        const escapedName = escapeHtml(group.name);
-        const escapedDescription = escapeHtml(group.description || '');
-        
-        return `
-            <div class="device-card">
-                <div class="device-header">
-                    <div class="device-name">${escapedCode}</div>
-                </div>
-                <div class="device-info">
-                    <div class="device-info-row">
-                        <span class="device-info-label">Name:</span>
-                        <span class="device-info-value">${escapedName}</span>
-                    </div>
-                    ${escapedDescription ? `
-                        <div class="device-info-row">
-                            <span class="device-info-label">Beschreibung:</span>
-                            <span class="device-info-value">${escapedDescription}</span>
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="device-actions">
-                    <button class="btn btn-secondary" data-action="edit-group" data-group-code="${escapedCode}">Bearbeiten</button>
-                    <button class="btn btn-secondary" data-action="delete-group" data-group-code="${escapedCode}">Löschen</button>
-                </div>
-            </div>
-        `;
-    }).join('');
-    
-    container.innerHTML = groupsHtml;
-    
-    // Add event listeners
-    container.querySelectorAll('[data-action="edit-group"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const code = e.target.getAttribute('data-group-code');
-            editGroup(code);
-        });
-    });
-    
-    container.querySelectorAll('[data-action="delete-group"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const code = e.target.getAttribute('data-group-code');
-            deleteGroup(code);
-        });
-    });
-}
-
-function openGroupModal(groupCode = null) {
-    if (groupCode) {
-        const group = currentGroups.find(g => g.code === groupCode);
-        if (group) {
-            document.getElementById('group-modal-title').textContent = 'Gruppe bearbeiten';
-            document.getElementById('edit-group-original-code').value = group.code;
-            document.getElementById('edit-group-code').value = group.code;
-            document.getElementById('edit-group-code').disabled = true; // Don't allow changing code
-            document.getElementById('edit-group-name').value = group.name;
-            document.getElementById('edit-group-description').value = group.description || '';
-        }
-    } else {
-        document.getElementById('group-modal-title').textContent = 'Neue Gruppe';
-        document.getElementById('edit-group-original-code').value = '';
-        document.getElementById('edit-group-code').value = '';
-        document.getElementById('edit-group-code').disabled = false;
-        document.getElementById('edit-group-name').value = '';
-        document.getElementById('edit-group-description').value = '';
-    }
-    
-    document.getElementById('group-modal').style.display = 'flex';
-}
-
-function closeGroupModal() {
-    document.getElementById('group-modal').style.display = 'none';
-}
-
-function editGroup(code) {
-    openGroupModal(code);
-}
-
-async function deleteGroup(code) {
-    if (!confirm(`Möchten Sie die Gruppe "${code}" wirklich löschen?`)) {
-        return;
-    }
-    
-    try {
-        const response = await apiRequest(`${API_BASE}/groups/${code}`, {
-            method: 'DELETE'
-        });
-        
-        if (!response.ok) {
-            throw new Error('Fehler beim Löschen');
-        }
-        
-        refreshGroups();
-        alert('Gruppe erfolgreich gelöscht!');
-    } catch (error) {
-        alert('Fehler: ' + error.message);
-    }
-}
-
-document.getElementById('groupForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const originalCode = document.getElementById('edit-group-original-code').value;
-    const code = document.getElementById('edit-group-code').value.toUpperCase();
-    const name = document.getElementById('edit-group-name').value;
-    const description = document.getElementById('edit-group-description').value;
-    
-    try {
-        if (originalCode) {
-            // Update existing group
-            const response = await apiRequest(`${API_BASE}/groups/${originalCode}`, {
-                method: 'PUT',
-                body: JSON.stringify({ name, description })
-            });
-            
-            if (!response.ok) {
-                throw new Error('Fehler beim Aktualisieren');
-            }
-            
-            alert('Gruppe erfolgreich aktualisiert!');
-        } else {
-            // Create new group
-            const response = await apiRequest(`${API_BASE}/groups`, {
-                method: 'POST',
-                body: JSON.stringify({ code, name, description })
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Fehler beim Erstellen');
-            }
-            
-            alert('Gruppe erfolgreich erstellt!');
-        }
-        
-        closeGroupModal();
-        refreshGroups();
-    } catch (error) {
-        alert('Fehler: ' + error.message);
-    }
-});

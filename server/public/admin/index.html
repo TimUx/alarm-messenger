@@ -21,7 +21,7 @@
         <nav class="admin-nav">
             <a href="index.html" class="active">Dashboard</a>
             <a href="history.html">Einsatz Historie</a>
-            <a href="import.html">CSV Import</a>
+            <a href="groups.html">Gruppen</a>
         </nav>
 
         <main class="dashboard-content">
@@ -50,18 +50,6 @@
                 </div>
                 <div id="devices-list" class="devices-list">
                     <p class="loading">Lade Daten...</p>
-                </div>
-            </section>
-
-            <section class="section">
-                <div class="section-header">
-                    <h2>Alarmierungsgruppen</h2>
-                    <div class="header-actions">
-                        <button class="btn btn-primary" id="add-group-btn">Neue Gruppe</button>
-                    </div>
-                </div>
-                <div id="groups-list" class="groups-list">
-                    <p class="loading">Lade Gruppen...</p>
                 </div>
             </section>
 
@@ -124,35 +112,6 @@
                         </div>
                         <div class="modal-actions">
                             <button type="button" class="btn btn-secondary" id="cancel-modal-btn">Abbrechen</button>
-                            <button type="submit" class="btn btn-primary">Speichern</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Add/Edit Group Modal -->
-            <div id="group-modal" class="modal" style="display: none;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 id="group-modal-title">Neue Gruppe</h3>
-                        <button class="close-btn" id="close-group-modal-btn">&times;</button>
-                    </div>
-                    <form id="groupForm">
-                        <input type="hidden" id="edit-group-original-code">
-                        <div class="form-group">
-                            <label for="edit-group-code">Gruppen-Kürzel *</label>
-                            <input type="text" id="edit-group-code" name="code" required placeholder="z.B. WIL26">
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-group-name">Name *</label>
-                            <input type="text" id="edit-group-name" name="name" required placeholder="z.B. WIL Steina M">
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-group-description">Beschreibung</label>
-                            <textarea id="edit-group-description" name="description" rows="3" placeholder="Optionale Beschreibung"></textarea>
-                        </div>
-                        <div class="modal-actions">
-                            <button type="button" class="btn btn-secondary" id="cancel-group-modal-btn">Abbrechen</button>
                             <button type="submit" class="btn btn-primary">Speichern</button>
                         </div>
                     </form>
