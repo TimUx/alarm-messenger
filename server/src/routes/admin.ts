@@ -185,8 +185,8 @@ router.put('/devices/:id', verifyToken, async (req: AuthRequest, res: Response) 
 // Get emergency history with pagination
 router.get('/emergencies', verifyToken, async (req: AuthRequest, res: Response) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const offset = (page - 1) * limit;
 
     // Get total count

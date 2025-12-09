@@ -104,7 +104,7 @@ router.post('/register', async (req: Request, res: Response) => {
           qualifications?.agt ? 1 : 0,
           qualifications?.paramedic ? 1 : 0,
           leadershipRole || 'none',
-          qrCodeData || existing.qr_code_data, // Keep existing QR if not provided
+          qrCodeData || existing.qr_code_data || null, // Keep existing QR if not provided
           deviceToken
         ]
       );

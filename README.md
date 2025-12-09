@@ -27,8 +27,13 @@ Das Alarm Messenger System ist eine vollständige Alarmierungslösung bestehend 
 ### Admin Web-Interface (NEU)
 - ✅ Passwortgeschützter Admin-Login
 - ✅ QR-Code-Generierung und Anzeige
+- ✅ **QR-Code Persistenz** - Gespeicherte QR-Codes können jederzeit erneut abgerufen werden
 - ✅ Geräte-/Einsatzkraft-Verwaltungs-Dashboard
 - ✅ Bearbeitung von Einsatzkraft-Informationen (Name, Qualifikationen, Führungsrolle)
+- ✅ **Einsatz-Historie** - Übersicht aller eingegangenen Einsätze mit Detailansicht
+- ✅ **Detail-Ansicht** - Vollständige Einsatzinformationen inkl. Rückmeldungen aller Einsatzkräfte
+- ✅ **Navigation** - Menüstruktur für einfachen Zugriff auf alle Funktionen
+- ✅ **CSV Import** - Eigene Seite für Gruppen-Import
 - ✅ Dunkles Theme passend zum alarm-monitor Design (#1a1a1a Hintergrund, #dc3545 Akzente)
 - ✅ Responsives Design für Desktop und Mobil
 
@@ -441,6 +446,50 @@ In Docker Container mit docker-compose ausführen. Siehe [DOCKER-QUICKSTART.md](
 - PM2 für Prozessmanagement verwenden (native Installation)
 
 Siehe [docs/DOCKER.md](docs/DOCKER.md) für vollständige Deployment-Anweisungen.
+
+## Screenshots
+
+### Admin Interface
+
+#### Dashboard mit Navigation
+Das Admin Dashboard bietet eine übersichtliche Navigation zu allen wichtigen Funktionen:
+- QR-Code Generierung für neue Geräte
+- Verwaltung registrierter Einsatzkräfte
+- Verwaltung von Alarmierungsgruppen
+
+![Admin Dashboard](https://github.com/user-attachments/assets/a25fabc6-ce62-44be-9039-fb3a8e693294)
+
+#### QR-Code Generierung
+QR-Codes werden automatisch gespeichert und können jederzeit erneut abgerufen werden. Dies ermöglicht eine einfache Neuregistrierung bei Gerätewechsel ohne Datenverlust.
+
+![QR-Code Generierung](https://github.com/user-attachments/assets/ec8c073c-ed06-4393-a3f9-81986f1ba526)
+
+#### Einsatz Historie
+Die neue Einsatz-Historie zeigt alle eingegangenen Einsätze mit den wichtigsten Informationen auf einen Blick:
+- Datum und Uhrzeit
+- Einsatzstichwort
+- Einsatzort
+- Einsatznummer und Beschreibung
+
+![Einsatz Historie](https://github.com/user-attachments/assets/9e50b691-b7e1-4a32-ac43-3384d8d325ce)
+
+#### CSV Import
+Der CSV-Import wurde auf eine eigene Seite ausgelagert für bessere Übersichtlichkeit:
+
+![CSV Import](https://github.com/user-attachments/assets/aea28810-f4a4-4205-8ad9-dbee5249b3ec)
+
+### Features der neuen Historie-Funktion
+- **Übersichtliche Liste**: Alle Einsätze chronologisch sortiert
+- **Pagination**: Seitenweise Navigation durch große Einsatzzahlen
+- **Detail-Ansicht**: Klick auf "Details anzeigen" zeigt vollständige Einsatzinformationen
+- **Rückmeldungen**: Anzeige aller Einsatzkraft-Rückmeldungen mit Namen und Qualifikationen
+- **Statistiken**: Zusammenfassung der Teilnehmer und Absagen
+
+### QR-Code Persistenz
+- QR-Codes werden automatisch in der Datenbank gespeichert
+- "QR-Code anzeigen" Button bei jedem registrierten Gerät
+- Ermöglicht Neuregistrierung ohne Datenverlust
+- Token bleibt gleich, alle Einsatzkraft-Informationen bleiben erhalten
 
 ## Häufig gestellte Fragen (FAQ)
 
