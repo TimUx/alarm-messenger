@@ -20,6 +20,9 @@ jobs:
   android:
     name: Build Android APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required for creating releases
+      actions: read    # Required for accessing artifacts
     
     steps:
       - name: Checkout repository
@@ -129,6 +132,8 @@ jobs:
   ios:
     name: Build iOS IPA
     runs-on: macos-14
+    permissions:
+      contents: read  # Required for checking out code
     
     steps:
       - name: Checkout repository
@@ -199,6 +204,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [android, ios]
     if: always()
+    permissions:
+      contents: read  # Minimal permissions for summary
     
     steps:
       - name: Summary
