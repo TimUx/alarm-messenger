@@ -20,6 +20,7 @@
 
         <nav class="admin-nav">
             <a href="index.html" class="active">Dashboard</a>
+            <a href="devices.html">Einsatzkräfte</a>
             <a href="history.html">Einsatz Historie</a>
             <a href="groups.html">Gruppen</a>
         </nav>
@@ -45,78 +46,54 @@
 
             <section class="section">
                 <div class="section-header">
-                    <h2>Registrierte Einsatzkräfte</h2>
-                    <button class="btn btn-secondary" id="refresh-devices-btn">🔄 Aktualisieren</button>
+                    <h2>Systemübersicht</h2>
+                    <button class="btn btn-secondary" id="refresh-stats-btn">🔄 Aktualisieren</button>
                 </div>
-                <div id="devices-list" class="devices-list">
-                    <p class="loading">Lade Daten...</p>
+                <div class="stats-grid" id="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📱</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-devices">-</div>
+                            <div class="stat-label">Registrierte Geräte</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-groups">-</div>
+                            <div class="stat-label">Alarmierungsgruppen</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🚨</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-emergencies-total">-</div>
+                            <div class="stat-label">Einsätze Gesamt</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📅</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-emergencies-year">-</div>
+                            <div class="stat-label">Einsätze <span id="current-year"></span></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-emergencies-month">-</div>
+                            <div class="stat-label">Einsätze Diesen Monat</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-devices-active">-</div>
+                            <div class="stat-label">Aktive Geräte</div>
+                        </div>
+                    </div>
                 </div>
             </section>
-
-            <!-- Edit Device Modal -->
-            <div id="edit-modal" class="modal" style="display: none;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>Einsatzkraft bearbeiten</h3>
-                        <button class="close-btn" id="close-modal-btn">&times;</button>
-                    </div>
-                    <form id="editDeviceForm">
-                        <input type="hidden" id="edit-device-id">
-                        <div class="form-group">
-                            <label for="edit-first-name">Vorname</label>
-                            <input type="text" id="edit-first-name" name="firstName" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-last-name">Nachname</label>
-                            <input type="text" id="edit-last-name" name="lastName" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Ausbildungsstand</label>
-                            <div class="checkbox-group">
-                                <label>
-                                    <input type="checkbox" name="qual_machinist" id="edit-qual-machinist">
-                                    Maschinist
-                                </label>
-                                <label>
-                                    <input type="checkbox" name="qual_agt" id="edit-qual-agt">
-                                    AGT (Atemschutzgeräteträger)
-                                </label>
-                                <label>
-                                    <input type="checkbox" name="qual_paramedic" id="edit-qual-paramedic">
-                                    Sanitäter
-                                </label>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Führungsrolle</label>
-                            <div class="radio-group">
-                                <label>
-                                    <input type="radio" name="leadership_role" value="none" id="edit-role-none" checked>
-                                    Keine
-                                </label>
-                                <label>
-                                    <input type="radio" name="leadership_role" value="groupLeader" id="edit-role-group">
-                                    Gruppenführer
-                                </label>
-                                <label>
-                                    <input type="radio" name="leadership_role" value="platoonLeader" id="edit-role-platoon">
-                                    Zugführer
-                                </label>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-assigned-groups">Zugeordnete Gruppen</label>
-                            <div id="edit-assigned-groups" class="checkbox-group">
-                                <p class="loading">Lade Gruppen...</p>
-                            </div>
-                        </div>
-                        <div class="modal-actions">
-                            <button type="button" class="btn btn-secondary" id="cancel-modal-btn">Abbrechen</button>
-                            <button type="submit" class="btn btn-primary">Speichern</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
         </main>
     </div>
     <script src="dashboard.js"></script>

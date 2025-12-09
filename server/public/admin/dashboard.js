@@ -1,6 +1,4 @@
 const API_BASE = window.location.origin + '/api';
-let currentDevices = [];
-let currentGroups = []; // Needed for device group assignment
 let currentQRData = null;
 
 // Check authentication on page load
@@ -15,23 +13,18 @@ window.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('username-display').textContent = username;
     
+    // Set current year
+    document.getElementById('current-year').textContent = new Date().getFullYear();
+    
     // Setup event listeners
     document.getElementById('logout-btn').addEventListener('click', logout);
     document.getElementById('generate-qr-btn').addEventListener('click', generateQRCode);
     document.getElementById('copy-token-btn').addEventListener('click', copyToken);
     document.getElementById('download-qr-btn').addEventListener('click', downloadQRCode);
-    document.getElementById('refresh-devices-btn').addEventListener('click', refreshDevices);
-    document.getElementById('close-modal-btn').addEventListener('click', closeEditModal);
-    document.getElementById('cancel-modal-btn').addEventListener('click', closeEditModal);
-    document.getElementById('edit-modal').addEventListener('click', (e) => {
-        if (e.target.id === 'edit-modal') {
-            closeEditModal();
-        }
-    });
+    document.getElementById('refresh-stats-btn').addEventListener('click', loadStatistics);
     
-    // Load data
-    refreshDevices();
-    refreshGroups(); // Load groups for device assignment
+    // Load statistics
+    loadStatistics();
 });
 
 function logout() {
@@ -107,311 +100,56 @@ function downloadQRCode() {
     link.click();
 }
 
-async function refreshDevices() {
+async function loadStatistics() {
     try {
-        const response = await apiRequest(`${API_BASE}/devices`);
-        
-        if (!response.ok) {
-            throw new Error('Fehler beim Laden der Geräte');
+        // Load devices count
+        const devicesResponse = await apiRequest(`${API_BASE}/devices`);
+        if (devicesResponse.ok) {
+            const devices = await devicesResponse.json();
+            document.getElementById('stat-devices').textContent = devices.length;
+            const activeDevices = devices.filter(d => d.active).length;
+            document.getElementById('stat-devices-active').textContent = activeDevices;
         }
         
-        const devices = await response.json();
-        currentDevices = devices;
-        displayDevices(devices);
+        // Load groups count
+        const groupsResponse = await apiRequest(`${API_BASE}/groups`);
+        if (groupsResponse.ok) {
+            const groups = await groupsResponse.json();
+            document.getElementById('stat-groups').textContent = groups.length;
+        }
+        
+        // Load emergencies statistics
+        const emergenciesResponse = await apiRequest(`${API_BASE}/emergencies`);
+        if (emergenciesResponse.ok) {
+            const emergencies = await emergenciesResponse.json();
+            document.getElementById('stat-emergencies-total').textContent = emergencies.length;
+            
+            // Calculate emergencies this year
+            const currentYear = new Date().getFullYear();
+            const emergenciesThisYear = emergencies.filter(e => {
+                try {
+                    const year = new Date(e.emergencyDate).getFullYear();
+                    return year === currentYear;
+                } catch {
+                    return false;
+                }
+            }).length;
+            document.getElementById('stat-emergencies-year').textContent = emergenciesThisYear;
+            
+            // Calculate emergencies this month
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const emergenciesThisMonth = emergencies.filter(e => {
+                try {
+                    const date = new Date(e.emergencyDate);
+                    return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
+                } catch {
+                    return false;
+                }
+            }).length;
+            document.getElementById('stat-emergencies-month').textContent = emergenciesThisMonth;
+        }
     } catch (error) {
-        document.getElementById('devices-list').innerHTML = 
-            `<p class="loading" style="color: #dc3545;">Fehler beim Laden: ${error.message}</p>`;
-    }
-}
-
-function createDeviceCard(device) {
-    let registeredDate;
-    try {
-        registeredDate = new Date(device.registeredAt).toLocaleString('de-DE');
-    } catch (e) {
-        registeredDate = 'Ungültiges Datum';
-    }
-    
-    const firstName = device.firstName || '';
-    const lastName = device.lastName || '';
-    const deviceName = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : 'Nicht zugewiesen';
-    const qualifications = device.qualifications || {};
-    
-    const qualBadges = [];
-    if (qualifications.machinist) qualBadges.push('Maschinist');
-    if (qualifications.agt) qualBadges.push('AGT');
-    if (qualifications.paramedic) qualBadges.push('Sanitäter');
-    
-    // Leadership role badge
-    let leaderBadge = '';
-    if (device.leadershipRole === 'groupLeader') {
-        leaderBadge = '<div class="leader-badge">⭐ Gruppenführer</div>';
-    } else if (device.leadershipRole === 'platoonLeader') {
-        leaderBadge = '<div class="leader-badge">⭐⭐ Zugführer</div>';
-    }
-    
-    // Assigned groups
-    const assignedGroups = device.assignedGroups || [];
-    const groupBadges = assignedGroups.map(code => {
-        const group = currentGroups.find(g => g.code === code);
-        const groupName = group ? group.name : code;
-        return `<span class="group-badge" title="${escapeHtml(groupName)}">${escapeHtml(code)}</span>`;
-    }).join('');
-    
-    // Escape all user-provided or dynamic content
-    const escapedDeviceName = escapeHtml(deviceName);
-    const escapedPlatform = escapeHtml(device.platform);
-    const escapedDeviceId = escapeHtml(device.id);
-    const escapedDeviceIdShort = escapeHtml(device.id.substring(0, 8));
-    
-    const cardHtml = `
-        <div class="device-card">
-            <div class="device-header">
-                <div class="device-name">${escapedDeviceName}</div>
-                <div class="device-platform">${escapedPlatform}</div>
-            </div>
-            <div class="device-info">
-                <div class="device-info-row">
-                    <span class="device-info-label">Registriert:</span>
-                    <span class="device-info-value">${registeredDate}</span>
-                </div>
-                <div class="device-info-row">
-                    <span class="device-info-label">Device ID:</span>
-                    <span class="device-info-value">${escapedDeviceIdShort}...</span>
-                </div>
-            </div>
-            ${qualBadges.length > 0 ? `
-                <div class="qualifications">
-                    <h4>Ausbildungen:</h4>
-                    <div class="qual-badges">
-                        ${qualBadges.map(q => `<span class="qual-badge">${escapeHtml(q)}</span>`).join('')}
-                    </div>
-                </div>
-            ` : ''}
-            ${leaderBadge}
-            ${assignedGroups.length > 0 ? `
-                <div class="qualifications">
-                    <h4>Zugeordnete Gruppen:</h4>
-                    <div class="qual-badges">
-                        ${groupBadges}
-                    </div>
-                </div>
-            ` : ''}
-            <div class="device-actions">
-                <button class="btn btn-secondary" data-action="show-qr" data-device-id="${escapedDeviceId}">QR-Code anzeigen</button>
-                <button class="btn btn-secondary" data-action="edit" data-device-id="${escapedDeviceId}">Bearbeiten</button>
-                <button class="btn btn-secondary" data-action="deactivate" data-device-id="${escapedDeviceId}">Deaktivieren</button>
-            </div>
-        </div>
-    `;
-    
-    return cardHtml;
-}
-
-function displayDevices(devices) {
-    const container = document.getElementById('devices-list');
-    
-    if (devices.length === 0) {
-        container.innerHTML = '<p class="loading">Keine registrierten Geräte gefunden.</p>';
-        return;
-    }
-    
-    container.innerHTML = devices.map(device => createDeviceCard(device)).join('');
-    
-    // Add event listeners to device action buttons
-    container.querySelectorAll('[data-action="show-qr"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const deviceId = e.target.getAttribute('data-device-id');
-            showDeviceQRCode(deviceId);
-        });
-    });
-    
-    container.querySelectorAll('[data-action="edit"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const deviceId = e.target.getAttribute('data-device-id');
-            editDevice(deviceId);
-        });
-    });
-    
-    container.querySelectorAll('[data-action="deactivate"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const deviceId = e.target.getAttribute('data-device-id');
-            deactivateDevice(deviceId);
-        });
-    });
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-async function showDeviceQRCode(deviceId) {
-    try {
-        const response = await apiRequest(`${API_BASE}/devices/${deviceId}/qr-code`);
-        
-        if (!response.ok) {
-            throw new Error('Fehler beim Laden des QR-Codes');
-        }
-        
-        const data = await response.json();
-        currentQRData = data;
-        
-        // Display QR code
-        document.getElementById('qr-code-image').src = data.qrCode;
-        document.getElementById('device-token').textContent = data.deviceToken;
-        document.getElementById('qr-code-display').style.display = 'block';
-        
-        // Scroll to QR code
-        document.getElementById('qr-code-display').scrollIntoView({ behavior: 'smooth' });
-    } catch (error) {
-        alert('Fehler beim Laden des QR-Codes: ' + error.message);
-    }
-}
-
-function editDevice(deviceId) {
-    const device = currentDevices.find(d => d.id === deviceId);
-    if (!device) return;
-    
-    document.getElementById('edit-device-id').value = device.id;
-    document.getElementById('edit-first-name').value = device.firstName || '';
-    document.getElementById('edit-last-name').value = device.lastName || '';
-    
-    const qualifications = device.qualifications || {};
-    document.getElementById('edit-qual-machinist').checked = qualifications.machinist || false;
-    document.getElementById('edit-qual-agt').checked = qualifications.agt || false;
-    document.getElementById('edit-qual-paramedic').checked = qualifications.paramedic || false;
-    
-    // Set leadership role
-    const leadershipRole = device.leadershipRole || 'none';
-    document.getElementById('edit-role-none').checked = (leadershipRole === 'none');
-    document.getElementById('edit-role-group').checked = (leadershipRole === 'groupLeader');
-    document.getElementById('edit-role-platoon').checked = (leadershipRole === 'platoonLeader');
-    
-    // Load and set assigned groups
-    loadGroupCheckboxes(device.assignedGroups || []);
-    
-    document.getElementById('edit-modal').style.display = 'flex';
-}
-
-function loadGroupCheckboxes(assignedGroups) {
-    const container = document.getElementById('edit-assigned-groups');
-    
-    if (currentGroups.length === 0) {
-        container.innerHTML = '<p style="color: #999;">Keine Gruppen verfügbar. Bitte zuerst Gruppen anlegen.</p>';
-        return;
-    }
-    
-    const checkboxesHtml = currentGroups.map(group => {
-        const isChecked = assignedGroups.includes(group.code);
-        const escapedCode = escapeHtml(group.code);
-        const escapedName = escapeHtml(group.name);
-        return `
-            <label>
-                <input type="checkbox" name="group_${escapedCode}" value="${escapedCode}" ${isChecked ? 'checked' : ''}>
-                ${escapedCode} - ${escapedName}
-            </label>
-        `;
-    }).join('');
-    
-    container.innerHTML = checkboxesHtml;
-}
-
-function closeEditModal() {
-    document.getElementById('edit-modal').style.display = 'none';
-}
-
-document.getElementById('editDeviceForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const deviceId = document.getElementById('edit-device-id').value;
-    const firstName = document.getElementById('edit-first-name').value;
-    const lastName = document.getElementById('edit-last-name').value;
-    
-    const qualifications = {
-        machinist: document.getElementById('edit-qual-machinist').checked,
-        agt: document.getElementById('edit-qual-agt').checked,
-        paramedic: document.getElementById('edit-qual-paramedic').checked,
-    };
-    
-    // Get selected leadership role
-    const leadershipRole = document.querySelector('input[name="leadership_role"]:checked').value;
-    
-    // Get selected groups
-    const groupCheckboxes = document.querySelectorAll('#edit-assigned-groups input[type="checkbox"]:checked');
-    const groupCodes = Array.from(groupCheckboxes).map(cb => cb.value);
-    
-    try {
-        // Update device info
-        const response = await apiRequest(`${API_BASE}/admin/devices/${deviceId}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-                firstName,
-                lastName,
-                qualifications,
-                leadershipRole
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Fehler beim Aktualisieren');
-        }
-        
-        // Update device groups
-        const groupResponse = await apiRequest(`${API_BASE}/groups/device/${deviceId}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-                groupCodes
-            })
-        });
-        
-        if (!groupResponse.ok) {
-            throw new Error('Fehler beim Aktualisieren der Gruppen');
-        }
-        
-        closeEditModal();
-        refreshDevices();
-        alert('Einsatzkraft erfolgreich aktualisiert!');
-    } catch (error) {
-        alert('Fehler: ' + error.message);
-    }
-});
-
-async function deactivateDevice(deviceId) {
-    if (!confirm('Möchten Sie dieses Gerät wirklich deaktivieren?')) {
-        return;
-    }
-    
-    try {
-        const response = await apiRequest(`${API_BASE}/devices/${deviceId}`, {
-            method: 'DELETE'
-        });
-        
-        if (!response.ok) {
-            throw new Error('Fehler beim Deaktivieren');
-        }
-        
-        refreshDevices();
-        alert('Gerät erfolgreich deaktiviert!');
-    } catch (error) {
-        alert('Fehler: ' + error.message);
-    }
-}
-
-// Load groups for device assignment (but don't display them on dashboard)
-async function refreshGroups() {
-    try {
-        const response = await apiRequest(`${API_BASE}/groups`);
-        
-        if (!response.ok) {
-            throw new Error('Fehler beim Laden der Gruppen');
-        }
-        
-        const groups = await response.json();
-        currentGroups = groups;
-    } catch (error) {
-        console.error('Fehler beim Laden der Gruppen:', error);
-        currentGroups = [];
+        console.error('Fehler beim Laden der Statistiken:', error);
     }
 }
