@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import QRCode from 'qrcode';
 import { dbRun, dbGet, dbAll } from '../services/database';
+import { verifyToken, verifyAdmin, AuthRequest } from '../middleware/auth';
 import { Device } from '../models/types';
 
 const router = Router();
@@ -296,7 +297,7 @@ router.get('/:id/qr-code', async (req: Request, res: Response) => {
 });
 
 // Deactivate a device
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     

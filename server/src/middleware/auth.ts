@@ -16,6 +16,7 @@ if (JWT_SECRET === 'change-this-secret-in-production') {
 export interface AuthRequest extends Request {
   userId?: string;
   username?: string;
+  userRole?: string;
 }
 
 // Middleware to verify JWT token
@@ -30,9 +31,10 @@ export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction)
   const token = authHeader.substring(7);
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; username: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; username: string; role: string };
     req.userId = decoded.userId;
     req.username = decoded.username;
+    req.userRole = decoded.role;
     next();
   } catch (error) {
     res.status(401).json({ error: 'Invalid or expired token' });
@@ -62,10 +64,19 @@ export const verifyApiKey = (req: Request, res: Response, next: NextFunction) =>
 };
 
 // Generate JWT token
-export const generateToken = (userId: string, username: string): string => {
+export const generateToken = (userId: string, username: string, role: string = 'admin'): string => {
   return jwt.sign(
-    { userId, username },
+    { userId, username, role },
     JWT_SECRET,
     { expiresIn: '24h' }
   );
+};
+
+// Middleware to verify admin role
+export const verifyAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.userRole !== 'admin') {
+    res.status(403).json({ error: 'Access denied. Administrator privileges required.' });
+    return;
+  }
+  next();
 };

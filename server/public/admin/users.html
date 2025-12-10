@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm Messenger - Benutzerverwaltung</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>🚨 Alarm Messenger - Benutzerverwaltung</h1>
+            <div class="header-actions">
+                <button id="theme-toggle" title="Theme wechseln">🌙</button>
+                <span id="username-display" class="user-info"></span>
+                <button class="btn btn-secondary" id="logout-btn">Abmelden</button>
+            </div>
+        </header>
+
+        <nav class="admin-nav">
+            <a href="index.html">Dashboard</a>
+            <a href="devices.html">Einsatzkräfte</a>
+            <a href="groups.html">Alarm-Gruppen</a>
+            <a href="history.html">Einsatz-Historie</a>
+            <a href="users.html" class="active">Benutzerverwaltung</a>
+        </nav>
+
+        <main class="dashboard-content">
+            <section class="section">
+                <div class="section-header">
+                    <h2>Benutzer</h2>
+                    <button class="btn btn-primary" id="add-user-btn">➕ Benutzer hinzufügen</button>
+                </div>
+                <div id="users-list" class="users-list">
+                    <p class="loading">Lade Daten...</p>
+                </div>
+            </section>
+
+            <!-- Add/Edit User Modal -->
+            <div id="user-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 id="modal-title">Benutzer hinzufügen</h3>
+                        <button class="close-btn" id="close-modal-btn">&times;</button>
+                    </div>
+                    <form id="userForm">
+                        <input type="hidden" id="user-id">
+                        <div class="form-group">
+                            <label for="user-username">Benutzername *</label>
+                            <input type="text" id="user-username" name="username" required>
+                        </div>
+                        <div class="form-group" id="password-group">
+                            <label for="user-password">Passwort *</label>
+                            <input type="password" id="user-password" name="password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="user-fullname">Vollständiger Name</label>
+                            <input type="text" id="user-fullname" name="fullName">
+                        </div>
+                        <div class="form-group">
+                            <label>Rolle *</label>
+                            <div class="radio-group">
+                                <label>
+                                    <input type="radio" name="role" value="admin" id="role-admin" required>
+                                    Administrator (Vollzugriff)
+                                </label>
+                                <label>
+                                    <input type="radio" name="role" value="operator" id="role-operator" required>
+                                    Operator (Nur Lesen)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="cancel-modal-btn">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary" id="submit-btn">Speichern</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Change Password Modal -->
+            <div id="password-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Passwort ändern</h3>
+                        <button class="close-btn" id="close-password-modal-btn">&times;</button>
+                    </div>
+                    <form id="passwordForm">
+                        <input type="hidden" id="password-user-id">
+                        <div class="form-group" id="current-password-group">
+                            <label for="current-password">Aktuelles Passwort *</label>
+                            <input type="password" id="current-password" name="currentPassword" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-password">Neues Passwort *</label>
+                            <input type="password" id="new-password" name="newPassword" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm-password">Neues Passwort bestätigen *</label>
+                            <input type="password" id="confirm-password" name="confirmPassword" required>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="cancel-password-modal-btn">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary">Passwort ändern</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="users.js"></script>
+</body>
+</html>
