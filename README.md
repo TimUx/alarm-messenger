@@ -21,7 +21,7 @@ Ein vollständiges Alarmierungssystem für Feuerwehren und Rettungsdienste mit E
 Das Alarm Messenger System ist eine moderne, eigenständige Lösung zur Alarmierung von Einsatzkräften. Es besteht aus drei Hauptkomponenten:
 
 - **🖥️ Backend Server** - Node.js/Express API mit WebSocket-Unterstützung
-- **📱 Mobile App** - React Native App für iOS und Android
+- **📱 Mobile App** - Flutter App für iOS und Android
 - **👤 Admin-Interface** - Webbasiertes Verwaltungsportal
 
 ### Warum Alarm Messenger?
@@ -104,10 +104,12 @@ Das Admin-Interface bietet fünf Hauptbereiche:
 - Einsatzverlaufs-Ansicht
 - Hell/Dunkel/Auto Theme-Modi
 - Plattformübergreifend (iOS & Android)
+- Entwickelt mit Flutter für optimale Performance
 
 **📱 Mobile App Build:**
-- 🔨 [Linux Build-Anleitung](docs/BUILD-ANLEITUNG-LINUX.md) - Schritt-für-Schritt Android APK erstellen
-- 📖 [Vollständige Mobile Dokumentation](docs/MOBILE.md) - iOS & Android, GitHub Actions
+- 📖 [Flutter Mobile App Dokumentation](mobile/README.md) - Setup, Entwicklung & Deployment
+- 🔨 [Legacy React Native Build-Anleitung](docs/BUILD-ANLEITUNG-LINUX.md) - Schritt-für-Schritt Android APK erstellen
+- 📖 [Legacy Mobile Dokumentation](docs/MOBILE.md) - iOS & Android, GitHub Actions
 - ⚙️ Automatische Builds via GitHub Actions bei Code-Änderungen
 
 ## Architektur
@@ -283,9 +285,9 @@ QR-Codes werden in der Datenbank gespeichert und können jederzeit erneut abgeru
 - **Docker & Docker Compose** (empfohlen) ODER
 - **Node.js 18+** und npm/yarn für native Installation
 - Für Mobile App Entwicklung:
+  - Flutter SDK 3.27.1+
   - Xcode (iOS)
   - Android Studio (Android)
-  - React Native CLI
 
 ### Backend mit Docker (Empfohlen)
 
@@ -333,17 +335,19 @@ Danach können Sie sich unter `http://localhost:3000/admin/login.html` anmelden.
 
 ```bash
 cd mobile
-npm install
 
-# Für iOS
+# Flutter dependencies installieren
+flutter pub get
+
+# Für iOS (nur auf macOS)
 cd ios && pod install && cd ..
-npm run ios
+flutter run
 
 # Für Android
-npm run android
+flutter run
 ```
 
-**Weitere Details:** Siehe [docs/MOBILE.md](docs/MOBILE.md)
+**Weitere Details:** Siehe [mobile/README.md](mobile/README.md)
 
 ## Admin-Interface
 
@@ -548,8 +552,9 @@ Alle Dokumentation ist im `/docs` Verzeichnis verfügbar:
 ### Setup & Deployment
 - [SETUP.md](docs/SETUP.md) - Native Installation und Konfiguration
 - [DOCKER.md](docs/DOCKER.md) - Docker-Deployment mit Caddy/Nginx
-- [MOBILE.md](docs/MOBILE.md) - Mobile App Setup und Entwicklung (iOS & Android)
-- [BUILD-ANLEITUNG-LINUX.md](docs/BUILD-ANLEITUNG-LINUX.md) - 🆕 Android Build unter Linux (Schritt-für-Schritt)
+- [mobile/README.md](mobile/README.md) - 🆕 Flutter Mobile App Setup und Entwicklung
+- [MOBILE.md](docs/MOBILE.md) - Legacy React Native Mobile App Dokumentation
+- [BUILD-ANLEITUNG-LINUX.md](docs/BUILD-ANLEITUNG-LINUX.md) - Legacy Android Build unter Linux
 
 ### API & Integration
 - [API.md](docs/API.md) - Vollständige API-Referenz
@@ -646,16 +651,16 @@ A: Nein, iOS benötigt macOS und Xcode. Nutze GitHub Actions für automatische i
 
 **F: Wie funktionieren automatische Builds mit GitHub Actions?**
 
-A: Der Workflow `.github/workflows/mobile-build.yml` baut automatisch:
+A: Der Workflow `.github/workflows/flutter-mobile-build.yml` baut automatisch:
 - Debug APK bei jedem Push in `mobile/`
 - Release APK/AAB bei Git Tags (z.B. `mobile-v1.0.0`)
 - GitHub Release mit Download-Links
 
-**Mehr Details:** [docs/MOBILE.md](docs/MOBILE.md)
+**Mehr Details:** [mobile/README.md](mobile/README.md)
 
 **F: Welche Betriebssysteme werden unterstützt?**
 
-A: iOS (11+) und Android (6.0+)
+A: iOS (12.0+) und Android (5.0+/API 21+)
 
 **F: Kann ich die App umbenennen/rebranden?**
 

@@ -16,3 +16,6 @@ nginx/ssl/*.crt
 
 # Docker volumes
 docker-volumes/
+
+# React Native backup
+mobile-react-native-backup/
