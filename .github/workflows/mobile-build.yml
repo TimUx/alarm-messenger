@@ -203,21 +203,34 @@ jobs:
         working-directory: mobile/ios
         run: |
           pod --version || true
-          xcodebuild -list -workspace AlarmMessenger.xcworkspace -scheme AlarmMessenger || true
+          xcodebuild -list -workspace AlarmMessenger.xcworkspace || true
       
       - name: Build iOS App (Debug)
         working-directory: mobile/ios
         run: |
           set -o pipefail
-          xcodebuild \
-            -workspace AlarmMessenger.xcworkspace \
-            -scheme AlarmMessenger \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            build | xcbeautify || true
+          # Try to use xcbeautify if available for prettier output
+          if command -v xcbeautify &> /dev/null; then
+            xcodebuild \
+              -workspace AlarmMessenger.xcworkspace \
+              -scheme AlarmMessenger \
+              -configuration Debug \
+              -sdk iphonesimulator \
+              -derivedDataPath build \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              build | xcbeautify
+          else
+            xcodebuild \
+              -workspace AlarmMessenger.xcworkspace \
+              -scheme AlarmMessenger \
+              -configuration Debug \
+              -sdk iphonesimulator \
+              -derivedDataPath build \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              build
+          fi
       
       # Release build only for tags - requires proper code signing
       - name: Build iOS Archive (Release)
