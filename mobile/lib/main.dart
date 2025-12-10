@@ -4,7 +4,6 @@ import 'providers/app_state.dart';
 import 'providers/theme_provider.dart';
 import 'screens/registration_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/emergency_alert_screen.dart';
 import 'services/storage_service.dart';
 
 void main() async {

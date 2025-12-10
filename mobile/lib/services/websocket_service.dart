@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/models.dart';
-import 'storage_service.dart';
 
 class WebSocketService {
   static WebSocketChannel? _channel;
@@ -34,25 +34,25 @@ class WebSocketService {
               _messageController?.add(notification);
             }
           } catch (e) {
-            print('Error parsing WebSocket message: $e');
+            developer.log('Error parsing WebSocket message', name: 'WebSocketService', error: e);
           }
         },
         onError: (error) {
-          print('WebSocket error: $error');
+          developer.log('WebSocket error', name: 'WebSocketService', error: error);
           _isConnected = false;
           _reconnect(serverUrl, deviceId);
         },
         onDone: () {
-          print('WebSocket connection closed');
+          developer.log('WebSocket connection closed', name: 'WebSocketService');
           _isConnected = false;
           _reconnect(serverUrl, deviceId);
         },
       );
 
       _isConnected = true;
-      print('✓ WebSocket connected to $wsUrl');
+      developer.log('WebSocket connected to $wsUrl', name: 'WebSocketService');
     } catch (e) {
-      print('Failed to connect WebSocket: $e');
+      developer.log('Failed to connect WebSocket', name: 'WebSocketService', error: e);
       _isConnected = false;
       _reconnect(serverUrl, deviceId);
     }
@@ -61,7 +61,7 @@ class WebSocketService {
   static void _reconnect(String serverUrl, String deviceId) {
     Future.delayed(const Duration(seconds: 5), () {
       if (!_isConnected) {
-        print('Attempting to reconnect WebSocket...');
+        developer.log('Attempting to reconnect WebSocket...', name: 'WebSocketService');
         connect(serverUrl, deviceId);
       }
     });
@@ -73,7 +73,7 @@ class WebSocketService {
     _messageController?.close();
     _channel = null;
     _messageController = null;
-    print('WebSocket disconnected');
+    developer.log('WebSocket disconnected', name: 'WebSocketService');
   }
 
   static void sendMessage(Map<String, dynamic> message) {

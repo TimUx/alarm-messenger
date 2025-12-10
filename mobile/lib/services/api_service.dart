@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/models.dart';
-import 'storage_service.dart';
 
 class ApiService {
   static String _baseUrl = 'http://localhost:3000/api';

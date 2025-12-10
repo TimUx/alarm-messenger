@@ -162,11 +162,16 @@ jobs:
         working-directory: mobile
         run: flutter pub get
       
-      - name: Install CocoaPods
-        working-directory: mobile/ios
+      - name: Check and regenerate iOS platform
+        working-directory: mobile
         run: |
-          gem install cocoapods
-          pod install
+          if [ ! -d "ios/Runner.xcodeproj" ]; then
+            echo "⚠️  iOS project files are missing. Regenerating iOS platform..."
+            flutter create --org com.alarmmessenger --platforms=ios .
+            echo "✅ iOS platform files regenerated"
+          else
+            echo "✅ iOS project files found"
+          fi
       
       - name: Build iOS (no codesign)
         working-directory: mobile
