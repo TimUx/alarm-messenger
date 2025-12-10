@@ -40,13 +40,13 @@ subprojects {
                         targetCompatibility = JavaVersion.VERSION_17
                     }
                     
-                    // Sync Kotlin JVM target to match Java version
-                    // Use "17" format for Kotlin
+                    // Configure Kotlin compilation tasks to use JVM target 17
+                    // This must be done via tasks, not android.kotlinOptions
                     def kotlinTasks = project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile)
                     if (!kotlinTasks.isEmpty()) {
                         kotlinTasks.configureEach {
                             kotlinOptions {
-                                jvmTarget = "17"
+                                jvmTarget = '17'
                             }
                         }
                         project.logger.quiet("Configured ${project.name}: Java 17, Kotlin JVM target 17")
