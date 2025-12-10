@@ -50,9 +50,33 @@ jobs:
         working-directory: mobile/android
         run: chmod +x gradlew
       
+      - name: Android diagnostics - list files
+        working-directory: mobile/android
+        run: |
+          echo "== mobile/android =="
+          ls -la
+          echo "Gradle wrapper:"
+          ls -la gradlew || true
+      
+      - name: Android diagnostics - Java & Gradle
+        working-directory: mobile/android
+        run: |
+          java -version || true
+          echo "JAVA_HOME=$JAVA_HOME"
+          ./gradlew --version || true
+      
       - name: Build Debug APK
         working-directory: mobile/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew clean assembleDebug --stacktrace --info --no-daemon
+      
+      - name: Print build.gradle heads on failure
+        if: failure()
+        working-directory: mobile/android
+        run: |
+          echo "----- android/build.gradle -----"
+          head -n 200 build.gradle || true
+          echo "----- android/app/build.gradle -----"
+          head -n 200 app/build.gradle || true
       
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -156,24 +180,57 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: false
       
-      - name: Install CocoaPods
+      - name: iOS diagnostics - ruby & files
         working-directory: mobile/ios
         run: |
-          gem install cocoapods
-          pod install
+          ruby --version || true
+          echo "Gem list (cocoapods):"; gem list --local | grep cocoapods || true
+          ls -la
+          ls -la AlarmMessenger.xcworkspace AlarmMessenger.xcodeproj || true
+      
+      - name: Install CocoaPods and Bundler
+        working-directory: mobile/ios
+        run: |
+          if [ -f Gemfile ]; then
+            gem install bundler && bundle install
+            bundle exec pod install --repo-update
+          else
+            gem install cocoapods
+            pod install --repo-update
+          fi
+      
+      - name: iOS diagnostics - pod & xcode
+        working-directory: mobile/ios
+        run: |
+          pod --version || true
+          xcodebuild -list -workspace AlarmMessenger.xcworkspace || true
       
       - name: Build iOS App (Debug)
         working-directory: mobile/ios
         run: |
-          xcodebuild \
-            -workspace AlarmMessenger.xcworkspace \
-            -scheme AlarmMessenger \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            build
+          set -o pipefail
+          # Try to use xcbeautify if available for prettier output
+          if command -v xcbeautify &> /dev/null; then
+            xcodebuild \
+              -workspace AlarmMessenger.xcworkspace \
+              -scheme AlarmMessenger \
+              -configuration Debug \
+              -sdk iphonesimulator \
+              -derivedDataPath build \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              build | xcbeautify
+          else
+            xcodebuild \
+              -workspace AlarmMessenger.xcworkspace \
+              -scheme AlarmMessenger \
+              -configuration Debug \
+              -sdk iphonesimulator \
+              -derivedDataPath build \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              build
+          fi
       
       # Release build only for tags - requires proper code signing
       - name: Build iOS Archive (Release)
