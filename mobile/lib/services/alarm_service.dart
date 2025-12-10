@@ -13,8 +13,14 @@ class AlarmService {
       _isPlaying = true;
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
       await _audioPlayer.setVolume(1.0);
-      await _audioPlayer.play(AssetSource('sounds/alarm.mp3'));
-      print('Alarm sound started');
+      // Try to play alarm.mp3, but don't fail if it doesn't exist
+      try {
+        await _audioPlayer.play(AssetSource('sounds/alarm.mp3'));
+        print('Alarm sound started');
+      } catch (e) {
+        print('Warning: Could not play alarm.mp3 - file may be missing. Add alarm.mp3 to assets/sounds/');
+        _isPlaying = false;
+      }
     } catch (e) {
       print('Error playing alarm: $e');
       _isPlaying = false;
