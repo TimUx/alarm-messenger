@@ -40,6 +40,7 @@ subprojects {
                     }
                     
                     // Convert JavaVersion to numeric string format that Kotlin expects (e.g., "11")
+                    // majorVersion returns the string representation: "1.8", "11", "17", etc.
                     def jvmTargetVersion = javaVersion.majorVersion
                     
                     // Set Kotlin JVM target to match Java version (only if project has Kotlin tasks)
