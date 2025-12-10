@@ -148,6 +148,24 @@ flutter pub get
 flutter doctor --android-licenses
 ```
 
+**Namespace-Fehler bei Flutter Plugins:**
+```
+A problem occurred configuring project ':plugin_name'.
+> Namespace not specified.
+```
+
+Dieses Problem tritt bei älteren Flutter-Plugins auf, die noch nicht für Android Gradle Plugin (AGP) 8.x aktualisiert wurden. Die Lösung ist bereits in `android/build.gradle` implementiert: Ein automatisches Skript extrahiert den Namespace aus der `AndroidManifest.xml` der Plugins und setzt ihn entsprechend.
+
+Falls das Problem weiterhin besteht:
+```bash
+flutter clean
+flutter pub get
+cd android
+./gradlew clean
+cd ..
+flutter build apk --debug
+```
+
 ### iOS Build Probleme
 
 **Pod Install Fehler:**
