@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:audioplayers/audioplayers.dart';
 
 class AlarmService {
@@ -16,13 +17,13 @@ class AlarmService {
       // Try to play alarm.mp3, but don't fail if it doesn't exist
       try {
         await _audioPlayer.play(AssetSource('sounds/alarm.mp3'));
-        print('Alarm sound started');
+        developer.log('Alarm sound started', name: 'AlarmService');
       } catch (e) {
-        print('Warning: Could not play alarm.mp3 - file may be missing. Add alarm.mp3 to assets/sounds/');
+        developer.log('Warning: Could not play alarm.mp3 - file may be missing. Add alarm.mp3 to assets/sounds/', name: 'AlarmService', error: e);
         _isPlaying = false;
       }
     } catch (e) {
-      print('Error playing alarm: $e');
+      developer.log('Error playing alarm', name: 'AlarmService', error: e);
       _isPlaying = false;
     }
   }
@@ -35,9 +36,9 @@ class AlarmService {
     try {
       await _audioPlayer.stop();
       _isPlaying = false;
-      print('Alarm sound stopped');
+      developer.log('Alarm sound stopped', name: 'AlarmService');
     } catch (e) {
-      print('Error stopping alarm: $e');
+      developer.log('Error stopping alarm', name: 'AlarmService', error: e);
     }
   }
 
