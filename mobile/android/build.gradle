@@ -6,15 +6,12 @@ allprojects {
 }
 
 rootProject.buildDir = "../build"
+
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
     project.evaluationDependsOn(":app")
-}
-
-// Fix for plugins that don't specify namespace (required for AGP 8.x)
-subprojects {
+    
+    // Fix for plugins that don't specify namespace (required for AGP 8.x)
     afterEvaluate { project ->
         if (project.plugins.hasPlugin('com.android.application') || 
             project.plugins.hasPlugin('com.android.library')) {
@@ -28,7 +25,7 @@ subprojects {
                     def packageName = manifest.'@package'.text()
                     if (packageName) {
                         project.android.namespace = packageName
-                        println "✓ Set namespace for ${project.name}: ${packageName}"
+                        project.logger.quiet("✓ Set namespace for ${project.name}: ${packageName}")
                     }
                 }
             }
