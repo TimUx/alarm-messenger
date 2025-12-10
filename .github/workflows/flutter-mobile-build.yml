@@ -56,7 +56,13 @@ jobs:
       
       - name: Run tests
         working-directory: mobile
-        run: flutter test
+        run: |
+          if [ -d "test" ]; then
+            echo "Running tests..."
+            flutter test
+          else
+            echo "No test directory found. Skipping tests."
+          fi
       
       - name: Build Android Debug APK
         working-directory: mobile
