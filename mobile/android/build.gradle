@@ -11,6 +11,7 @@ subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
     
     // Fix for plugins that don't specify namespace (required for AGP 8.x)
+    // and ensure consistent JVM target for Java and Kotlin compilation
     afterEvaluate { project ->
         if (project.plugins.hasPlugin('com.android.application') || 
             project.plugins.hasPlugin('com.android.library')) {
@@ -29,8 +30,25 @@ subprojects {
                         }
                     }
                 }
+                
+                // Ensure Kotlin JVM target matches Java compatibility version
+                // This fixes the "jvm target compatibility should be set to the same Java version" error
+                if (project.android != null) {
+                    def javaVersion = project.android.compileOptions.sourceCompatibility
+                    if (javaVersion == null) {
+                        javaVersion = JavaVersion.VERSION_11
+                    }
+                    
+                    // Set Kotlin JVM target to match Java version
+                    project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                        kotlinOptions {
+                            jvmTarget = javaVersion.toString()
+                        }
+                    }
+                    project.logger.quiet("Set Kotlin JVM target for ${project.name}: ${javaVersion}")
+                }
             } catch (Exception e) {
-                project.logger.warn("Failed to auto-set namespace for ${project.name}: ${e.message}")
+                project.logger.warn("Failed to auto-configure ${project.name}: ${e.message}")
             }
         }
     }
