@@ -16,18 +16,22 @@ subprojects {
         if (project.plugins.hasPlugin('com.android.application') || 
             project.plugins.hasPlugin('com.android.library')) {
             
-            // Check if namespace is already set
-            if (project.android.namespace == null) {
-                // Try to get package name from AndroidManifest.xml
-                def manifestFile = project.file('src/main/AndroidManifest.xml')
-                if (manifestFile.exists()) {
-                    def manifest = new XmlSlurper().parse(manifestFile)
-                    def packageName = manifest.'@package'.text()
-                    if (packageName) {
-                        project.android.namespace = packageName
-                        project.logger.quiet("✓ Set namespace for ${project.name}: ${packageName}")
+            try {
+                // Check if namespace is already set
+                if (project.android != null && project.android.namespace == null) {
+                    // Try to get package name from AndroidManifest.xml
+                    def manifestFile = project.file('src/main/AndroidManifest.xml')
+                    if (manifestFile.exists()) {
+                        def manifest = new XmlSlurper().parse(manifestFile)
+                        def packageName = manifest.'@package'.text()
+                        if (packageName) {
+                            project.android.namespace = packageName
+                            project.logger.quiet("✓ Set namespace for ${project.name}: ${packageName}")
+                        }
                     }
                 }
+            } catch (Exception e) {
+                project.logger.warn("Failed to auto-set namespace for ${project.name}: ${e.message}")
             }
         }
     }
