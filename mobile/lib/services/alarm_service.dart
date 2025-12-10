@@ -19,11 +19,11 @@ class AlarmService {
         await _audioPlayer.play(AssetSource('sounds/alarm.mp3'));
         developer.log('Alarm sound started', name: 'AlarmService');
       } catch (e) {
-        developer.log('Warning: Could not play alarm.mp3 - file may be missing. Add alarm.mp3 to assets/sounds/', name: 'AlarmService');
+        developer.log('Warning: Could not play alarm.mp3 - file may be missing. Add alarm.mp3 to assets/sounds/', name: 'AlarmService', error: e);
         _isPlaying = false;
       }
     } catch (e) {
-      developer.log('Error playing alarm: $e', name: 'AlarmService', error: e);
+      developer.log('Error playing alarm', name: 'AlarmService', error: e);
       _isPlaying = false;
     }
   }
@@ -38,7 +38,7 @@ class AlarmService {
       _isPlaying = false;
       developer.log('Alarm sound stopped', name: 'AlarmService');
     } catch (e) {
-      developer.log('Error stopping alarm: $e', name: 'AlarmService', error: e);
+      developer.log('Error stopping alarm', name: 'AlarmService', error: e);
     }
   }
 
