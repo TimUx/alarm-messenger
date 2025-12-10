@@ -26,7 +26,7 @@ subprojects {
                         def packageName = manifest.'@package'.text()
                         if (packageName) {
                             project.android.namespace = packageName
-                            project.logger.quiet("✓ Set namespace for ${project.name}: ${packageName}")
+                            project.logger.quiet("Set namespace for ${project.name}: ${packageName}")
                         }
                     }
                 }
