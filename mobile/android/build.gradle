@@ -31,27 +31,25 @@ subprojects {
                     }
                 }
                 
-                // Ensure Kotlin JVM target matches Java compatibility version
+                // Force Java 17 for all Android projects to ensure compatibility
                 // This fixes the "jvm target compatibility should be set to the same Java version" error
                 if (project.android != null) {
-                    def javaVersion = project.android.compileOptions.sourceCompatibility
-                    if (javaVersion == null) {
-                        javaVersion = JavaVersion.VERSION_11
+                    // Force set Java version to 17 for all projects
+                    project.android.compileOptions {
+                        sourceCompatibility = JavaVersion.VERSION_17
+                        targetCompatibility = JavaVersion.VERSION_17
                     }
                     
-                    // Convert JavaVersion to numeric string format that Kotlin expects (e.g., "11")
-                    // majorVersion returns the string representation: "1.8", "11", "17", etc.
-                    def jvmTargetVersion = javaVersion.majorVersion
-                    
-                    // Set Kotlin JVM target to match Java version (only if project has Kotlin tasks)
+                    // Sync Kotlin JVM target to match Java version
+                    // Use "17" format for Kotlin
                     def kotlinTasks = project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile)
                     if (!kotlinTasks.isEmpty()) {
                         kotlinTasks.configureEach {
                             kotlinOptions {
-                                jvmTarget = jvmTargetVersion
+                                jvmTarget = "17"
                             }
                         }
-                        project.logger.quiet("Set Kotlin JVM target for ${project.name}: ${jvmTargetVersion}")
+                        project.logger.quiet("Configured ${project.name}: Java 17, Kotlin JVM target 17")
                     }
                 }
             } catch (Exception e) {
