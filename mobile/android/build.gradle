@@ -40,16 +40,15 @@ subprojects {
                         targetCompatibility = JavaVersion.VERSION_17
                     }
                     
-                    // Configure Kotlin compilation tasks to use JVM target 17
-                    // This must be done via tasks, not android.kotlinOptions
-                    def kotlinTasks = project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile)
-                    if (!kotlinTasks.isEmpty()) {
-                        kotlinTasks.configureEach {
-                            kotlinOptions {
-                                jvmTarget = '17'
-                            }
-                        }
-                        project.logger.quiet("Configured ${project.name}: Java 17, Kotlin JVM target 17")
+                    project.logger.quiet("Configured ${project.name}: Java 17")
+                }
+                
+                // Configure Kotlin compilation tasks to use JVM target 17
+                // This must be done outside the android check to ensure it applies to all Kotlin tasks
+                // including those created after afterEvaluate runs
+                project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                    kotlinOptions {
+                        jvmTarget = '17'
                     }
                 }
             } catch (Exception e) {
