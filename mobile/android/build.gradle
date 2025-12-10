@@ -42,16 +42,19 @@ subprojects {
                     // Convert JavaVersion to numeric string format that Kotlin expects (e.g., "11")
                     def jvmTargetVersion = javaVersion.majorVersion
                     
-                    // Set Kotlin JVM target to match Java version
-                    project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                        kotlinOptions {
-                            jvmTarget = jvmTargetVersion
+                    // Set Kotlin JVM target to match Java version (only if project has Kotlin tasks)
+                    def kotlinTasks = project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile)
+                    if (!kotlinTasks.isEmpty()) {
+                        kotlinTasks.configureEach {
+                            kotlinOptions {
+                                jvmTarget = jvmTargetVersion
+                            }
                         }
+                        project.logger.quiet("Set Kotlin JVM target for ${project.name}: ${jvmTargetVersion}")
                     }
-                    project.logger.quiet("Set Kotlin JVM target for ${project.name}: ${jvmTargetVersion}")
                 }
             } catch (Exception e) {
-                project.logger.warn("Failed to auto-configure ${project.name}: ${e.message}")
+                project.logger.warn("Failed to auto-configure ${project.name}: ${e.message} (${e.class.simpleName})")
             }
         }
     }
