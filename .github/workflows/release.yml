@@ -151,7 +151,7 @@ jobs:
 
   build-ios:
     name: Build iOS App
-    runs-on: macos-13
+    runs-on: macos-15
     needs: get-version
     permissions:
       contents: write
