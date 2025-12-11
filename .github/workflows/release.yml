@@ -245,7 +245,7 @@ jobs:
             ### 📦 Inhalte
             
             **Server:**
-            - Docker Image: `ghcr.io/timux/alarm-messenger:${{ needs.get-version.outputs.version }}`
+            - Docker Image: `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ needs.get-version.outputs.version }}`
             - Docker Image wird automatisch gebaut und zu GitHub Container Registry gepusht
             
             **Mobile App:**
@@ -257,7 +257,7 @@ jobs:
             
             **Server mit Docker:**
             ```bash
-            docker pull ghcr.io/timux/alarm-messenger:${{ needs.get-version.outputs.version }}
+            docker pull ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ needs.get-version.outputs.version }}
             ```
             
             **Mobile App:**
@@ -271,9 +271,9 @@ jobs:
             
             ### 🔗 Links
             
-            - [Dokumentation](https://github.com/TimUx/alarm-messenger#readme)
-            - [Docker-Quickstart](https://github.com/TimUx/alarm-messenger/blob/main/DOCKER-QUICKSTART.md)
-            - [Mobile App Setup](https://github.com/TimUx/alarm-messenger/blob/main/mobile/README.md)
+            - [Dokumentation](https://github.com/${{ github.repository }}#readme)
+            - [Docker-Quickstart](https://github.com/${{ github.repository }}/blob/main/DOCKER-QUICKSTART.md)
+            - [Mobile App Setup](https://github.com/${{ github.repository }}/blob/main/mobile/README.md)
           draft: false
           prerelease: false
         env:
@@ -344,7 +344,7 @@ jobs:
           echo "### 🐳 Docker Image" >> $GITHUB_STEP_SUMMARY
           echo "Der Docker-Build wird automatisch durch den 'build-and-push' Workflow gestartet." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Image: \`ghcr.io/timux/alarm-messenger:${{ needs.get-version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Image: \`ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ needs.get-version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ "${{ needs.create-release.result }}" = "success" ]; then
