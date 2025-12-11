@@ -13,6 +13,7 @@ on:
 
 env:
   FLUTTER_VERSION: '3.27.1'
+  ORGANIZATION: 'com.alarmmessenger'
 
 jobs:
   get-version:
@@ -136,13 +137,21 @@ jobs:
           files: |
             mobile/build/app/outputs/flutter-apk/app-debug.apk
             mobile/build/app/outputs/flutter-apk/app-release.apk
-            mobile/build/app/outputs/bundle/release/app-release.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload AAB to release (if available)
+        if: hashFiles('mobile/build/app/outputs/bundle/release/app-release.aab') != ''
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.get-version.outputs.version }}
+          files: mobile/build/app/outputs/bundle/release/app-release.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-ios:
     name: Build iOS App
-    runs-on: macos-latest
+    runs-on: macos-13
     needs: get-version
     permissions:
       contents: write
@@ -171,7 +180,7 @@ jobs:
         run: |
           if [ ! -d "ios/Runner.xcodeproj" ]; then
             echo "⚠️  iOS project files are missing. Regenerating iOS platform..."
-            flutter create --org com.alarmmessenger --platforms=ios .
+            flutter create --org ${{ env.ORGANIZATION }} --platforms=ios .
             echo "✅ iOS platform files regenerated"
           else
             echo "✅ iOS project files found"
@@ -217,7 +226,7 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: [get-version, build-android, build-ios]
-    if: always() && needs.get-version.result == 'success'
+    if: always() && needs.get-version.result == 'success' && (needs.build-android.result == 'success' || needs.build-ios.result == 'success')
     permissions:
       contents: write
     

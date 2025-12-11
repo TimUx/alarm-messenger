@@ -71,7 +71,7 @@ Nach dem Pushen des Tags:
 
 Nach Abschluss der Workflows:
 
-1. Gehe zu [GitHub Releases](https://github.com/TimUx/alarm-messenger/releases)
+1. Gehe zu GitHub Releases (Repository → Releases Tab)
 2. Öffne das neu erstellte Release
 3. Bearbeite die Release Notes:
    - Beschreibe neue Features
@@ -83,7 +83,7 @@ Nach Abschluss der Workflows:
 
 Falls nötig, kann ein Release auch manuell über GitHub Actions ausgelöst werden:
 
-1. Gehe zu [Actions](https://github.com/TimUx/alarm-messenger/actions)
+1. Gehe zu Actions (Repository → Actions Tab)
 2. Wähle "Create Release with Mobile Builds"
 3. Klicke auf "Run workflow"
 4. Gib die Version ein (z.B., `v1.0.0`)
