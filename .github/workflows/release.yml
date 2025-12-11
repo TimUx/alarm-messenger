@@ -1,0 +1,353 @@
+name: Create Release with Mobile Builds
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  FLUTTER_VERSION: '3.27.1'
+  ORGANIZATION: 'com.alarmmessenger'
+
+jobs:
+  get-version:
+    name: Get Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    
+    steps:
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
+
+  build-android:
+    name: Build Android App
+    runs-on: ubuntu-latest
+    needs: get-version
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+      
+      - name: Flutter Doctor
+        working-directory: mobile
+        run: flutter doctor -v
+      
+      - name: Get dependencies
+        working-directory: mobile
+        run: flutter pub get
+      
+      - name: Analyze code
+        working-directory: mobile
+        run: flutter analyze
+      
+      - name: Run tests
+        working-directory: mobile
+        run: |
+          if [ -d "test" ]; then
+            echo "Running tests..."
+            flutter test
+          else
+            echo "No test directory found. Skipping tests."
+          fi
+      
+      - name: Build Android Debug APK
+        working-directory: mobile
+        run: flutter build apk --debug
+      
+      - name: Decode Keystore (Release)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > mobile/android/app/alarm-messenger.keystore
+            echo "✅ Keystore decoded successfully"
+          else
+            echo "⚠️  Warning: ANDROID_KEYSTORE_BASE64 secret not set. Release build will be skipped."
+            echo "⚠️  To enable release builds, configure Android signing secrets in GitHub repository settings."
+          fi
+      
+      - name: Build Android Release APK
+        working-directory: mobile
+        env:
+          MYAPP_RELEASE_STORE_FILE: alarm-messenger.keystore
+          MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -f android/app/alarm-messenger.keystore ]; then
+            echo "Building release APK..."
+            flutter build apk --release
+            echo "✅ Release APK built successfully"
+          else
+            echo "⚠️  Keystore not found. Creating unsigned release APK..."
+            flutter build apk --release
+          fi
+      
+      - name: Build Android App Bundle (AAB)
+        working-directory: mobile
+        env:
+          MYAPP_RELEASE_STORE_FILE: alarm-messenger.keystore
+          MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -f android/app/alarm-messenger.keystore ]; then
+            echo "Building release AAB..."
+            flutter build appbundle --release
+            echo "✅ Release AAB built successfully"
+          else
+            echo "⚠️  Keystore not found. Skipping AAB build."
+          fi
+      
+      - name: Upload artifacts to release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.get-version.outputs.version }}
+          files: |
+            mobile/build/app/outputs/flutter-apk/app-debug.apk
+            mobile/build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload AAB to release (if available)
+        if: hashFiles('mobile/build/app/outputs/bundle/release/app-release.aab') != ''
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.get-version.outputs.version }}
+          files: mobile/build/app/outputs/bundle/release/app-release.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-ios:
+    name: Build iOS App
+    runs-on: macos-13
+    needs: get-version
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+      
+      - name: Flutter Doctor
+        working-directory: mobile
+        run: flutter doctor -v
+      
+      - name: Get dependencies
+        working-directory: mobile
+        run: flutter pub get
+      
+      - name: Check and regenerate iOS platform
+        working-directory: mobile
+        run: |
+          if [ ! -d "ios/Runner.xcodeproj" ]; then
+            echo "⚠️  iOS project files are missing. Regenerating iOS platform..."
+            flutter create --org ${{ env.ORGANIZATION }} --platforms=ios .
+            echo "✅ iOS platform files regenerated"
+          else
+            echo "✅ iOS project files found"
+          fi
+      
+      - name: Build iOS (no codesign)
+        working-directory: mobile
+        run: |
+          echo "Building iOS app without code signing..."
+          flutter build ios --release --no-codesign
+          echo "✅ iOS app built successfully"
+      
+      - name: Create iOS Archive Info
+        working-directory: mobile
+        run: |
+          echo "# iOS Build Information" > ios-build-info.txt
+          echo "" >> ios-build-info.txt
+          echo "iOS app wurde erfolgreich gebaut (ohne Code-Signatur)." >> ios-build-info.txt
+          echo "" >> ios-build-info.txt
+          echo "## Deployment" >> ios-build-info.txt
+          echo "" >> ios-build-info.txt
+          echo "Für iOS Distribution sind folgende Schritte erforderlich:" >> ios-build-info.txt
+          echo "1. Apple Developer Account einrichten" >> ios-build-info.txt
+          echo "2. Code-Signatur-Zertifikate konfigurieren" >> ios-build-info.txt
+          echo "3. App in Xcode öffnen und signieren" >> ios-build-info.txt
+          echo "4. IPA-Datei für Distribution erstellen" >> ios-build-info.txt
+          echo "" >> ios-build-info.txt
+          echo "## Weitere Informationen" >> ios-build-info.txt
+          echo "" >> ios-build-info.txt
+          echo "Siehe: https://docs.flutter.dev/deployment/ios" >> ios-build-info.txt
+          echo "" >> ios-build-info.txt
+          echo "Build-Verzeichnis: mobile/build/ios/Release-iphoneos/Runner.app" >> ios-build-info.txt
+      
+      - name: Upload iOS Build Info to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.get-version.outputs.version }}
+          files: mobile/ios-build-info.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [get-version, build-android, build-ios]
+    if: always() && needs.get-version.result == 'success' && (needs.build-android.result == 'success' || needs.build-ios.result == 'success')
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Create or update Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.get-version.outputs.version }}
+          name: Release ${{ needs.get-version.outputs.version }}
+          body: |
+            ## Alarm Messenger Release ${{ needs.get-version.outputs.version }}
+            
+            ### 📦 Inhalte
+            
+            **Server:**
+            - Docker Image: `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ needs.get-version.outputs.version }}`
+            - Docker Image wird automatisch gebaut und zu GitHub Container Registry gepusht
+            
+            **Mobile App:**
+            - ✅ Android APK (Debug & Release)
+            - ✅ Android App Bundle (AAB) für Google Play
+            - ✅ iOS Build (ohne Code-Signatur)
+            
+            ### 🚀 Deployment
+            
+            **Server mit Docker:**
+            ```bash
+            docker pull ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ needs.get-version.outputs.version }}
+            ```
+            
+            **Mobile App:**
+            - **Android APK**: Download `app-release.apk` von den Assets unten
+            - **Google Play**: Upload `app-release.aab` zur Google Play Console
+            - **iOS**: Benötigt Xcode und Code-Signatur für Deployment
+            
+            ### 📝 Änderungen
+            
+            <!-- Hier Änderungen beschreiben -->
+            
+            ### 🔗 Links
+            
+            - [Dokumentation](https://github.com/${{ github.repository }}#readme)
+            - [Docker-Quickstart](https://github.com/${{ github.repository }}/blob/main/DOCKER-QUICKSTART.md)
+            - [Mobile App Setup](https://github.com/${{ github.repository }}/blob/main/mobile/README.md)
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    needs: [get-version, build-android, build-ios, create-release]
+    if: always()
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Build Summary
+        run: |
+          echo "## 📦 Release ${{ needs.get-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Status" >> $GITHUB_STEP_SUMMARY
+          
+          # Android build status
+          if [ "${{ needs.build-android.result }}" = "success" ]; then
+            echo "- Android Build: ✅ success" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.build-android.result }}" = "failure" ]; then
+            echo "- Android Build: ❌ failed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.build-android.result }}" = "cancelled" ]; then
+            echo "- Android Build: ⚠️ cancelled" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Android Build: ⏭️ skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # iOS build status
+          if [ "${{ needs.build-ios.result }}" = "success" ]; then
+            echo "- iOS Build: ✅ success" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.build-ios.result }}" = "failure" ]; then
+            echo "- iOS Build: ❌ failed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.build-ios.result }}" = "cancelled" ]; then
+            echo "- iOS Build: ⚠️ cancelled" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- iOS Build: ⏭️ skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Release status
+          if [ "${{ needs.create-release.result }}" = "success" ]; then
+            echo "- Release erstellt: ✅ success" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.create-release.result }}" = "failure" ]; then
+            echo "- Release erstellt: ❌ failed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.create-release.result }}" = "cancelled" ]; then
+            echo "- Release erstellt: ⚠️ cancelled" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Release erstellt: ⏭️ skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Show artifacts only if Android build succeeded
+          if [ "${{ needs.build-android.result }}" = "success" ]; then
+            echo "### 📱 Mobile App Artifacts" >> $GITHUB_STEP_SUMMARY
+            echo "- Android Debug APK: ✅" >> $GITHUB_STEP_SUMMARY
+            echo "- Android Release APK: ✅" >> $GITHUB_STEP_SUMMARY
+            echo "- Android App Bundle (AAB): ✅" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ needs.build-ios.result }}" = "success" ]; then
+              echo "- iOS Build Info: ✅" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "### 🐳 Docker Image" >> $GITHUB_STEP_SUMMARY
+          echo "Der Docker-Build wird automatisch durch den 'build-and-push' Workflow gestartet." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Image: \`ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ needs.get-version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.create-release.result }}" = "success" ]; then
+            echo "### 🔗 Release" >> $GITHUB_STEP_SUMMARY
+            echo "GitHub Release: [Release ${{ needs.get-version.outputs.version }}](https://github.com/${{ github.repository }}/releases/tag/${{ needs.get-version.outputs.version }})" >> $GITHUB_STEP_SUMMARY
+          fi

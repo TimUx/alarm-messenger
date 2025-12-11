@@ -112,6 +112,12 @@ Das Admin-Interface bietet fünf Hauptbereiche:
 - 📖 [Legacy Mobile Dokumentation](docs/MOBILE.md) - iOS & Android, GitHub Actions
 - ⚙️ Automatische Builds via GitHub Actions bei Code-Änderungen
 
+**🚀 Releases:**
+- 📦 [Release-Dokumentation](docs/RELEASE.md) - Releases erstellen mit Mobile App Builds
+- 🏷️ Automatischer Release-Workflow bei Version-Tags (z.B., `v1.0.0`)
+- 📱 Inkludiert Android APK/AAB und iOS Builds
+- 🐳 Docker Images automatisch auf GitHub Container Registry
+
 ## Architektur
 
 ```
@@ -552,6 +558,7 @@ Alle Dokumentation ist im `/docs` Verzeichnis verfügbar:
 ### Setup & Deployment
 - [SETUP.md](docs/SETUP.md) - Native Installation und Konfiguration
 - [DOCKER.md](docs/DOCKER.md) - Docker-Deployment mit Caddy/Nginx
+- [RELEASE.md](docs/RELEASE.md) - Release-Prozess und Versionierung
 - [mobile/README.md](mobile/README.md) - 🆕 Flutter Mobile App Setup und Entwicklung
 - [MOBILE.md](docs/MOBILE.md) - Legacy React Native Mobile App Dokumentation
 - [BUILD-ANLEITUNG-LINUX.md](docs/BUILD-ANLEITUNG-LINUX.md) - Legacy Android Build unter Linux
