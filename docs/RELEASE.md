@@ -163,19 +163,20 @@ Nach einem erfolgreichen Release:
 
 ```bash
 # Image mit spezifischer Version pullen
-docker pull ghcr.io/<your-username>/<repository-name>:v1.0.0
+# Format: ghcr.io/<github-username>/<repository-name>:<version>
+docker pull ghcr.io/timux/alarm-messenger:v1.0.0
 
 # Oder latest Version
-docker pull ghcr.io/<your-username>/<repository-name>:latest
+docker pull ghcr.io/timux/alarm-messenger:latest
 
 # In docker-compose.yml verwenden
 services:
   server:
-    image: ghcr.io/<your-username>/<repository-name>:v1.0.0
+    image: ghcr.io/timux/alarm-messenger:v1.0.0
     # ... weitere Konfiguration
 ```
 
-> **Hinweis:** Ersetze `<your-username>` mit deinem GitHub-Benutzernamen und `<repository-name>` mit dem Repository-Namen.
+> **Hinweis für Forks:** Ersetze `timux/alarm-messenger` mit `<your-username>/<your-repository-name>`.
 
 ## Mobile App Distribution
 
