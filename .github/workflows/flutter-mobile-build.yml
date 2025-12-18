@@ -18,7 +18,7 @@ on:
 
 jobs:
   android:
-    name: Build Android APK
+    name: Build Android APK & AAB
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -58,10 +58,7 @@ jobs:
         working-directory: mobile
         run: |
           if [ -d "test" ]; then
-            echo "Running tests..."
             flutter test
-          else
-            echo "No test directory found. Skipping tests."
           fi
       
       - name: Build Android Debug APK
@@ -71,11 +68,10 @@ jobs:
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: app-debug-apk
           path: mobile/build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 30
       
-      # Release build only for tags or workflow_dispatch
       - name: Decode Keystore (Release)
         if: startsWith(github.ref, 'refs/tags/mobile-v') || github.event_name == 'workflow_dispatch'
         env:
@@ -83,10 +79,6 @@ jobs:
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 --decode > mobile/android/app/alarm-messenger.keystore
-            echo "Keystore decoded successfully"
-          else
-            echo "Warning: ANDROID_KEYSTORE_BASE64 secret not set. Skipping release build."
-            exit 0
           fi
       
       - name: Build Android Release APK
@@ -97,18 +89,13 @@ jobs:
           MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
           MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          if [ -f android/app/alarm-messenger.keystore ]; then
-            flutter build apk --release
-          else
-            echo "Keystore not found. Skipping release build."
-          fi
+        run: flutter build apk --release
       
       - name: Upload Release APK
         if: startsWith(github.ref, 'refs/tags/mobile-v') || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: app-release-apk
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 90
       
@@ -120,28 +107,15 @@ jobs:
           MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
           MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          if [ -f android/app/alarm-messenger.keystore ]; then
-            flutter build appbundle --release
-          fi
+        run: flutter build appbundle --release
       
       - name: Upload Release AAB
         if: startsWith(github.ref, 'refs/tags/mobile-v')
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-bundle
+          name: app-release-aab
           path: mobile/build/app/outputs/bundle/release/app-release.aab
           retention-days: 90
-      
-      - name: Upload to Release
-        if: startsWith(github.ref, 'refs/tags/mobile-v')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            mobile/build/app/outputs/flutter-apk/app-release.apk
-            mobile/build/app/outputs/bundle/release/app-release.aab
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   ios:
     name: Build iOS IPA
@@ -168,35 +142,32 @@ jobs:
         working-directory: mobile
         run: flutter pub get
       
-      - name: Check and regenerate iOS platform
+      - name: Check iOS project
         working-directory: mobile
         run: |
           if [ ! -d "ios/Runner.xcodeproj" ]; then
-            echo "⚠️  iOS project files are missing. Regenerating iOS platform..."
             flutter create --org com.alarmmessenger --platforms=ios .
-            echo "✅ iOS platform files regenerated"
-          else
-            echo "✅ iOS project files found"
           fi
       
-      - name: Build iOS (no codesign)
-        working-directory: mobile
+      - name: Setup signing certificates
+        if: ${{ secrets.IOS_SIGNING_CERT && secrets.IOS_PROVISIONING_PROFILE }}
         run: |
-          flutter build ios --release --no-codesign
+          echo "$IOS_SIGNING_CERT" | base64 --decode > cert.p12
+          echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+          security import cert.p12 -P "$IOS_SIGNING_CERT_PASSWORD" -T /usr/bin/codesign
       
-      - name: Build Info
-        run: |
-          echo "✅ Android APK built successfully"
-          echo "✅ iOS built successfully (no codesign)"
-          echo ""
-          echo "ℹ️  iOS requires macOS and proper code signing for distribution"
-          echo ""
-          echo "To enable iOS release builds:"
-          echo "1. Set up Apple Developer Account"
-          echo "2. Configure code signing certificates in GitHub Secrets"
-          echo "3. Update this workflow with proper signing configuration"
-          echo ""
-          echo "See Flutter documentation for iOS deployment"
+      - name: Build iOS IPA
+        working-directory: mobile
+        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+      
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-ipa
+          path: mobile/build/ios/ipa/*.ipa
+          retention-days: 90
 
   notify:
     name: Build Summary
@@ -218,9 +189,7 @@ jobs:
           echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "- Debug APK: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ github.ref }}" == refs/tags/mobile-v* ]]; then
-            echo "- Release APK: ✅ Available in workflow artifacts and GitHub Release" >> $GITHUB_STEP_SUMMARY
-            echo "- Release AAB: ✅ Available in workflow artifacts and GitHub Release" >> $GITHUB_STEP_SUMMARY
+            echo "- Release APK: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+            echo "- Release AAB: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+            echo "- Release IPA: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Download" >> $GITHUB_STEP_SUMMARY
-          echo "Download build artifacts from the 'Artifacts' section above." >> $GITHUB_STEP_SUMMARY
