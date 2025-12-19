@@ -151,18 +151,11 @@ jobs:
             flutter create --org com.alarmmessenger --platforms=ios .
           fi
       
-      - name: Setup signing certificates
-        if: false  # Disabled - requires proper iOS signing setup
-        env:
-          IOS_SIGNING_CERT: ${{ secrets.IOS_SIGNING_CERT }}
-          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
-          IOS_SIGNING_CERT_PASSWORD: ${{ secrets.IOS_SIGNING_CERT_PASSWORD }}
-        run: |
-          echo "$IOS_SIGNING_CERT" | base64 --decode > cert.p12
-          echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
-          security import cert.p12 -P "$IOS_SIGNING_CERT_PASSWORD" -T /usr/bin/codesign
+      # Note: iOS signing certificates are not configured in this workflow.
+      # The build uses --no-codesign flag. To enable signed builds, configure:
+      # - IOS_SIGNING_CERT (base64 encoded .p12 certificate)
+      # - IOS_PROVISIONING_PROFILE (base64 encoded .mobileprovision)
+      # - IOS_SIGNING_CERT_PASSWORD (certificate password)
       
       - name: Build iOS IPA
         working-directory: mobile
@@ -171,12 +164,12 @@ jobs:
           flutter build ios --release --no-codesign
           echo "✅ iOS app built successfully (without code signing)"
       
-      - name: Upload IPA
-        if: hashFiles('mobile/build/ios/iphoneos/Runner.app') != ''
+      - name: Upload iOS Build
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: app-release-ios
-          path: mobile/build/ios/iphoneos/Runner.app
+          path: mobile/build/ios/Release-iphoneos/Runner.app
           retention-days: 90
 
   notify:
