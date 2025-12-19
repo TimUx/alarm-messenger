@@ -22,6 +22,7 @@
             <a href="/admin/index.html">Dashboard</a>
             <a href="/admin/devices.html" class="active">Einsatzkräfte</a>
             <a href="/admin/groups.html">Alarm-Gruppen</a>
+            <a href="/admin/alarms.html">Alarmierung</a>
             <a href="/admin/history.html">Einsatz-Historie</a>
             <a href="/admin/users.html">Benutzerverwaltung</a>
         </nav>
@@ -99,6 +100,24 @@
                             <button type="submit" class="btn btn-primary">Speichern</button>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <!-- QR Code Modal -->
+            <div id="qr-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>QR-Code für Geräteregistrierung</h3>
+                        <button class="close-btn" id="close-qr-modal-btn">&times;</button>
+                    </div>
+                    <div class="qr-code-card">
+                        <img id="qr-modal-image" alt="QR Code" style="max-width: 100%; height: auto;">
+                        <div class="qr-code-info">
+                            <p><strong>Device Token:</strong> <span id="qr-modal-token"></span></p>
+                            <button type="button" class="btn btn-secondary" id="copy-qr-token-btn">Token kopieren</button>
+                            <button type="button" class="btn btn-secondary" id="download-qr-modal-btn">QR-Code herunterladen</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
