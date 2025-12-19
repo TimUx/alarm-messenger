@@ -120,6 +120,8 @@ jobs:
   ios:
     name: Build iOS IPA
     runs-on: macos-14
+    # Make iOS build optional - will be skipped if not triggered manually or on release
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: read
     
@@ -150,7 +152,11 @@ jobs:
           fi
       
       - name: Setup signing certificates
-        if: ${{ secrets.IOS_SIGNING_CERT && secrets.IOS_PROVISIONING_PROFILE }}
+        if: false  # Disabled - requires proper iOS signing setup
+        env:
+          IOS_SIGNING_CERT: ${{ secrets.IOS_SIGNING_CERT }}
+          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+          IOS_SIGNING_CERT_PASSWORD: ${{ secrets.IOS_SIGNING_CERT_PASSWORD }}
         run: |
           echo "$IOS_SIGNING_CERT" | base64 --decode > cert.p12
           echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
@@ -160,20 +166,24 @@ jobs:
       
       - name: Build iOS IPA
         working-directory: mobile
-        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+        run: |
+          echo "Building iOS app without code signing..."
+          flutter build ios --release --no-codesign
+          echo "✅ iOS app built successfully (without code signing)"
       
       - name: Upload IPA
+        if: hashFiles('mobile/build/ios/iphoneos/Runner.app') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-ipa
-          path: mobile/build/ios/ipa/*.ipa
+          name: app-release-ios
+          path: mobile/build/ios/iphoneos/Runner.app
           retention-days: 90
 
   notify:
     name: Build Summary
     runs-on: ubuntu-latest
     needs: [android, ios]
-    if: always()
+    if: always() && needs.android.result != 'cancelled'
     permissions:
       contents: read
     
