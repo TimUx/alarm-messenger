@@ -164,11 +164,11 @@ jobs:
           flutter build ios --release --no-codesign
           echo "✅ iOS app built successfully (without code signing)"
       
-      - name: Upload iOS Build
+      - name: Upload iOS Build (unsigned app bundle)
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-ios
+          name: app-release-ios-bundle
           path: mobile/build/ios/Release-iphoneos/Runner.app
           retention-days: 90
 
@@ -176,7 +176,8 @@ jobs:
     name: Build Summary
     runs-on: ubuntu-latest
     needs: [android, ios]
-    if: always() && needs.android.result != 'cancelled'
+    # Run always except when android was cancelled or skipped
+    if: always() && (needs.android.result == 'success' || needs.android.result == 'failure')
     permissions:
       contents: read
     
