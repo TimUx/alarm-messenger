@@ -85,7 +85,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/mobile-v') || github.event_name == 'workflow_dispatch'
         working-directory: mobile
         env:
-          MYAPP_RELEASE_STORE_FILE: alarm-messenger.keystore
+          MYAPP_RELEASE_STORE_FILE: app/alarm-messenger.keystore
           MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
           MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -103,7 +103,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/mobile-v')
         working-directory: mobile
         env:
-          MYAPP_RELEASE_STORE_FILE: alarm-messenger.keystore
+          MYAPP_RELEASE_STORE_FILE: app/alarm-messenger.keystore
           MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
           MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}

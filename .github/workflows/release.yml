@@ -100,7 +100,7 @@ jobs:
       - name: Build Android Release APK
         working-directory: mobile
         env:
-          MYAPP_RELEASE_STORE_FILE: alarm-messenger.keystore
+          MYAPP_RELEASE_STORE_FILE: app/alarm-messenger.keystore
           MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
           MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -117,7 +117,7 @@ jobs:
       - name: Build Android App Bundle (AAB)
         working-directory: mobile
         env:
-          MYAPP_RELEASE_STORE_FILE: alarm-messenger.keystore
+          MYAPP_RELEASE_STORE_FILE: app/alarm-messenger.keystore
           MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
           MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
