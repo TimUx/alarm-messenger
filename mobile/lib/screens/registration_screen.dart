@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -59,16 +60,33 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     });
 
     try {
-      // Parse QR code: serverUrl|registrationToken
-      final parts = code.split('|');
-      if (parts.length != 2) {
-        throw Exception('Invalid QR code format');
+      // Parse QR code - supports both formats:
+      // 1. JSON format: {"token":"...", "serverUrl":"..."}
+      // 2. Legacy pipe format: serverUrl|registrationToken
+      String serverUrl;
+      String registrationToken;
+      
+      try {
+        // Try to parse as JSON first
+        final jsonData = jsonDecode(code);
+        if (jsonData is Map && jsonData.containsKey('token') && jsonData.containsKey('serverUrl')) {
+          serverUrl = jsonData['serverUrl'];
+          registrationToken = jsonData['token'];
+        } else {
+          throw Exception('Invalid JSON format');
+        }
+      } catch (e) {
+        // Fall back to legacy pipe-delimited format
+        final parts = code.split('|');
+        if (parts.length != 2) {
+          throw Exception('Invalid QR code format');
+        }
+        serverUrl = parts[0];
+        registrationToken = parts[1];
       }
 
-      final serverUrl = parts[0];
-      final registrationToken = parts[1];
       final platform = Platform.isAndroid ? 'android' : 'ios';
-      final deviceToken = 'flutter-${DateTime.now().millisecondsSinceEpoch}';
+      final deviceToken = registrationToken; // Use the token from QR code
 
       final appState = Provider.of<AppState>(context, listen: false);
       await appState.register(
