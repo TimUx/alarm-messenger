@@ -120,6 +120,8 @@ jobs:
   ios:
     name: Build iOS IPA
     runs-on: macos-14
+    # Make iOS build optional - will be skipped if not triggered manually or on release
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: read
     
@@ -149,31 +151,86 @@ jobs:
             flutter create --org com.alarmmessenger --platforms=ios .
           fi
       
-      - name: Setup signing certificates
-        if: ${{ secrets.IOS_SIGNING_CERT && secrets.IOS_PROVISIONING_PROFILE }}
+      - name: Setup iOS signing certificates
+        if: github.event_name == 'workflow_dispatch' && vars.IOS_SIGNING_ENABLED == 'true'
+        env:
+          IOS_SIGNING_CERT: ${{ secrets.IOS_SIGNING_CERT }}
+          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+          IOS_SIGNING_CERT_PASSWORD: ${{ secrets.IOS_SIGNING_CERT_PASSWORD }}
         run: |
-          echo "$IOS_SIGNING_CERT" | base64 --decode > cert.p12
-          echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
-          security import cert.p12 -P "$IOS_SIGNING_CERT_PASSWORD" -T /usr/bin/codesign
+          if [ -n "$IOS_SIGNING_CERT" ] && [ -n "$IOS_PROVISIONING_PROFILE" ]; then
+            echo "Setting up iOS signing certificates..."
+            echo "$IOS_SIGNING_CERT" | base64 --decode > cert.p12
+            echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
+            
+            # Install provisioning profile
+            mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+            UUID=$(security cms -D -i profile.mobileprovision | plutil -extract UUID raw -)
+            cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+            
+            # Import certificate
+            security create-keychain -p actions build.keychain
+            security default-keychain -s build.keychain
+            security unlock-keychain -p actions build.keychain
+            security import cert.p12 -k build.keychain -P "$IOS_SIGNING_CERT_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -s -k actions build.keychain
+            
+            echo "✅ iOS signing certificates configured"
+            echo "SIGNING_CONFIGURED=true" >> $GITHUB_ENV
+          else
+            echo "⚠️  iOS signing certificates not provided"
+            echo "SIGNING_CONFIGURED=false" >> $GITHUB_ENV
+          fi
       
-      - name: Build iOS IPA
+      - name: Build iOS IPA (signed)
+        if: env.SIGNING_CONFIGURED == 'true'
         working-directory: mobile
-        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+        run: |
+          echo "Building signed iOS IPA for AltStore/AltServer..."
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          echo "✅ Signed iOS IPA built successfully"
       
-      - name: Upload IPA
+      - name: Build iOS IPA (unsigned, for AltStore self-signing)
+        if: env.SIGNING_CONFIGURED != 'true'
+        working-directory: mobile
+        run: |
+          echo "Building iOS app without code signing..."
+          echo "Note: This creates an unsigned .app that needs to be signed with AltStore/AltServer"
+          flutter build ios --release --no-codesign
+          
+          # Create IPA from unsigned build for AltStore
+          echo "Creating IPA package for AltStore..."
+          cd build/ios/Release-iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r ../../../alarm-messenger-unsigned.ipa Payload
+          cd ../../..
+          
+          echo "✅ Unsigned IPA created: alarm-messenger-unsigned.ipa"
+          echo "📱 This IPA can be installed using AltStore/AltServer which will sign it with your Apple ID"
+      
+      - name: Upload iOS IPA (signed)
+        if: env.SIGNING_CONFIGURED == 'true' && success()
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-ipa
+          name: alarm-messenger-signed.ipa
           path: mobile/build/ios/ipa/*.ipa
+          retention-days: 90
+      
+      - name: Upload iOS IPA (unsigned for AltStore)
+        if: env.SIGNING_CONFIGURED != 'true' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alarm-messenger-unsigned.ipa
+          path: mobile/alarm-messenger-unsigned.ipa
           retention-days: 90
 
   notify:
     name: Build Summary
     runs-on: ubuntu-latest
     needs: [android, ios]
-    if: always()
+    # Run always except when android was cancelled or skipped
+    if: always() && (needs.android.result == 'success' || needs.android.result == 'failure')
     permissions:
       contents: read
     
@@ -188,8 +245,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "- Debug APK: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.ref }}" == refs/tags/mobile-v* ]]; then
+          if [[ "${{ github.ref }}" == refs/tags/mobile-v* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "- Release APK: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
             echo "- Release AAB: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
-            echo "- Release IPA: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+            if [[ "${{ needs.ios.result }}" == "success" ]]; then
+              echo "- iOS IPA: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
