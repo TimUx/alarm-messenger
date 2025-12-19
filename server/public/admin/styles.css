@@ -148,6 +148,24 @@ body {
     text-align: center;
 }
 
+.success-message {
+    margin-top: 15px;
+    padding: 12px;
+    background-color: #28a745;
+    color: #ffffff;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.success-message h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.success-message p {
+    margin-bottom: 0;
+}
+
 .init-info {
     margin-top: 30px;
     padding-top: 20px;

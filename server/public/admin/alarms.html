@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm Messenger - Alarmierung</title>
+    <link rel="stylesheet" href="/admin/styles.css">
+    <script src="/admin/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>🚨 Alarm Messenger - Alarmierung</h1>
+            <div class="header-actions">
+                <button id="theme-toggle" title="Theme wechseln">🌙</button>
+                <span id="username-display"></span>
+                <button class="btn btn-secondary" id="logout-btn">Abmelden</button>
+            </div>
+        </header>
+
+        <nav class="admin-nav">
+            <a href="/admin/index.html">Dashboard</a>
+            <a href="/admin/devices.html">Einsatzkräfte</a>
+            <a href="/admin/groups.html">Alarm-Gruppen</a>
+            <a href="/admin/alarms.html" class="active">Alarmierung</a>
+            <a href="/admin/history.html">Einsatz-Historie</a>
+            <a href="/admin/users.html">Benutzerverwaltung</a>
+        </nav>
+
+        <main class="dashboard-content">
+            <section class="section">
+                <div class="section-header">
+                    <h2>Alarm manuell auslösen</h2>
+                </div>
+                <form id="createAlarmForm">
+                    <div class="form-group">
+                        <label for="emergency-number">Einsatznummer *</label>
+                        <input type="text" id="emergency-number" name="emergencyNumber" required 
+                               placeholder="z.B. 2024-001">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="emergency-date">Einsatzdatum und -zeit *</label>
+                        <input type="datetime-local" id="emergency-date" name="emergencyDate" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="emergency-keyword">Stichwort *</label>
+                        <input type="text" id="emergency-keyword" name="emergencyKeyword" required 
+                               placeholder="z.B. BRAND 3, TH 1, ...">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="emergency-description">Beschreibung *</label>
+                        <textarea id="emergency-description" name="emergencyDescription" required 
+                                  rows="3" placeholder="z.B. Wohnungsbrand im 2. OG"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="emergency-location">Einsatzort *</label>
+                        <textarea id="emergency-location" name="emergencyLocation" required 
+                                  rows="2" placeholder="z.B. Hauptstraße 123, 12345 Stadt"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Alarmierungsgruppen</label>
+                        <p style="font-size: 0.9em; color: var(--text-secondary); margin-bottom: 10px;">
+                            Keine Auswahl = Alle Geräte werden alarmiert
+                        </p>
+                        <div id="alarm-groups-list" class="checkbox-group">
+                            <p class="loading">Lade Gruppen...</p>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button type="submit" class="btn btn-primary">🚨 Alarm auslösen</button>
+                    </div>
+                </form>
+                
+                <div id="alarm-result" style="display: none; margin-top: 20px;">
+                    <div class="success-message">
+                        <h3>✓ Alarm erfolgreich ausgelöst</h3>
+                        <p id="alarm-result-message"></p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="/admin/alarms.js"></script>
+</body>
+</html>

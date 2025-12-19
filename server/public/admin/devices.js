@@ -28,6 +28,16 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // QR modal event listeners
+    document.getElementById('close-qr-modal-btn').addEventListener('click', closeQRModal);
+    document.getElementById('qr-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'qr-modal') {
+            closeQRModal();
+        }
+    });
+    document.getElementById('copy-qr-token-btn').addEventListener('click', copyQRToken);
+    document.getElementById('download-qr-modal-btn').addEventListener('click', downloadQRCode);
+    
     // Load data
     refreshDevices();
     refreshGroups(); // Load groups for device assignment
@@ -229,11 +239,44 @@ async function showDeviceQRCode(deviceId) {
         
         const data = await response.json();
         
-        // Show QR code in an alert or modal
-        alert(`QR-Code für Device ${deviceId}:\n\nBitte navigieren Sie zur Dashboard-Seite, um QR-Codes zu generieren und anzuzeigen.`);
+        // Display QR code in modal
+        document.getElementById('qr-modal-image').src = data.qrCode;
+        document.getElementById('qr-modal-token').textContent = data.deviceToken;
+        document.getElementById('qr-modal').style.display = 'flex';
+        
+        // Store current QR data for download
+        window.currentQRData = data;
     } catch (error) {
         alert('Fehler beim Laden des QR-Codes: ' + error.message);
     }
+}
+
+function closeQRModal() {
+    document.getElementById('qr-modal').style.display = 'none';
+    window.currentQRData = null;
+}
+
+function copyQRToken() {
+    const token = document.getElementById('qr-modal-token').textContent;
+    navigator.clipboard.writeText(token).then(() => {
+        alert('Token in Zwischenablage kopiert!');
+    }).catch(err => {
+        alert('Fehler beim Kopieren: ' + err.message);
+    });
+}
+
+function downloadQRCode() {
+    if (!window.currentQRData) {
+        alert('Kein QR-Code geladen');
+        return;
+    }
+    
+    const link = document.createElement('a');
+    link.href = window.currentQRData.qrCode;
+    link.download = `qr-code-${window.currentQRData.deviceToken.substring(0, 8)}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 function editDevice(deviceId) {
