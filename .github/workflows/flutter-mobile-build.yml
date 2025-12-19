@@ -165,7 +165,7 @@ jobs:
             
             # Install provisioning profile
             mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-            UUID=$(grep -A1 -a '<key>UUID</key>' profile.mobileprovision | grep -o '<string>.*</string>' | sed 's/<\/*string>//g')
+            UUID=$(security cms -D -i profile.mobileprovision | plutil -extract UUID raw -)
             cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
             
             # Import certificate
@@ -245,8 +245,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "- Debug APK: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.ref }}" == refs/tags/mobile-v* ]]; then
+          if [[ "${{ github.ref }}" == refs/tags/mobile-v* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "- Release APK: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
             echo "- Release AAB: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
-            echo "- Release IPA: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+            if [[ "${{ needs.ios.result }}" == "success" ]]; then
+              echo "- iOS IPA: ✅ Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
