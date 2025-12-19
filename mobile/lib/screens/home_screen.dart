@@ -33,10 +33,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     // Show emergency alert dialog if there's a current emergency
-    if (appState.currentEmergency != null && !_isDialogShowing) {
+    // Capture the emergency in a local variable to avoid race conditions
+    final currentEmergency = appState.currentEmergency;
+    if (currentEmergency != null && !_isDialogShowing) {
       _isDialogShowing = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showEmergencyDialog(context, appState.currentEmergency!);
+        _showEmergencyDialog(context, currentEmergency);
       });
     }
 
@@ -483,9 +485,11 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
+    // Reset dialog flag first
+    _isDialogShowing = false;
+
     // Handle response
     if (result != null && mounted) {
-      _isDialogShowing = false;
       final appState = Provider.of<AppState>(context, listen: false);
       
       try {
@@ -514,10 +518,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
         }
-        _isDialogShowing = false;
       }
-    } else {
-      _isDialogShowing = false;
     }
   }
 }
