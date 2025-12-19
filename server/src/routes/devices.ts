@@ -253,6 +253,61 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Get device details with full group information
+router.get('/:id/details', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const row = await dbGet('SELECT * FROM devices WHERE id = ?', [id]);
+
+    if (!row) {
+      res.status(404).json({ error: 'Device not found' });
+      return;
+    }
+
+    // Get assigned groups with full details
+    const groupRows = await dbAll(
+      `SELECT g.code, g.name, g.description, g.created_at 
+       FROM groups g
+       INNER JOIN device_groups dg ON g.code = dg.group_code
+       WHERE dg.device_id = ?`,
+      [id]
+    );
+
+    const device: Device = {
+      id: row.id,
+      deviceToken: row.device_token,
+      registrationToken: row.registration_token,
+      platform: row.platform,
+      registeredAt: row.registered_at,
+      active: row.active === 1,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      qualifications: {
+        machinist: row.qual_machinist === 1,
+        agt: row.qual_agt === 1,
+        paramedic: row.qual_paramedic === 1,
+      },
+      leadershipRole: row.leadership_role || 'none',
+      assignedGroups: groupRows.map((g: any) => g.code),
+    };
+
+    const assignedGroups = groupRows.map((g: any) => ({
+      code: g.code,
+      name: g.name,
+      description: g.description,
+      createdAt: g.created_at,
+    }));
+
+    res.json({
+      device,
+      assignedGroups,
+    });
+  } catch (error) {
+    console.error('Error fetching device details:', error);
+    res.status(500).json({ error: 'Failed to fetch device details' });
+  }
+});
+
 // Get QR code for a specific device
 router.get('/:id/qr-code', async (req: Request, res: Response) => {
   try {

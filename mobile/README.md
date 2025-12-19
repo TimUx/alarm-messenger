@@ -11,6 +11,14 @@ Eine plattformübergreifende mobile App für das Alarm Messenger System, entwick
 - ✅ Einsatz-Historie
 - ✅ Hell/Dunkel-Theme
 - ✅ Unterstützung für Android und iOS
+- ✅ **Informationsanzeige bei keinen Einsätzen:**
+  - Feuerwehrname/Organisation immer in der App-Bar
+  - Name der Einsatzkraft in der App-Bar
+  - Geräteinformationen (Plattform, Registrierungsdatum)
+  - Einsatzkraft-Details (Qualifikationen, Führungsrolle)
+  - Zugewiesene Alarmierungsgruppen
+  - Server-Informationen (Version, URL)
+  - Zugriff über Menü "Informationen"
 
 ## 🚀 Entwicklung
 

@@ -84,3 +84,14 @@ export interface ImportGroupsRequest {
     description?: string;
   }>;
 }
+
+export interface ServerInfo {
+  organizationName: string;
+  serverVersion: string;
+  serverUrl: string;
+}
+
+export interface DeviceDetails {
+  device: Device;
+  assignedGroups: Group[];
+}

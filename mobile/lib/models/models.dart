@@ -57,6 +57,11 @@ class Device {
   final String platform;
   final String registeredAt;
   final bool active;
+  final String? firstName;
+  final String? lastName;
+  final Qualifications? qualifications;
+  final String? leadershipRole;
+  final List<String>? assignedGroups;
 
   Device({
     required this.id,
@@ -65,6 +70,11 @@ class Device {
     required this.platform,
     required this.registeredAt,
     required this.active,
+    this.firstName,
+    this.lastName,
+    this.qualifications,
+    this.leadershipRole,
+    this.assignedGroups,
   });
 
   factory Device.fromJson(Map<String, dynamic> json) {
@@ -75,6 +85,15 @@ class Device {
       platform: json['platform'] as String,
       registeredAt: json['registeredAt'] as String,
       active: json['active'] as bool,
+      firstName: json['firstName'] as String?,
+      lastName: json['lastName'] as String?,
+      qualifications: json['qualifications'] != null
+          ? Qualifications.fromJson(json['qualifications'] as Map<String, dynamic>)
+          : null,
+      leadershipRole: json['leadershipRole'] as String?,
+      assignedGroups: json['assignedGroups'] != null
+          ? List<String>.from(json['assignedGroups'] as List)
+          : null,
     );
   }
 
@@ -86,6 +105,141 @@ class Device {
       'platform': platform,
       'registeredAt': registeredAt,
       'active': active,
+      'firstName': firstName,
+      'lastName': lastName,
+      'qualifications': qualifications?.toJson(),
+      'leadershipRole': leadershipRole,
+      'assignedGroups': assignedGroups,
+    };
+  }
+
+  String get fullName {
+    if (firstName != null && lastName != null) {
+      return '$firstName $lastName';
+    } else if (firstName != null) {
+      return firstName!;
+    } else if (lastName != null) {
+      return lastName!;
+    }
+    return 'Unbekannt';
+  }
+
+  bool get hasName {
+    return firstName != null || lastName != null;
+  }
+}
+
+class Qualifications {
+  final bool machinist;
+  final bool agt;
+  final bool paramedic;
+
+  Qualifications({
+    required this.machinist,
+    required this.agt,
+    required this.paramedic,
+  });
+
+  factory Qualifications.fromJson(Map<String, dynamic> json) {
+    return Qualifications(
+      machinist: json['machinist'] as bool? ?? false,
+      agt: json['agt'] as bool? ?? false,
+      paramedic: json['paramedic'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'machinist': machinist,
+      'agt': agt,
+      'paramedic': paramedic,
+    };
+  }
+
+  List<String> getQualificationsList() {
+    List<String> qualifications = [];
+    if (machinist) qualifications.add('Maschinist');
+    if (agt) qualifications.add('AGT');
+    if (paramedic) qualifications.add('Sanitäter');
+    return qualifications;
+  }
+}
+
+class Group {
+  final String code;
+  final String name;
+  final String? description;
+  final String createdAt;
+
+  Group({
+    required this.code,
+    required this.name,
+    this.description,
+    required this.createdAt,
+  });
+
+  factory Group.fromJson(Map<String, dynamic> json) {
+    return Group(
+      code: json['code'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String?,
+      createdAt: json['createdAt'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'code': code,
+      'name': name,
+      'description': description,
+      'createdAt': createdAt,
+    };
+  }
+}
+
+class DeviceDetails {
+  final Device device;
+  final List<Group> assignedGroups;
+
+  DeviceDetails({
+    required this.device,
+    required this.assignedGroups,
+  });
+
+  factory DeviceDetails.fromJson(Map<String, dynamic> json) {
+    return DeviceDetails(
+      device: Device.fromJson(json['device'] as Map<String, dynamic>),
+      assignedGroups: (json['assignedGroups'] as List)
+          .map((group) => Group.fromJson(group as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class ServerInfo {
+  final String organizationName;
+  final String serverVersion;
+  final String serverUrl;
+
+  ServerInfo({
+    required this.organizationName,
+    required this.serverVersion,
+    required this.serverUrl,
+  });
+
+  factory ServerInfo.fromJson(Map<String, dynamic> json) {
+    return ServerInfo(
+      organizationName: json['organizationName'] as String,
+      serverVersion: json['serverVersion'] as String,
+      serverUrl: json['serverUrl'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'organizationName': organizationName,
+      'serverVersion': serverVersion,
+      'serverUrl': serverUrl,
     };
   }
 }
