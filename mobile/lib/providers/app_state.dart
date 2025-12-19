@@ -94,7 +94,7 @@ class AppState extends ChangeNotifier {
   void handleEmergencyNotification(PushNotificationData notification) {
     _currentEmergency = notification.toEmergency();
     AlarmService.playAlarm();
-    notifyListeners();
+    notifyListeners(); // This will trigger UI update to show popup
   }
 
   Future<void> submitResponse(bool participating) async {

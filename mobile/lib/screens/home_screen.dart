@@ -14,6 +14,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool _isDialogShowing = false;
+
   @override
   void initState() {
     super.initState();
@@ -30,17 +32,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final appState = Provider.of<AppState>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
 
-    // Show emergency alert if there's a current emergency
-    if (appState.currentEmergency != null) {
+    // Show emergency alert dialog if there's a current emergency
+    if (appState.currentEmergency != null && !_isDialogShowing) {
+      _isDialogShowing = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => EmergencyAlertScreen(
-              emergency: appState.currentEmergency!,
-            ),
-            fullscreenDialog: true,
-          ),
-        );
+        _showEmergencyDialog(context, appState.currentEmergency!);
       });
     }
 
@@ -475,6 +471,281 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _showEmergencyDialog(BuildContext context, Emergency emergency) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) => _EmergencyAlertDialog(
+        emergency: emergency,
+      ),
+    );
+
+    // Handle response
+    if (result != null && mounted) {
+      _isDialogShowing = false;
+      final appState = Provider.of<AppState>(context, listen: false);
+      
+      try {
+        await appState.submitResponse(result);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                result
+                    ? '✓ Rückmeldung: Komme'
+                    : '✓ Rückmeldung: Komme nicht',
+              ),
+              backgroundColor: result ? Colors.green : Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Fehler beim Senden der Rückmeldung: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        _isDialogShowing = false;
+      }
+    } else {
+      _isDialogShowing = false;
+    }
+  }
+}
+
+class _EmergencyAlertDialog extends StatefulWidget {
+  final Emergency emergency;
+
+  const _EmergencyAlertDialog({
+    required this.emergency,
+  });
+
+  @override
+  State<_EmergencyAlertDialog> createState() => _EmergencyAlertDialogState();
+}
+
+class _EmergencyAlertDialogState extends State<_EmergencyAlertDialog> {
+  bool _isSubmitting = false;
+
+  void _submitResponse(bool participating) async {
+    if (_isSubmitting) return;
+    
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    // Small delay to show the loading state
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    if (mounted) {
+      Navigator.of(context).pop(participating);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dateFormat = DateFormat('dd.MM.yyyy HH:mm');
+    final date = DateTime.parse(widget.emergency.emergencyDate);
+
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header with alarm icon
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.notifications_active,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'ALARM!',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          widget.emergency.emergencyKeyword,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Emergency details
+                  _buildInfoItem(
+                    Icons.label,
+                    'Einsatznummer',
+                    widget.emergency.emergencyNumber,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoItem(
+                    Icons.access_time,
+                    'Datum/Zeit',
+                    dateFormat.format(date),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoItem(
+                    Icons.description,
+                    'Beschreibung',
+                    widget.emergency.emergencyDescription,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoItem(
+                    Icons.location_on,
+                    'Einsatzort',
+                    widget.emergency.emergencyLocation,
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  
+                  // Response question
+                  const Text(
+                    'Können Sie an diesem Einsatz teilnehmen?',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Response buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isSubmitting ? null : () => _submitResponse(false),
+                          icon: const Icon(Icons.close, size: 20),
+                          label: const Text(
+                            'KOMME NICHT',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isSubmitting ? null : () => _submitResponse(true),
+                          icon: const Icon(Icons.check, size: 20),
+                          label: const Text(
+                            'KOMME',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  if (_isSubmitting)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: Colors.grey[600]),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
