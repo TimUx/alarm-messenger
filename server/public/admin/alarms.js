@@ -140,7 +140,17 @@ async function handleCreateAlarm(e) {
     try {
         // Get form data
         const formData = new FormData(e.target);
-        const emergencyDate = new Date(formData.get('emergencyDate')).toISOString();
+        
+        // Validate and parse emergency date
+        const emergencyDateValue = formData.get('emergencyDate');
+        if (!emergencyDateValue) {
+            throw new Error('Einsatzdatum ist erforderlich');
+        }
+        
+        const emergencyDate = new Date(emergencyDateValue);
+        if (isNaN(emergencyDate.getTime())) {
+            throw new Error('Ungültiges Einsatzdatum');
+        }
         
         // Get selected groups
         const selectedGroups = Array.from(document.querySelectorAll('input[name="group"]:checked'))
@@ -148,19 +158,23 @@ async function handleCreateAlarm(e) {
         
         const alarmData = {
             emergencyNumber: formData.get('emergencyNumber'),
-            emergencyDate: emergencyDate,
+            emergencyDate: emergencyDate.toISOString(),
             emergencyKeyword: formData.get('emergencyKeyword'),
             emergencyDescription: formData.get('emergencyDescription'),
             emergencyLocation: formData.get('emergencyLocation'),
             groups: selectedGroups.length > 0 ? selectedGroups.join(',') : null
         };
         
-        // Create alarm via API
+        // Create alarm via API - using JWT token which already has admin access
+        // The API requires API_SECRET_KEY, so we need to prompt for it
+        // In production, consider storing this securely or using a different authentication method
+        const apiKey = await getApiKey();
+        
         const response = await apiRequest(`${API_BASE}/emergencies`, {
             method: 'POST',
             body: JSON.stringify(alarmData),
             headers: {
-                'X-API-Key': await getApiKey()
+                'X-API-Key': apiKey
             }
         });
         
@@ -208,19 +222,24 @@ async function handleCreateAlarm(e) {
     }
 }
 
-// Get API key from admin profile or prompt user
+// Get API key from session storage or prompt user
+// Note: This is a temporary solution. In production, the API key should be
+// stored server-side and accessed through a secure admin endpoint
 async function getApiKey() {
-    // For now, we need to get the API key from the user
-    // In a production environment, this should be handled differently
-    // For this implementation, we'll use the admin JWT token which has access
+    // Try to get from session storage first
+    let apiKey = sessionStorage.getItem('apiKey');
     
-    // Since we're authenticated as admin, we can use a special endpoint
-    // or we need to store the API key somewhere
-    
-    // For now, let's prompt the user to enter it
-    const apiKey = prompt('Bitte geben Sie den API-Schlüssel ein (X-API-Key):');
     if (!apiKey) {
-        throw new Error('API-Schlüssel erforderlich');
+        // Prompt user to enter it
+        apiKey = prompt('Bitte geben Sie den API-Schlüssel ein (X-API-Key):\n\nHinweis: Dieser Schlüssel wird für diese Sitzung gespeichert.');
+        
+        if (!apiKey) {
+            throw new Error('API-Schlüssel erforderlich');
+        }
+        
+        // Store for this session
+        sessionStorage.setItem('apiKey', apiKey);
     }
+    
     return apiKey;
 }
