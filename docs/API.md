@@ -18,7 +18,10 @@
   - [Gerät registrieren](#gerät-registrieren)
   - [Alle Geräte abrufen](#alle-geräte-abrufen)
   - [Gerät nach ID abrufen](#gerät-nach-id-abrufen)
+  - [Geräte-Details mit Gruppen abrufen](#geräte-details-mit-gruppen-abrufen)
   - [Gerät deaktivieren](#gerät-deaktivieren)
+- [Server-Informationen](#server-informationen)
+  - [Server-Info abrufen](#server-info-abrufen)
 - [Integrationsbeispiele](#integrationsbeispiele)
   - [Node.js-Beispiel](#nodejs-beispiel)
   - [Python-Beispiel](#python-beispiel)
@@ -418,7 +421,64 @@ Ruft ein spezifisches Gerät ab.
   "registrationToken": "device-unique-identifier",
   "platform": "android",
   "registeredAt": "2024-12-07T19:00:00.000Z",
-  "active": true
+  "active": true,
+  "firstName": "Max",
+  "lastName": "Mustermann",
+  "qualifications": {
+    "machinist": true,
+    "agt": false,
+    "paramedic": true
+  },
+  "leadershipRole": "groupLeader",
+  "assignedGroups": ["WIL26", "SWA11"]
+}
+```
+
+**Fehlerantworten:**
+- `404 Not Found` - Gerät nicht gefunden
+
+---
+
+### Geräte-Details mit Gruppen abrufen
+
+Ruft ein spezifisches Gerät mit vollständigen Gruppeninformationen ab.
+
+**Endpunkt:** `GET /api/devices/:id/details`
+
+**Antwort:** `200 OK`
+```json
+{
+  "device": {
+    "id": "device-uuid",
+    "deviceToken": "generated-uuid",
+    "registrationToken": "device-unique-identifier",
+    "platform": "android",
+    "registeredAt": "2024-12-07T19:00:00.000Z",
+    "active": true,
+    "firstName": "Max",
+    "lastName": "Mustermann",
+    "qualifications": {
+      "machinist": true,
+      "agt": false,
+      "paramedic": true
+    },
+    "leadershipRole": "groupLeader",
+    "assignedGroups": ["WIL26", "SWA11"]
+  },
+  "assignedGroups": [
+    {
+      "code": "WIL26",
+      "name": "Willisau 26",
+      "description": "Hauptlöschzug Willisau",
+      "createdAt": "2024-12-07T19:00:00.000Z"
+    },
+    {
+      "code": "SWA11",
+      "name": "Sursee WA 11",
+      "description": "Wasserrettung Sursee",
+      "createdAt": "2024-12-07T19:00:00.000Z"
+    }
+  ]
 }
 ```
 
@@ -442,6 +502,41 @@ Deaktiviert ein registriertes Gerät (Soft Delete).
 
 **Fehlerantworten:**
 - `404 Not Found` - Gerät nicht gefunden
+
+---
+
+## Server-Informationen
+
+### Server-Info abrufen
+
+Ruft allgemeine Server-Informationen ab (Organisationsname, Version, Server-URL).
+
+**Endpunkt:** `GET /api/info`
+
+**Antwort:** `200 OK`
+```json
+{
+  "organizationName": "Feuerwehr Musterstadt",
+  "serverVersion": "1.0.0",
+  "serverUrl": "https://alarm.example.com"
+}
+```
+
+**Verwendung:**
+
+Diese Informationen können in der Mobile App angezeigt werden, um dem Benutzer zu zeigen:
+- Welche Organisation/Feuerwehr den Server betreibt
+- Welche Server-Version installiert ist
+- Welche Server-URL verwendet wird
+
+**Konfiguration:**
+
+Der Organisationsname kann in der `.env` Datei konfiguriert werden:
+```bash
+ORGANIZATION_NAME=Feuerwehr Musterstadt
+```
+
+Falls nicht gesetzt, wird "Alarm Messenger" als Standard verwendet.
 
 ---
 
