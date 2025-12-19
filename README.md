@@ -105,6 +105,7 @@ Das Admin-Interface bietet fünf Hauptbereiche:
 - Hell/Dunkel/Auto Theme-Modi
 - Plattformübergreifend (iOS & Android)
 - Entwickelt mit Flutter für optimale Performance
+- **Informationsanzeige:** Feuerwehrname, Einsatzkraftname und Details (Qualifikationen, Gruppen, Server-Infos) werden in der App angezeigt
 
 **📱 Mobile App Build:**
 - 📖 [Flutter Mobile App Dokumentation](mobile/README.md) - Setup, Entwicklung & Deployment
