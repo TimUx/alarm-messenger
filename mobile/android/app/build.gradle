@@ -39,7 +39,10 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.release
+            // Only use release signing config if keystore is configured
+            if (System.getenv("MYAPP_RELEASE_STORE_FILE")) {
+                signingConfig = signingConfigs.release
+            }
         }
     }
 }
