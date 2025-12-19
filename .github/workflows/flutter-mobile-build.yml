@@ -151,25 +151,78 @@ jobs:
             flutter create --org com.alarmmessenger --platforms=ios .
           fi
       
-      # Note: iOS signing certificates are not configured in this workflow.
-      # The build uses --no-codesign flag. To enable signed builds, configure:
-      # - IOS_SIGNING_CERT (base64 encoded .p12 certificate)
-      # - IOS_PROVISIONING_PROFILE (base64 encoded .mobileprovision)
-      # - IOS_SIGNING_CERT_PASSWORD (certificate password)
+      - name: Setup iOS signing certificates
+        if: github.event_name == 'workflow_dispatch' && vars.IOS_SIGNING_ENABLED == 'true'
+        env:
+          IOS_SIGNING_CERT: ${{ secrets.IOS_SIGNING_CERT }}
+          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+          IOS_SIGNING_CERT_PASSWORD: ${{ secrets.IOS_SIGNING_CERT_PASSWORD }}
+        run: |
+          if [ -n "$IOS_SIGNING_CERT" ] && [ -n "$IOS_PROVISIONING_PROFILE" ]; then
+            echo "Setting up iOS signing certificates..."
+            echo "$IOS_SIGNING_CERT" | base64 --decode > cert.p12
+            echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
+            
+            # Install provisioning profile
+            mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+            UUID=$(grep -A1 -a '<key>UUID</key>' profile.mobileprovision | grep -o '<string>.*</string>' | sed 's/<\/*string>//g')
+            cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+            
+            # Import certificate
+            security create-keychain -p actions build.keychain
+            security default-keychain -s build.keychain
+            security unlock-keychain -p actions build.keychain
+            security import cert.p12 -k build.keychain -P "$IOS_SIGNING_CERT_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -s -k actions build.keychain
+            
+            echo "✅ iOS signing certificates configured"
+            echo "SIGNING_CONFIGURED=true" >> $GITHUB_ENV
+          else
+            echo "⚠️  iOS signing certificates not provided"
+            echo "SIGNING_CONFIGURED=false" >> $GITHUB_ENV
+          fi
       
-      - name: Build iOS IPA
+      - name: Build iOS IPA (signed)
+        if: env.SIGNING_CONFIGURED == 'true'
+        working-directory: mobile
+        run: |
+          echo "Building signed iOS IPA for AltStore/AltServer..."
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          echo "✅ Signed iOS IPA built successfully"
+      
+      - name: Build iOS IPA (unsigned, for AltStore self-signing)
+        if: env.SIGNING_CONFIGURED != 'true'
         working-directory: mobile
         run: |
           echo "Building iOS app without code signing..."
+          echo "Note: This creates an unsigned .app that needs to be signed with AltStore/AltServer"
           flutter build ios --release --no-codesign
-          echo "✅ iOS app built successfully (without code signing)"
+          
+          # Create IPA from unsigned build for AltStore
+          echo "Creating IPA package for AltStore..."
+          cd build/ios/Release-iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r ../../../alarm-messenger-unsigned.ipa Payload
+          cd ../../..
+          
+          echo "✅ Unsigned IPA created: alarm-messenger-unsigned.ipa"
+          echo "📱 This IPA can be installed using AltStore/AltServer which will sign it with your Apple ID"
       
-      - name: Upload iOS Build (unsigned app bundle)
-        if: success()
+      - name: Upload iOS IPA (signed)
+        if: env.SIGNING_CONFIGURED == 'true' && success()
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-ios-bundle
-          path: mobile/build/ios/Release-iphoneos/Runner.app
+          name: alarm-messenger-signed.ipa
+          path: mobile/build/ios/ipa/*.ipa
+          retention-days: 90
+      
+      - name: Upload iOS IPA (unsigned for AltStore)
+        if: env.SIGNING_CONFIGURED != 'true' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alarm-messenger-unsigned.ipa
+          path: mobile/alarm-messenger-unsigned.ipa
           retention-days: 90
 
   notify:
