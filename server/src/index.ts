@@ -9,6 +9,7 @@ import emergencyRoutes from './routes/emergencies';
 import deviceRoutes from './routes/devices';
 import adminRoutes from './routes/admin';
 import groupRoutes from './routes/groups';
+import infoRoutes from './routes/info';
 import { initializeDatabase } from './services/database';
 import { websocketService } from './services/websocket';
 
@@ -48,6 +49,7 @@ app.use('/api/emergencies', emergencyRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/groups', groupRoutes);
+app.use('/api/info', infoRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -10,6 +10,8 @@ class AppState extends ChangeNotifier {
   Emergency? _currentEmergency;
   List<Emergency> _emergencies = [];
   bool _isLoading = false;
+  ServerInfo? _serverInfo;
+  DeviceDetails? _deviceDetails;
 
   AppState() {
     _checkRegistration();
@@ -20,6 +22,8 @@ class AppState extends ChangeNotifier {
   Emergency? get currentEmergency => _currentEmergency;
   List<Emergency> get emergencies => _emergencies;
   bool get isLoading => _isLoading;
+  ServerInfo? get serverInfo => _serverInfo;
+  DeviceDetails? get deviceDetails => _deviceDetails;
 
   Future<void> _checkRegistration() async {
     _isRegistered = StorageService.isRegistered();
@@ -27,6 +31,9 @@ class AppState extends ChangeNotifier {
       final serverUrl = StorageService.getServerUrl();
       if (serverUrl != null) {
         ApiService.setBaseUrl(serverUrl);
+        // Load server info and device details on startup
+        await _loadServerInfo();
+        await _loadDeviceDetails();
       }
     }
     notifyListeners();
@@ -126,12 +133,39 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> _loadServerInfo() async {
+    try {
+      _serverInfo = await ApiService.getServerInfo();
+    } catch (e) {
+      print('Error loading server info: $e');
+    }
+  }
+
+  Future<void> _loadDeviceDetails() async {
+    try {
+      final deviceId = StorageService.getDeviceId();
+      if (deviceId != null) {
+        _deviceDetails = await ApiService.getDeviceDetails(deviceId);
+      }
+    } catch (e) {
+      print('Error loading device details: $e');
+    }
+  }
+
+  Future<void> refreshInfo() async {
+    await _loadServerInfo();
+    await _loadDeviceDetails();
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await StorageService.clear();
     WebSocketService.disconnect();
     _isRegistered = false;
     _currentEmergency = null;
     _emergencies = [];
+    _serverInfo = null;
+    _deviceDetails = null;
     notifyListeners();
   }
 
