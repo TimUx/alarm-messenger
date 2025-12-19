@@ -123,6 +123,10 @@ class Device {
     }
     return 'Unbekannt';
   }
+
+  bool get hasName {
+    return firstName != null || lastName != null;
+  }
 }
 
 class Qualifications {

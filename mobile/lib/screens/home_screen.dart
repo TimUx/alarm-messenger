@@ -53,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
               appState.serverInfo?.organizationName ?? 'Alarm Messenger',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            if (appState.deviceDetails?.device.fullName != null)
+            if (appState.deviceDetails?.device.hasName ?? false)
               Text(
                 appState.deviceDetails!.device.fullName,
                 style: const TextStyle(fontSize: 14),
