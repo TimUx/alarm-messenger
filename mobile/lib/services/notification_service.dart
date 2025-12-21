@@ -96,7 +96,20 @@ class NotificationService {
     String? payload,
   }) async {
     if (!_initialized) {
-      await initialize();
+      developer.log(
+        'NotificationService not initialized, initializing now',
+        name: 'NotificationService',
+      );
+      try {
+        await initialize();
+      } catch (e) {
+        developer.log(
+          'Failed to initialize NotificationService',
+          name: 'NotificationService',
+          error: e,
+        );
+        return;
+      }
     }
 
     try {

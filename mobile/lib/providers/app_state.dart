@@ -52,26 +52,28 @@ class AppState extends ChangeNotifier {
     }
 
     // Parse dates once for sorting
-    final emergenciesWithDates = activeEmergencies.map((e) {
+    final emergenciesWithDates = <({Emergency emergency, DateTime date})>[];
+    
+    for (final e in activeEmergencies) {
       try {
         final date = DateTime.parse(e.emergencyDate);
-        return {'emergency': e, 'date': date};
+        emergenciesWithDates.add((emergency: e, date: date));
       } catch (error) {
-        debugPrint('Error parsing emergency date: ${e.emergencyDate}');
-        return null;
+        // Log error but continue processing other emergencies
+        debugPrint('CRITICAL: Error parsing emergency date for ${e.id}: ${e.emergencyDate} - $error');
+        // Use current time as fallback so the emergency isn't lost
+        emergenciesWithDates.add((emergency: e, date: DateTime.now()));
       }
-    }).whereType<Map<String, dynamic>>().toList();
+    }
 
     if (emergenciesWithDates.isEmpty) {
       return;
     }
 
     // Sort by date descending to get the most recent
-    emergenciesWithDates.sort((a, b) => 
-      (b['date'] as DateTime).compareTo(a['date'] as DateTime)
-    );
+    emergenciesWithDates.sort((a, b) => b.date.compareTo(a.date));
     
-    _currentEmergency = emergenciesWithDates.first['emergency'] as Emergency;
+    _currentEmergency = emergenciesWithDates.first.emergency;
     AlarmService.playAlarm();
     notifyListeners();
   }

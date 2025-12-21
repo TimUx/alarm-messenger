@@ -44,9 +44,11 @@ import Flutter
   
   // Keep app processing in background
   override func applicationDidEnterBackground(_ application: UIApplication) {
-    // Request background time to maintain WebSocket connection
-    backgroundTask = application.beginBackgroundTask { [weak self] in
-      self?.endBackgroundTask(application)
+    // Only request a new background task if one isn't already active
+    if backgroundTask == .invalid {
+      backgroundTask = application.beginBackgroundTask { [weak self] in
+        self?.endBackgroundTask(application)
+      }
     }
   }
   
