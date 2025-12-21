@@ -14,9 +14,6 @@ import Flutter
     
     GeneratedPluginRegistrant.register(with: self)
     
-    // Keep app active in background for WebSocket
-    UIApplication.shared.beginReceivingRemoteEvents()
-    
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
   

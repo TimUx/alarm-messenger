@@ -103,12 +103,14 @@ class WebSocketService {
     }
 
     _reconnectAttempts++;
-    final delay = Duration(seconds: _reconnectAttempts * 5); // Exponential backoff
+    // Exponential backoff: 5s, 10s, 20s, 40s, etc. (capped at 5 minutes)
+    final backoffSeconds = (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 300);
+    final delay = Duration(seconds: backoffSeconds);
 
     _reconnectTimer = Timer(delay, () {
       if (!_isConnected) {
         developer.log(
-          'Attempting to reconnect WebSocket... (attempt $_reconnectAttempts)',
+          'Attempting to reconnect WebSocket... (attempt $_reconnectAttempts, delay ${backoffSeconds}s)',
           name: 'WebSocketService',
         );
         connect(serverUrl, deviceId);

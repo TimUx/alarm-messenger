@@ -47,15 +47,33 @@ class AppState extends ChangeNotifier {
   void _checkForActiveEmergency() {
     // Find the most recent active emergency
     final activeEmergencies = _emergencies.where((e) => e.active).toList();
-    if (activeEmergencies.isNotEmpty) {
-      // Sort by date descending to get the most recent
-      activeEmergencies.sort((a, b) => 
-        DateTime.parse(b.emergencyDate).compareTo(DateTime.parse(a.emergencyDate))
-      );
-      _currentEmergency = activeEmergencies.first;
-      AlarmService.playAlarm();
-      notifyListeners();
+    if (activeEmergencies.isEmpty) {
+      return;
     }
+
+    // Parse dates once for sorting
+    final emergenciesWithDates = activeEmergencies.map((e) {
+      try {
+        final date = DateTime.parse(e.emergencyDate);
+        return {'emergency': e, 'date': date};
+      } catch (error) {
+        debugPrint('Error parsing emergency date: ${e.emergencyDate}');
+        return null;
+      }
+    }).whereType<Map<String, dynamic>>().toList();
+
+    if (emergenciesWithDates.isEmpty) {
+      return;
+    }
+
+    // Sort by date descending to get the most recent
+    emergenciesWithDates.sort((a, b) => 
+      (b['date'] as DateTime).compareTo(a['date'] as DateTime)
+    );
+    
+    _currentEmergency = emergenciesWithDates.first['emergency'] as Emergency;
+    AlarmService.playAlarm();
+    notifyListeners();
   }
 
   void _initializeWebSocket() {
