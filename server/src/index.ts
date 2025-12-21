@@ -12,6 +12,7 @@ import groupRoutes from './routes/groups';
 import infoRoutes from './routes/info';
 import { initializeDatabase } from './services/database';
 import { websocketService } from './services/websocket';
+import { emergencyScheduler } from './services/emergency-scheduler';
 
 dotenv.config();
 
@@ -67,6 +68,9 @@ async function startServer() {
     
     // Initialize WebSocket service
     websocketService.initialize(server);
+    
+    // Start emergency scheduler for auto-deactivation
+    emergencyScheduler.start();
     
     server.listen(PORT, () => {
       console.log(`\n🚀 Alarm Messenger Server running on port ${PORT}`);

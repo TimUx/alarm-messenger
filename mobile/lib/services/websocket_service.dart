@@ -20,7 +20,7 @@ class WebSocketService {
     try {
       // Convert http(s) URL to ws(s) URL
       final wsUrl = serverUrl.replaceFirst('http', 'ws');
-      final uri = Uri.parse('$wsUrl?deviceId=$deviceId');
+      final uri = Uri.parse('$wsUrl/ws'); // Remove query param, will register separately
 
       _channel = WebSocketChannel.connect(uri);
       _messageController = StreamController<PushNotificationData>.broadcast();
@@ -51,6 +51,12 @@ class WebSocketService {
 
       _isConnected = true;
       developer.log('WebSocket connected to $wsUrl', name: 'WebSocketService');
+      
+      // Register device with WebSocket server
+      sendMessage({
+        'type': 'register',
+        'deviceId': deviceId,
+      });
     } catch (e) {
       developer.log('Failed to connect WebSocket', name: 'WebSocketService', error: e);
       _isConnected = false;

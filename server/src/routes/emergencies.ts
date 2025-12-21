@@ -158,13 +158,17 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
   }
 });
 
-// Get all emergencies
+// Get all emergencies (only active ones by default)
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const rows = await dbAll(
-      'SELECT * FROM emergencies ORDER BY created_at DESC',
-      []
-    );
+    // Support query parameter to include inactive emergencies
+    const includeInactive = req.query.includeInactive === 'true';
+    
+    const query = includeInactive
+      ? 'SELECT * FROM emergencies ORDER BY created_at DESC'
+      : 'SELECT * FROM emergencies WHERE active = 1 ORDER BY created_at DESC';
+
+    const rows = await dbAll(query, []);
 
     const emergencies: Emergency[] = rows.map((row: any) => ({
       id: row.id,

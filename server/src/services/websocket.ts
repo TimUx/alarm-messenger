@@ -107,15 +107,19 @@ class WebSocketService {
 
     try {
       const message = {
-        type: 'notification',
+        type: 'emergency', // Changed from 'notification' to 'emergency' for direct handling
         notification: {
           title,
           body,
         },
-        data: {
-          ...data,
-          type: 'emergency_alert',
-        },
+        // Emergency data fields directly at root level for easier access
+        emergencyId: data.emergencyId,
+        emergencyNumber: data.emergencyNumber,
+        emergencyDate: data.emergencyDate,
+        emergencyKeyword: data.emergencyKeyword,
+        emergencyDescription: data.emergencyDescription,
+        emergencyLocation: data.emergencyLocation,
+        groups: data.groups || '',
       };
 
       client.ws.send(JSON.stringify(message));
