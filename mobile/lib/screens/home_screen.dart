@@ -574,7 +574,7 @@ class _EmergencyAlertDialogState extends State<_EmergencyAlertDialog> {
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
                 color: Colors.red,
-                borderRadius: BorderRadius.only(
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
                 ),
