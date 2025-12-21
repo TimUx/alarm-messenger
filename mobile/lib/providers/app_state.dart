@@ -35,9 +35,27 @@ class AppState extends ChangeNotifier {
         // Load server info and device details on startup
         await _loadServerInfo();
         await _loadDeviceDetails();
+        // Load emergencies to check if there's a current one
+        await loadEmergencies();
+        // Check if there's an active emergency to show
+        _checkForActiveEmergency();
       }
     }
     notifyListeners();
+  }
+
+  void _checkForActiveEmergency() {
+    // Find the most recent active emergency
+    final activeEmergencies = _emergencies.where((e) => e.active).toList();
+    if (activeEmergencies.isNotEmpty) {
+      // Sort by date descending to get the most recent
+      activeEmergencies.sort((a, b) => 
+        DateTime.parse(b.emergencyDate).compareTo(DateTime.parse(a.emergencyDate))
+      );
+      _currentEmergency = activeEmergencies.first;
+      AlarmService.playAlarm();
+      notifyListeners();
+    }
   }
 
   void _initializeWebSocket() {

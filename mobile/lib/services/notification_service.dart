@@ -6,11 +6,15 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
+  static Function(String?)? _onNotificationTap;
 
-  static Future<void> initialize() async {
+  static Future<void> initialize({Function(String?)? onNotificationTap}) async {
     if (_initialized) {
       return;
     }
+
+    // Store callback for notification tap
+    _onNotificationTap = onNotificationTap;
 
     try {
       // Android initialization
@@ -27,6 +31,10 @@ class NotificationService {
             'iOS Local notification received: $title',
             name: 'NotificationService',
           );
+          // Call the callback if provided
+          if (_onNotificationTap != null) {
+            _onNotificationTap!(payload);
+          }
         },
       );
 
@@ -42,6 +50,10 @@ class NotificationService {
             'Notification tapped: ${details.payload}',
             name: 'NotificationService',
           );
+          // Call the callback if provided
+          if (_onNotificationTap != null) {
+            _onNotificationTap!(details.payload);
+          }
         },
       );
 
@@ -109,7 +121,7 @@ class NotificationService {
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
-        sound: 'alarm.wav', // You'll need to add this to iOS assets
+        // Use default critical alert sound which works without custom sound file
         interruptionLevel: InterruptionLevel.critical,
         // Show notification even when app is in foreground
         presentList: true,
