@@ -27,6 +27,7 @@ android/app/debug/
 android/app/profile/
 android/app/release/
 android/key.properties
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 *.keystore
 *.jks
 
@@ -36,6 +37,7 @@ ios/.symlinks/
 ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
 ios/Flutter/app.framework
 ios/Flutter/App.framework
 ios/Flutter/Flutter.podspec
