@@ -22,21 +22,11 @@ class NotificationService {
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
 
       // iOS initialization with detailed settings
-      final iosSettings = DarwinInitializationSettings(
+      const iosSettings = DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
         requestSoundPermission: true,
         requestCriticalPermission: true,
-        onDidReceiveLocalNotification: (id, title, body, payload) async {
-          developer.log(
-            'iOS Local notification received: $title',
-            name: 'NotificationService',
-          );
-          // Call the callback if provided
-          if (_onNotificationTap != null) {
-            _onNotificationTap!(payload);
-          }
-        },
       );
 
       final initSettings = InitializationSettings(
