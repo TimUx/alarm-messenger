@@ -20,7 +20,28 @@ const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // Security middleware
-app.use(helmet());
+// Configure helmet to allow HTTP access (needed for local network deployment)
+// Note: This configuration is designed for local network deployments where the server
+// is accessed via IP addresses or hostnames without HTTPS. For production deployments
+// with HTTPS, use a reverse proxy (Caddy/Nginx) that handles TLS termination.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // Required by existing admin interface code
+      styleSrc: ["'self'", "'unsafe-inline'"], // Required by existing admin interface code
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  // Don't force HTTPS upgrade - allow HTTP for local network access
+  // Production deployments should use a reverse proxy with HTTPS
+  hsts: false,
+}));
 
 // CORS configuration - restrict in production
 const corsOptions = {
