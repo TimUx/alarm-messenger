@@ -206,14 +206,25 @@ router.post('/update-push-token', async (req: Request, res: Response) => {
     const updates = [];
     const params = [];
     
-    if (fcmToken !== undefined) {
+    if (fcmToken !== undefined && fcmToken !== null) {
       updates.push('fcm_token = ?');
       params.push(fcmToken);
     }
     
-    if (apnsToken !== undefined) {
+    if (apnsToken !== undefined && apnsToken !== null) {
       updates.push('apns_token = ?');
       params.push(apnsToken);
+    }
+    
+    // If no tokens to update, return success without DB call
+    if (updates.length === 0) {
+      res.json({ 
+        success: true, 
+        message: 'No push tokens to update',
+        fcmTokenUpdated: false,
+        apnsTokenUpdated: false,
+      });
+      return;
     }
     
     params.push(deviceToken);
