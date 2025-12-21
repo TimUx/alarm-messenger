@@ -60,7 +60,11 @@ class AppState extends ChangeNotifier {
         emergenciesWithDates.add((emergency: e, date: date));
       } catch (error) {
         // Log error but continue processing other emergencies
-        debugPrint('CRITICAL: Error parsing emergency date for ${e.id}: ${e.emergencyDate} - $error');
+        developer.log(
+          'CRITICAL: Error parsing emergency date for ${e.id}: ${e.emergencyDate}',
+          name: 'AppState',
+          error: error,
+        );
         // Use current time as fallback so the emergency isn't lost
         emergenciesWithDates.add((emergency: e, date: DateTime.now()));
       }

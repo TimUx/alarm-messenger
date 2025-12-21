@@ -1,5 +1,6 @@
 import UIKit
 import Flutter
+import os.log
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -47,7 +48,13 @@ import Flutter
     // Only request a new background task if one isn't already active
     if backgroundTask == .invalid {
       backgroundTask = application.beginBackgroundTask { [weak self] in
+        if #available(iOS 10.0, *) {
+          os_log("Background task expiring, cleaning up", log: .default, type: .info)
+        }
         self?.endBackgroundTask(application)
+      }
+      if #available(iOS 10.0, *) {
+        os_log("Background task started: %{public}@", log: .default, type: .info, String(describing: backgroundTask))
       }
     }
   }
@@ -59,6 +66,9 @@ import Flutter
   
   private func endBackgroundTask(_ application: UIApplication) {
     if backgroundTask != .invalid {
+      if #available(iOS 10.0, *) {
+        os_log("Ending background task: %{public}@", log: .default, type: .info, String(describing: backgroundTask))
+      }
       application.endBackgroundTask(backgroundTask)
       backgroundTask = .invalid
     }

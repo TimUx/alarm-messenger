@@ -7,6 +7,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
   static Function(String?)? _onNotificationTap;
+  static int _notificationId = 0; // Incrementing ID for multiple notifications
 
   static Future<void> initialize({Function(String?)? onNotificationTap}) async {
     if (_initialized) {
@@ -146,8 +147,9 @@ class NotificationService {
         iOS: iosDetails,
       );
 
+      // Use incrementing ID so multiple emergencies can be shown
       await _notifications.show(
-        0, // notification id
+        _notificationId++,
         title,
         body,
         details,
