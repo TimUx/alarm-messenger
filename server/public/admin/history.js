@@ -121,6 +121,8 @@ async function loadUserInfo() {
 async function loadEmergencies() {
     try {
         // Load all emergencies at once (no pagination from server)
+        // Note: Using a limit of 1000 for simplicity. In production with large datasets,
+        // consider implementing server-side filtering to handle more than 1000 emergencies.
         const response = await apiRequest(`${API_BASE}/admin/emergencies?page=1&limit=1000`);
         
         if (!response.ok) {
