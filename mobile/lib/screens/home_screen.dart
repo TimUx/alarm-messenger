@@ -490,13 +490,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Handle response
     if (result != null && mounted) {
+      // Get appState before async gap
       final appState = Provider.of<AppState>(context, listen: false);
+      // Get messenger before async gap
+      final messenger = ScaffoldMessenger.of(context);
       
       try {
         await appState.submitResponse(result);
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(
               content: Text(
                 result
@@ -510,7 +513,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(
               content: Text('Fehler beim Senden der Rückmeldung: $e'),
               backgroundColor: Colors.red,
@@ -569,7 +572,7 @@ class _EmergencyAlertDialogState extends State<_EmergencyAlertDialog> {
             // Header with alarm icon
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.red,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),

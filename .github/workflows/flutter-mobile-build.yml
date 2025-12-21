@@ -157,7 +157,7 @@ jobs:
       
       - name: Generate app icons
         working-directory: mobile
-        run: flutter pub run flutter_launcher_icons --platforms=ios
+        run: flutter pub run flutter_launcher_icons
       
       - name: Setup iOS signing certificates
         if: github.event_name == 'workflow_dispatch' && vars.IOS_SIGNING_ENABLED == 'true'
