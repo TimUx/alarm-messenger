@@ -100,6 +100,48 @@ class ApiService {
   // Get device details with groups
   static Future<DeviceDetails> getDeviceDetails(String deviceId) async {
     final response = await http.get(
+      Uri.parse('$_baseUrl/devices/$deviceId'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      return DeviceDetails.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to get device details: ${response.body}');
+    }
+  }
+
+  // Update push notification tokens (FCM/APNs)
+  static Future<void> updatePushToken({
+    required String deviceToken,
+    String? fcmToken,
+    String? apnsToken,
+  }) async {
+    final Map<String, dynamic> body = {
+      'deviceToken': deviceToken,
+    };
+    
+    if (fcmToken != null) {
+      body['fcmToken'] = fcmToken;
+    }
+    
+    if (apnsToken != null) {
+      body['apnsToken'] = apnsToken;
+    }
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/devices/update-push-token'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update push token: ${response.body}');
+    }
+  }
+}
+  static Future<DeviceDetails> getDeviceDetails(String deviceId) async {
+    final response = await http.get(
       Uri.parse('$_baseUrl/devices/$deviceId/details'),
       headers: {'Content-Type': 'application/json'},
     );

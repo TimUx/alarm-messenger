@@ -11,6 +11,7 @@ Ein vollständiges Alarmierungssystem für Feuerwehren und Rettungsdienste mit E
 - [Schnellstart](#schnellstart)
 - [Admin-Interface](#admin-interface)
 - [Mobile App](#mobile-app)
+- [Push Notifications](#push-notifications)
 - [API-Integration](#api-integration)
 - [Deployment](#deployment)
 - [Dokumentation](#dokumentation)
@@ -20,14 +21,14 @@ Ein vollständiges Alarmierungssystem für Feuerwehren und Rettungsdienste mit E
 
 Das Alarm Messenger System ist eine moderne, eigenständige Lösung zur Alarmierung von Einsatzkräften. Es besteht aus drei Hauptkomponenten:
 
-- **🖥️ Backend Server** - Node.js/Express API mit WebSocket-Unterstützung
+- **🖥️ Backend Server** - Node.js/Express API mit WebSocket- und Push-Notification-Unterstützung
 - **📱 Mobile App** - Flutter App für iOS und Android
 - **👤 Admin-Interface** - Webbasiertes Verwaltungsportal
 
 ### Warum Alarm Messenger?
 
 - ✅ **Keine externen Abhängigkeiten** - Vollständig eigenständig, keine Cloud-Dienste erforderlich
-- ✅ **WebSocket-basierte Push-Benachrichtigungen** - Echtzeitkommunikation ohne Firebase
+- ✅ **Zuverlässige Push-Benachrichtigungen** - WebSocket + optional FCM/APNs für Hintergrund-Benachrichtigungen
 - ✅ **Umfassende Einsatzkraftverwaltung** - Qualifikationen, Führungsrollen, Gruppenzuordnungen
 - ✅ **Alarmierungsgruppen** - Gezielte Alarmierung nach Gruppen
 - ✅ **Vollständige API** - Integration mit bestehenden Systemen (z.B. alarm-monitor)
@@ -40,7 +41,11 @@ Das Alarm Messenger System ist eine moderne, eigenständige Lösung zur Alarmier
 ### Backend Server
 
 - RESTful API zur Einsatzverwaltung
-- WebSocket-Server für Echtzeit-Push-Benachrichtigungen
+- **Hybrid Push-Benachrichtigungen**:
+  - WebSocket für Echtzeit-Benachrichtigungen (immer aktiv)
+  - Optional: Firebase Cloud Messaging (FCM) für Android
+  - Optional: Apple Push Notification service (APNs) für iOS
+  - Graceful Fallback zu WebSocket wenn Push nicht verfügbar
 - SQLite-Datenbank zur Datenpersistenz
 - Geräteregistrierung mit QR-Code-Generierung und Persistenz
 - API-Key-Authentifizierung für Einsatzerstellung
@@ -395,11 +400,30 @@ Diese Informationen werden lokal gespeichert und für alle weiteren Verbindungen
 
 ### Benachrichtigungen
 
-Das System verwendet WebSocket für Echtzeit-Push-Benachrichtigungen:
+Das System verwendet einen **Hybrid-Ansatz** für zuverlässige Alarmierung:
+
+#### WebSocket (Standard)
 - Keine Firebase-Konfiguration erforderlich
 - Direkte Verbindung zum Server
 - Sofortige Zustellung bei aktiver Verbindung
 - Automatische Wiederverbindung bei Verbindungsabbruch
+- Funktioniert hervorragend wenn App aktiv ist
+
+#### Native Push Notifications (Optional)
+- **Firebase Cloud Messaging (FCM)** für Android
+- **Apple Push Notification service (APNs)** für iOS
+- Zuverlässige Benachrichtigungen im Hintergrund
+- Funktioniert auch bei geschlossener App
+- Credentials lokal auf Server gespeichert
+- Keine Cloud-Abhängigkeiten
+
+**Vorteile des Hybrid-Ansatzes**:
+- ✅ Doppelte Absicherung (Push + WebSocket)
+- ✅ Graceful Fallback wenn Push nicht verfügbar
+- ✅ Optional - funktioniert auch ohne FCM/APNs
+- ✅ Server bleibt lokal gehostet
+
+**Siehe**: [Push Notifications Dokumentation](docs/PUSH-NOTIFICATIONS.md)
 
 ### Theme-Modi
 
@@ -409,6 +433,99 @@ Die App unterstützt drei Theme-Modi:
 - **Auto** - Folgt System-Einstellung
 
 Die Theme-Auswahl wird lokal gespeichert und bleibt erhalten.
+
+## Push Notifications
+
+### Übersicht
+
+Das Alarm Messenger System bietet einen **flexiblen Hybrid-Ansatz** für Push-Benachrichtigungen:
+
+1. **WebSocket** (Standard, immer aktiv)
+   - Keine zusätzliche Konfiguration erforderlich
+   - Funktioniert sofort nach Installation
+   - Ideal für aktive App-Nutzung
+
+2. **Native Push** (Optional, empfohlen für Produktion)
+   - Firebase Cloud Messaging (FCM) für Android
+   - Apple Push Notification service (APNs) für iOS
+   - Zuverlässige Hintergrund-Benachrichtigungen
+   - Funktioniert auch bei geschlossener App
+
+### Warum Hybrid-Ansatz?
+
+WebSocket alleine hat Einschränkungen bei mobilen Geräten:
+- **iOS**: Verbindungen werden im Hintergrund nach ~5-10 Minuten unterbrochen
+- **Android**: Aggressive Energiesparmaßnahmen können Verbindungen beenden
+- **App geschlossen**: Keine WebSocket-Verbindung möglich
+
+**Lösung**: Kombiniere WebSocket mit nativen Push-Benachrichtigungen für maximale Zuverlässigkeit.
+
+### Quick Start: WebSocket-only (Standard)
+
+Keine zusätzliche Konfiguration erforderlich - funktioniert sofort:
+
+```bash
+# Server starten
+docker compose up -d
+
+# Mobile App installieren
+# Fertig! WebSocket-Benachrichtigungen funktionieren
+```
+
+**Einschränkung**: Benachrichtigungen nur bei aktiver App oder kürzlich aktivem Hintergrund.
+
+### Quick Start: Mit FCM/APNs (Empfohlen)
+
+Für zuverlässige Hintergrund-Benachrichtigungen:
+
+#### Server-Seite
+
+1. **FCM Setup** (Android):
+   ```bash
+   # Firebase Service Account JSON herunterladen
+   # Siehe docs/PUSH-NOTIFICATIONS.md für Details
+   
+   # .env konfigurieren
+   ENABLE_FCM=true
+   FCM_SERVICE_ACCOUNT_PATH=/path/to/firebase-service-account.json
+   ```
+
+2. **APNs Setup** (iOS):
+   ```bash
+   # APNs .p8 Key herunterladen
+   # Siehe docs/PUSH-NOTIFICATIONS.md für Details
+   
+   # .env konfigurieren
+   ENABLE_APNS=true
+   APNS_KEY_PATH=/path/to/AuthKey_XXXXXXXXXX.p8
+   APNS_KEY_ID=XXXXXXXXXX
+   APNS_TEAM_ID=XXXXXXXXXX
+   APNS_TOPIC=com.alarmmessenger
+   APNS_PRODUCTION=false
+   ```
+
+3. **Server neu starten**:
+   ```bash
+   docker compose restart server
+   ```
+
+#### Mobile App
+
+Die Mobile App funktioniert standardmäßig im WebSocket-only-Modus. Für Push Notifications siehe [mobile/PUSH-NOTIFICATIONS.md](mobile/PUSH-NOTIFICATIONS.md).
+
+### Features
+
+- ✅ **Lokal gehostet**: Credentials bleiben auf Ihrem Server
+- ✅ **Keine Cloud-Abhängigkeit**: FCM/APNs nur als Zustellmechanismus
+- ✅ **Optional**: Funktioniert auch ohne - nur WebSocket
+- ✅ **Graceful Fallback**: Automatischer Wechsel zu WebSocket wenn Push nicht verfügbar
+- ✅ **Redundanz**: Beide Wege parallel für doppelte Absicherung
+- ✅ **Kostenlos**: FCM ist kostenlos, APNs erfordert Apple Developer Account ($99/Jahr)
+
+### Dokumentation
+
+- **[docs/PUSH-NOTIFICATIONS.md](docs/PUSH-NOTIFICATIONS.md)** - Server-seitige Konfiguration
+- **[mobile/PUSH-NOTIFICATIONS.md](mobile/PUSH-NOTIFICATIONS.md)** - Mobile App Konfiguration
 
 ## API-Integration
 
@@ -647,7 +764,19 @@ A:
 
 **F: Funktionieren Push-Benachrichtigungen im Hintergrund?**
 
-A: Ja, solange die WebSocket-Verbindung aktiv ist. Bei iOS kann dies durch Hintergrund-Modi optimiert werden.
+A: Ja, aber es hängt von der Konfiguration ab:
+- **Mit WebSocket alleine**: Begrenzt im Hintergrund, vor allem auf iOS
+- **Mit FCM/APNs**: Zuverlässig auch im Hintergrund und bei geschlossener App
+- **Empfehlung**: Aktiviere FCM/APNs für produktive Einsätze
+
+**F: Benötige ich Firebase oder Apple Developer Account?**
+
+A: Nein für die Grundfunktion. Die App funktioniert vollständig mit WebSocket.
+Ja für zuverlässige Hintergrund-Benachrichtigungen:
+- FCM (Android): Kostenlos, Firebase-Projekt erforderlich
+- APNs (iOS): Apple Developer Account ($99/Jahr) erforderlich
+
+**Siehe**: [docs/PUSH-NOTIFICATIONS.md](docs/PUSH-NOTIFICATIONS.md) und [mobile/PUSH-NOTIFICATIONS.md](mobile/PUSH-NOTIFICATIONS.md)
 
 **F: Wie baue ich die Mobile App unter Linux?**
 
