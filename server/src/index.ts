@@ -63,6 +63,14 @@ app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Redirect /admin and /admin/ to login page (server-side authentication gate)
+app.get('/admin', (req, res) => {
+  res.redirect('/admin/login.html');
+});
+app.get('/admin/', (req, res) => {
+  res.redirect('/admin/login.html');
+});
+
 // Serve static files for admin UI
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
 
