@@ -11,6 +11,12 @@ Eine plattformübergreifende mobile App für das Alarm Messenger System, entwick
 - ✅ Einsatz-Historie
 - ✅ Hell/Dunkel-Theme
 - ✅ Unterstützung für Android und iOS
+- ✅ **iOS Hintergrund-Benachrichtigungen:**
+  - Kritische Benachrichtigungen (umgehen "Nicht Stören")
+  - WebSocket-Verbindung mit Heartbeat
+  - Automatische Wiederverbindung
+  - Aktive Alarm-Erkennung beim Start
+  - Siehe [iOS Benachrichtigungen Dokumentation](../docs/IOS-BENACHRICHTIGUNGEN.md)
 - ✅ **Informationsanzeige bei keinen Einsätzen:**
   - Feuerwehrname/Organisation immer in der App-Bar
   - Name der Einsatzkraft in der App-Bar
@@ -201,6 +207,24 @@ Nach jedem Build werden folgende Artifacts erstellt:
 
 Die App unterstützt automatisch Hell- und Dunkel-Theme basierend auf den Systemeinstellungen.
 Das Theme kann auch manuell über den Button in der App-Leiste umgeschaltet werden.
+
+## 🔔 iOS Hintergrund-Benachrichtigungen
+
+Die App unterstützt automatische Push-Benachrichtigungen auf iOS mit folgenden Features:
+
+- **Kritische Benachrichtigungen**: Umgehen "Nicht Stören"-Modus
+- **Hintergrund-Modi**: Audio, Fetch, Processing, Remote-Notification
+- **WebSocket mit Heartbeat**: Hält Verbindung aktiv (Ping alle 30s)
+- **Automatische Wiederverbindung**: Bei Verbindungsabbruch
+- **Aktive Alarm-Erkennung**: Beim App-Start werden verpasste Alarme angezeigt
+
+**Wichtig für iOS-Benutzer:**
+- Benachrichtigungen und kritische Warnungen in iOS-Einstellungen aktivieren
+- App im Hintergrund laufen lassen (nicht aus App-Switcher entfernen)
+- Regelmäßig die App öffnen, um aktive Alarme zu prüfen
+- Low-Power-Modus kann Benachrichtigungen verzögern
+
+**Detaillierte Dokumentation:** [iOS Benachrichtigungen](../docs/IOS-BENACHRICHTIGUNGEN.md)
 
 ## 🐛 Debugging
 
