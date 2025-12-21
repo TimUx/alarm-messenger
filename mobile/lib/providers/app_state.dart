@@ -4,6 +4,7 @@ import '../services/storage_service.dart';
 import '../services/api_service.dart';
 import '../services/websocket_service.dart';
 import '../services/alarm_service.dart';
+import '../services/notification_service.dart';
 
 class AppState extends ChangeNotifier {
   bool _isRegistered = false;
@@ -93,7 +94,17 @@ class AppState extends ChangeNotifier {
 
   void handleEmergencyNotification(PushNotificationData notification) {
     _currentEmergency = notification.toEmergency();
+    
+    // Play alarm sound
     AlarmService.playAlarm();
+    
+    // Show local notification (especially important for iOS)
+    NotificationService.showEmergencyNotification(
+      title: 'ALARM: ${_currentEmergency!.emergencyKeyword}',
+      body: _currentEmergency!.emergencyDescription,
+      payload: _currentEmergency!.id,
+    );
+    
     notifyListeners(); // This will trigger UI update to show popup
   }
 
