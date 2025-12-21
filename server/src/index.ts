@@ -20,7 +20,24 @@ const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // Security middleware
-app.use(helmet());
+// Configure helmet to allow HTTP access (needed for local network deployment)
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  // Don't force HTTPS upgrade - allow HTTP for local network access
+  hsts: false,
+}));
 
 // CORS configuration - restrict in production
 const corsOptions = {
