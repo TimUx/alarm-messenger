@@ -199,8 +199,10 @@ class PushNotificationService {
       };
       
       // Set as critical alert with high interruption level
-      // Note: interruption-level is set via custom payload for iOS 15+
-      (notification as any)['interruption-level'] = 'critical';
+      // Note: interruption-level is a custom property for iOS 15+
+      // The apn library doesn't have this in types yet, but APNs supports it
+      const notificationPayload = notification as apn.Notification & { 'interruption-level'?: string };
+      notificationPayload['interruption-level'] = 'critical';
       
       // Add custom data
       notification.payload = {
@@ -223,7 +225,7 @@ class PushNotificationService {
       // Set priority to immediate
       notification.priority = 10;
 
-      const result = await this.apnsProvider.send(notification, apnsToken);
+      const result = await this.apnsProvider.send(notificationPayload, apnsToken);
       
       if (result.failed && result.failed.length > 0) {
         const failure = result.failed[0];
