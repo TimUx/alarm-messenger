@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { websocketService } from '../services/websocket';
+import { pushNotificationService } from '../services/push-notification';
 import { verifyApiKey } from '../middleware/auth';
 import {
   Emergency,
@@ -97,7 +98,7 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
       const placeholders = groupCodes.map(() => '?').join(',');
       
       devices = await dbAll(
-        `SELECT DISTINCT d.id 
+        `SELECT DISTINCT d.id, d.platform, d.fcm_token, d.apns_token 
          FROM devices d
          INNER JOIN device_groups dg ON d.id = dg.device_id
          WHERE d.active = 1 AND dg.group_code IN (${placeholders})`,
@@ -108,7 +109,7 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
     } else {
       // If no groups specified, notify all active devices
       devices = await dbAll(
-        'SELECT id FROM devices WHERE active = 1',
+        'SELECT id, platform, fcm_token, apns_token FROM devices WHERE active = 1',
         []
       );
       console.log(`✓ No groups specified, notifying all ${devices.length} active devices`);
@@ -127,16 +128,48 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
       groups: sanitizedGroups || '',
     };
 
-    // Send notifications via WebSocket
+    // Send notifications via push services (FCM/APNs) and WebSocket
     const deviceIds = devices.map((device: any) => device.id);
+    let pushSuccessCount = 0;
+    let websocketSuccessCount = 0;
+    
     if (deviceIds.length > 0) {
+      // Try push notifications first (FCM for Android, APNs for iOS)
+      if (pushNotificationService.isPushEnabled()) {
+        for (const device of devices) {
+          const pushSuccess = await pushNotificationService.sendPushNotification(
+            device.platform,
+            device.fcm_token,
+            device.apns_token,
+            notificationTitle,
+            notificationBody,
+            notificationData
+          );
+          if (pushSuccess) {
+            pushSuccessCount++;
+          }
+        }
+        
+        if (pushSuccessCount > 0) {
+          console.log(`✓ Push notifications sent to ${pushSuccessCount}/${devices.length} devices`);
+        }
+      }
+      
+      // Also send via WebSocket as fallback/redundancy
       await websocketService.sendBulkNotifications(
         deviceIds,
         notificationTitle,
         notificationBody,
         notificationData
       );
-      console.log(`✓ Notifications sent to ${deviceIds.length} devices via WebSocket`);
+      
+      // Count WebSocket connected devices
+      websocketSuccessCount = deviceIds.filter(id => 
+        websocketService.isDeviceConnected(id)
+      ).length;
+      
+      console.log(`✓ WebSocket notifications sent to ${websocketSuccessCount}/${devices.length} connected devices`);
+      console.log(`📊 Notification summary: Push=${pushSuccessCount}, WebSocket=${websocketSuccessCount}, Total devices=${devices.length}`);
     }
 
     const emergency: Emergency = {
