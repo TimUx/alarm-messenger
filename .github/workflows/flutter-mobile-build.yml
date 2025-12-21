@@ -148,16 +148,16 @@ jobs:
         working-directory: mobile
         run: flutter pub get
       
-      - name: Generate app icons
-        working-directory: mobile
-        run: flutter pub run flutter_launcher_icons
-      
       - name: Check iOS project
         working-directory: mobile
         run: |
           if [ ! -d "ios/Runner.xcodeproj" ]; then
             flutter create --org com.alarmmessenger --platforms=ios .
           fi
+      
+      - name: Generate app icons
+        working-directory: mobile
+        run: flutter pub run flutter_launcher_icons --platforms=ios
       
       - name: Setup iOS signing certificates
         if: github.event_name == 'workflow_dispatch' && vars.IOS_SIGNING_ENABLED == 'true'
