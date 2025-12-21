@@ -4,6 +4,7 @@ import '../services/storage_service.dart';
 import '../services/api_service.dart';
 import '../services/websocket_service.dart';
 import '../services/alarm_service.dart';
+import '../services/notification_service.dart';
 
 class AppState extends ChangeNotifier {
   bool _isRegistered = false;
@@ -34,8 +35,50 @@ class AppState extends ChangeNotifier {
         // Load server info and device details on startup
         await _loadServerInfo();
         await _loadDeviceDetails();
+        // Load emergencies to check if there's a current one
+        await loadEmergencies();
+        // Check if there's an active emergency to show
+        _checkForActiveEmergency();
       }
     }
+    notifyListeners();
+  }
+
+  void _checkForActiveEmergency() {
+    // Find the most recent active emergency
+    final activeEmergencies = _emergencies.where((e) => e.active).toList();
+    if (activeEmergencies.isEmpty) {
+      return;
+    }
+
+    // Parse dates once for sorting
+    final emergenciesWithDates = <({Emergency emergency, DateTime date})>[];
+    
+    for (final e in activeEmergencies) {
+      try {
+        final date = DateTime.parse(e.emergencyDate);
+        emergenciesWithDates.add((emergency: e, date: date));
+      } catch (error) {
+        // Log error but continue processing other emergencies
+        developer.log(
+          'CRITICAL: Error parsing emergency date for ${e.id}: ${e.emergencyDate}',
+          name: 'AppState',
+          error: error,
+        );
+        // Use current time as fallback so the emergency isn't lost
+        emergenciesWithDates.add((emergency: e, date: DateTime.now()));
+      }
+    }
+
+    if (emergenciesWithDates.isEmpty) {
+      return;
+    }
+
+    // Sort by date descending to get the most recent
+    emergenciesWithDates.sort((a, b) => b.date.compareTo(a.date));
+    
+    _currentEmergency = emergenciesWithDates.first.emergency;
+    AlarmService.playAlarm();
     notifyListeners();
   }
 
@@ -93,7 +136,17 @@ class AppState extends ChangeNotifier {
 
   void handleEmergencyNotification(PushNotificationData notification) {
     _currentEmergency = notification.toEmergency();
+    
+    // Play alarm sound
     AlarmService.playAlarm();
+    
+    // Show local notification (especially important for iOS)
+    NotificationService.showEmergencyNotification(
+      title: 'ALARM: ${_currentEmergency!.emergencyKeyword}',
+      body: _currentEmergency!.emergencyDescription,
+      payload: _currentEmergency!.id,
+    );
+    
     notifyListeners(); // This will trigger UI update to show popup
   }
 
