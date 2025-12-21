@@ -253,6 +253,23 @@ async function migrateDatabase(): Promise<void> {
       
       console.log('✓ role and full_name columns added to admin_users');
     }
+    
+    // Check if devices table needs fcm_token and apns_token columns for push notifications
+    const hasFcmTokenColumn = tableInfo.some((col: any) => col.name === 'fcm_token');
+    const hasApnsTokenColumn = tableInfo.some((col: any) => col.name === 'apns_token');
+    
+    if (!hasFcmTokenColumn || !hasApnsTokenColumn) {
+      console.log('🔄 Adding push notification token columns to devices...');
+      
+      if (!hasFcmTokenColumn) {
+        await dbRun('ALTER TABLE devices ADD COLUMN fcm_token TEXT');
+      }
+      if (!hasApnsTokenColumn) {
+        await dbRun('ALTER TABLE devices ADD COLUMN apns_token TEXT');
+      }
+      
+      console.log('✓ Push notification token columns added to devices');
+    }
   } catch (error) {
     console.error('⚠️  Database migration warning:', error);
     // Don't fail if migration has issues, as the table might already be in the correct state

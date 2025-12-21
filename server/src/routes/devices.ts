@@ -63,6 +63,8 @@ router.post('/register', async (req: Request, res: Response) => {
       qualifications,
       leadershipRole,
       qrCodeData, // QR code data to store
+      fcmToken, // Optional FCM token for Android
+      apnsToken, // Optional APNs token for iOS
     } = req.body;
 
     if (!deviceToken || !registrationToken || !platform) {
@@ -94,7 +96,9 @@ router.post('/register', async (req: Request, res: Response) => {
           qual_agt = ?,
           qual_paramedic = ?,
           leadership_role = ?,
-          qr_code_data = ?
+          qr_code_data = ?,
+          fcm_token = ?,
+          apns_token = ?
         WHERE device_token = ?`,
         [
           registrationToken, 
@@ -106,6 +110,8 @@ router.post('/register', async (req: Request, res: Response) => {
           qualifications?.paramedic ? 1 : 0,
           leadershipRole || 'none',
           qrCodeData || existing.qr_code_data || null, // Keep existing QR if not provided
+          fcmToken || null,
+          apnsToken || null,
           deviceToken
         ]
       );
@@ -133,8 +139,8 @@ router.post('/register', async (req: Request, res: Response) => {
         `INSERT INTO devices (
           id, device_token, registration_token, platform, registered_at, active,
           first_name, last_name, qual_machinist, qual_agt, qual_paramedic, 
-          leadership_role, qr_code_data
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          leadership_role, qr_code_data, fcm_token, apns_token
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id, deviceToken, registrationToken, platform, registeredAt, 1,
           firstName || null,
@@ -144,6 +150,8 @@ router.post('/register', async (req: Request, res: Response) => {
           qualifications?.paramedic ? 1 : 0,
           leadershipRole || 'none',
           qrCodeData || null,
+          fcmToken || null,
+          apnsToken || null,
         ]
       );
 
@@ -165,6 +173,67 @@ router.post('/register', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error registering device:', error);
     res.status(500).json({ error: 'Failed to register device' });
+  }
+});
+
+// Update push notification tokens (FCM/APNs)
+router.post('/update-push-token', async (req: Request, res: Response) => {
+  try {
+    const { deviceToken, fcmToken, apnsToken } = req.body;
+
+    if (!deviceToken) {
+      res.status(400).json({ error: 'deviceToken is required' });
+      return;
+    }
+
+    if (!fcmToken && !apnsToken) {
+      res.status(400).json({ error: 'At least one of fcmToken or apnsToken is required' });
+      return;
+    }
+
+    // Check if device exists
+    const existing = await dbGet(
+      'SELECT * FROM devices WHERE device_token = ?',
+      [deviceToken]
+    );
+
+    if (!existing) {
+      res.status(404).json({ error: 'Device not found' });
+      return;
+    }
+
+    // Update push tokens
+    const updates = [];
+    const params = [];
+    
+    if (fcmToken !== undefined) {
+      updates.push('fcm_token = ?');
+      params.push(fcmToken);
+    }
+    
+    if (apnsToken !== undefined) {
+      updates.push('apns_token = ?');
+      params.push(apnsToken);
+    }
+    
+    params.push(deviceToken);
+    
+    await dbRun(
+      `UPDATE devices SET ${updates.join(', ')} WHERE device_token = ?`,
+      params
+    );
+
+    console.log(`✓ Push tokens updated for device: ${deviceToken.substring(0, 20)}...`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Push tokens updated',
+      fcmTokenUpdated: fcmToken !== undefined,
+      apnsTokenUpdated: apnsToken !== undefined,
+    });
+  } catch (error) {
+    console.error('Error updating push tokens:', error);
+    res.status(500).json({ error: 'Failed to update push tokens' });
   }
 });
 
