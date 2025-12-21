@@ -1,6 +1,17 @@
 const API_BASE = window.location.origin + '/api';
 let currentPage = 1;
 let totalPages = 1;
+let allEmergencies = []; // Store all emergencies for client-side filtering/sorting
+let filteredEmergencies = []; // Store filtered emergencies
+
+// Filter and sort state
+let filters = {
+    keyword: '',
+    number: '',
+    location: '',
+    groups: ''
+};
+let sortBy = 'date-desc';
 
 // Check authentication on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -19,9 +30,11 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // Setup event listeners
     document.getElementById('logout-btn').addEventListener('click', logout);
-    document.getElementById('refresh-btn').addEventListener('click', () => loadEmergencies(currentPage));
-    document.getElementById('prev-page-btn').addEventListener('click', () => loadEmergencies(currentPage - 1));
-    document.getElementById('next-page-btn').addEventListener('click', () => loadEmergencies(currentPage + 1));
+    document.getElementById('refresh-btn').addEventListener('click', () => {
+        loadEmergencies();
+    });
+    document.getElementById('prev-page-btn').addEventListener('click', () => displayPage(currentPage - 1));
+    document.getElementById('next-page-btn').addEventListener('click', () => displayPage(currentPage + 1));
     document.getElementById('close-details-modal-btn').addEventListener('click', closeDetailsModal);
     document.getElementById('details-modal').addEventListener('click', (e) => {
         if (e.target.id === 'details-modal') {
@@ -29,8 +42,33 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Filter controls
+    document.getElementById('filter-keyword').addEventListener('input', (e) => {
+        filters.keyword = e.target.value.toLowerCase();
+        applyFiltersAndSort();
+    });
+    document.getElementById('filter-number').addEventListener('input', (e) => {
+        filters.number = e.target.value.toLowerCase();
+        applyFiltersAndSort();
+    });
+    document.getElementById('filter-location').addEventListener('input', (e) => {
+        filters.location = e.target.value.toLowerCase();
+        applyFiltersAndSort();
+    });
+    document.getElementById('filter-groups').addEventListener('input', (e) => {
+        filters.groups = e.target.value.toLowerCase();
+        applyFiltersAndSort();
+    });
+    document.getElementById('clear-filters-btn').addEventListener('click', clearFilters);
+    
+    // Sort control
+    document.getElementById('sort-by').addEventListener('change', (e) => {
+        sortBy = e.target.value;
+        applyFiltersAndSort();
+    });
+    
     // Load data
-    loadEmergencies(1);
+    loadEmergencies();
 });
 
 function logout() {
@@ -80,24 +118,98 @@ async function loadUserInfo() {
     }
 }
 
-async function loadEmergencies(page = 1) {
+async function loadEmergencies() {
     try {
-        const response = await apiRequest(`${API_BASE}/admin/emergencies?page=${page}&limit=20`);
+        // Load all emergencies at once (no pagination from server)
+        // Note: Using a limit of 1000 for simplicity. In production with large datasets,
+        // consider implementing server-side filtering to handle more than 1000 emergencies.
+        const response = await apiRequest(`${API_BASE}/admin/emergencies?page=1&limit=1000`);
         
         if (!response.ok) {
             throw new Error('Fehler beim Laden der Einsätze');
         }
         
         const data = await response.json();
-        currentPage = data.pagination.page;
-        totalPages = data.pagination.totalPages;
+        allEmergencies = data.emergencies;
         
-        displayEmergencies(data.emergencies);
-        updatePagination(data.pagination);
+        // Apply filters and sort
+        applyFiltersAndSort();
     } catch (error) {
         document.getElementById('emergencies-list').innerHTML = 
             `<p class="loading" style="color: #dc3545;">Fehler beim Laden: ${error.message}</p>`;
     }
+}
+
+function clearFilters() {
+    filters = {
+        keyword: '',
+        number: '',
+        location: '',
+        groups: ''
+    };
+    document.getElementById('filter-keyword').value = '';
+    document.getElementById('filter-number').value = '';
+    document.getElementById('filter-location').value = '';
+    document.getElementById('filter-groups').value = '';
+    applyFiltersAndSort();
+}
+
+function applyFiltersAndSort() {
+    // Filter emergencies
+    filteredEmergencies = allEmergencies.filter(emergency => {
+        const keyword = emergency.emergencyKeyword.toLowerCase();
+        const number = emergency.emergencyNumber.toLowerCase();
+        const location = emergency.emergencyLocation.toLowerCase();
+        const groups = (emergency.groups || '').toLowerCase();
+        
+        return (
+            keyword.includes(filters.keyword) &&
+            number.includes(filters.number) &&
+            location.includes(filters.location) &&
+            groups.includes(filters.groups)
+        );
+    });
+    
+    // Sort emergencies
+    filteredEmergencies.sort((a, b) => {
+        switch(sortBy) {
+            case 'date-desc':
+                return new Date(b.emergencyDate) - new Date(a.emergencyDate);
+            case 'date-asc':
+                return new Date(a.emergencyDate) - new Date(b.emergencyDate);
+            case 'keyword-asc':
+                return a.emergencyKeyword.localeCompare(b.emergencyKeyword);
+            case 'keyword-desc':
+                return b.emergencyKeyword.localeCompare(a.emergencyKeyword);
+            case 'number-asc':
+                return a.emergencyNumber.localeCompare(b.emergencyNumber);
+            case 'number-desc':
+                return b.emergencyNumber.localeCompare(a.emergencyNumber);
+            default:
+                return 0;
+        }
+    });
+    
+    // Reset to page 1 and display
+    currentPage = 1;
+    displayPage(1);
+}
+
+function displayPage(page) {
+    const itemsPerPage = 20;
+    totalPages = Math.max(1, Math.ceil(filteredEmergencies.length / itemsPerPage));
+    currentPage = Math.max(1, Math.min(page, totalPages));
+    
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const pageEmergencies = filteredEmergencies.slice(startIndex, endIndex);
+    
+    displayEmergencies(pageEmergencies);
+    updatePagination({
+        page: currentPage,
+        totalPages: totalPages,
+        total: filteredEmergencies.length
+    });
 }
 
 function displayEmergencies(emergencies) {

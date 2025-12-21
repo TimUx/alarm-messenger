@@ -24,6 +24,9 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('download-qr-btn').addEventListener('click', downloadQRCode);
     document.getElementById('refresh-stats-btn').addEventListener('click', loadStatistics);
     
+    // Setup stat card click handlers for navigation
+    setupStatCardNavigation();
+    
     // Load statistics
     loadStatistics();
 });
@@ -138,8 +141,8 @@ async function loadStatistics() {
             document.getElementById('stat-groups').textContent = groups.length;
         }
         
-        // Load emergencies statistics
-        const emergenciesResponse = await apiRequest(`${API_BASE}/emergencies`);
+        // Load emergencies statistics (include all, not just active)
+        const emergenciesResponse = await apiRequest(`${API_BASE}/emergencies?includeInactive=true`);
         if (emergenciesResponse.ok) {
             const emergencies = await emergenciesResponse.json();
             document.getElementById('stat-emergencies-total').textContent = emergencies.length;
@@ -172,4 +175,34 @@ async function loadStatistics() {
     } catch (error) {
         console.error('Fehler beim Laden der Statistiken:', error);
     }
+}
+
+function setupStatCardNavigation() {
+    const statsGrid = document.getElementById('stats-grid');
+    const statCards = statsGrid.querySelectorAll('.stat-card');
+    
+    statCards.forEach((card, index) => {
+        // Add clickable class for styling
+        card.classList.add('stat-card-clickable');
+        
+        // Add click handler based on card index
+        card.addEventListener('click', () => {
+            switch(index) {
+                case 0: // Registrierte Geräte
+                    window.location.href = '/admin/devices.html';
+                    break;
+                case 1: // Alarmierungsgruppen
+                    window.location.href = '/admin/groups.html';
+                    break;
+                case 2: // Einsätze Gesamt
+                case 3: // Einsätze Jahr
+                case 4: // Einsätze Monat
+                    window.location.href = '/admin/history.html';
+                    break;
+                case 5: // Aktive Geräte
+                    window.location.href = '/admin/devices.html';
+                    break;
+            }
+        });
+    });
 }
