@@ -199,7 +199,8 @@ class PushNotificationService {
       };
       
       // Set as critical alert with high interruption level
-      notification.interruptionLevel = 'critical';
+      // Note: interruption-level is set via custom payload for iOS 15+
+      (notification as any)['interruption-level'] = 'critical';
       
       // Add custom data
       notification.payload = {
