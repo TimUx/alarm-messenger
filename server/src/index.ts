@@ -26,7 +26,7 @@ const PORT = process.env.PORT || 3000;
 // with HTTPS, use a reverse proxy (Caddy/Nginx) that handles TLS termination.
 app.use(helmet({
   contentSecurityPolicy: {
-    useDefaults: false, // Disable all defaults to have full control, including upgrade-insecure-requests
+    useDefaults: false, // Disable all default CSP directives to have full control and prevent upgrade-insecure-requests from causing HTTP to HTTPS upgrade issues
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"], // Required by existing admin interface code
@@ -47,8 +47,8 @@ app.use(helmet({
   // Don't force HTTPS upgrade - allow HTTP for local network access
   // Production deployments should use a reverse proxy with HTTPS
   hsts: false,
-  // Disable COOP header - requires HTTPS or localhost to be effective
-  // When enabled on HTTP with IP/hostname, causes ERR_SSL_PROTOCOL_ERROR
+  // Disable COOP header - requires trustworthy origin (HTTPS or localhost) to be effective
+  // Browsers ignore this header on HTTP with IP/hostname and show console warnings
   crossOriginOpenerPolicy: false,
   // Disable Origin-Agent-Cluster header - requires trustworthy origin
   // Causes warnings and potential issues on HTTP with IP/hostname access
