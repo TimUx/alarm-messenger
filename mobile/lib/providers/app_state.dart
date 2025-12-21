@@ -137,7 +137,7 @@ class AppState extends ChangeNotifier {
     try {
       _serverInfo = await ApiService.getServerInfo();
     } catch (e) {
-      print('Error loading server info: $e');
+      debugPrint('Error loading server info: $e');
     }
   }
 
@@ -148,7 +148,7 @@ class AppState extends ChangeNotifier {
         _deviceDetails = await ApiService.getDeviceDetails(deviceId);
       }
     } catch (e) {
-      print('Error loading device details: $e');
+      debugPrint('Error loading device details: $e');
     }
   }
 
