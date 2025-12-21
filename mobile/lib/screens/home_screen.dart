@@ -477,6 +477,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _showEmergencyDialog(BuildContext context, Emergency emergency) async {
+    // Get appState and messenger before async gap
+    final appState = Provider.of<AppState>(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
+    
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -490,11 +494,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Handle response
     if (result != null && mounted) {
-      // Get appState before async gap
-      final appState = Provider.of<AppState>(context, listen: false);
-      // Get messenger before async gap
-      final messenger = ScaffoldMessenger.of(context);
-      
       try {
         await appState.submitResponse(result);
         
@@ -574,7 +573,7 @@ class _EmergencyAlertDialogState extends State<_EmergencyAlertDialog> {
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
                 color: Colors.red,
-                borderRadius: const BorderRadius.only(
+                borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
                 ),
