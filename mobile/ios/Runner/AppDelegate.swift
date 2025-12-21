@@ -3,6 +3,8 @@ import Flutter
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
+  private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+  
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -43,8 +45,18 @@ import Flutter
   // Keep app processing in background
   override func applicationDidEnterBackground(_ application: UIApplication) {
     // Request background time to maintain WebSocket connection
-    var backgroundTask: UIBackgroundTaskIdentifier = .invalid
-    backgroundTask = application.beginBackgroundTask {
+    backgroundTask = application.beginBackgroundTask { [weak self] in
+      self?.endBackgroundTask(application)
+    }
+  }
+  
+  // Clean up background task when app returns to foreground
+  override func applicationWillEnterForeground(_ application: UIApplication) {
+    endBackgroundTask(application)
+  }
+  
+  private func endBackgroundTask(_ application: UIApplication) {
+    if backgroundTask != .invalid {
       application.endBackgroundTask(backgroundTask)
       backgroundTask = .invalid
     }

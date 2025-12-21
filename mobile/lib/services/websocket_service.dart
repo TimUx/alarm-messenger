@@ -103,7 +103,9 @@ class WebSocketService {
     }
 
     _reconnectAttempts++;
-    // Exponential backoff: 5s, 10s, 20s, 40s, etc. (capped at 5 minutes)
+    // Exponential backoff using bit shift: 2^(attempts-1) * 5
+    // Attempt 1: 5s, Attempt 2: 10s, Attempt 3: 20s, Attempt 4: 40s, etc.
+    // Capped at 5 minutes (300s) to avoid excessive delays
     final backoffSeconds = (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 300);
     final delay = Duration(seconds: backoffSeconds);
 
