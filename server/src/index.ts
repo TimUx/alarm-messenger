@@ -21,12 +21,15 @@ const PORT = process.env.PORT || 3000;
 
 // Security middleware
 // Configure helmet to allow HTTP access (needed for local network deployment)
+// Note: This configuration is designed for local network deployments where the server
+// is accessed via IP addresses or hostnames without HTTPS. For production deployments
+// with HTTPS, use a reverse proxy (Caddy/Nginx) that handles TLS termination.
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // Required by existing admin interface code
+      styleSrc: ["'self'", "'unsafe-inline'"], // Required by existing admin interface code
       imgSrc: ["'self'", "data:"],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
@@ -36,6 +39,7 @@ app.use(helmet({
     },
   },
   // Don't force HTTPS upgrade - allow HTTP for local network access
+  // Production deployments should use a reverse proxy with HTTPS
   hsts: false,
 }));
 
