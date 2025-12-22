@@ -1,7 +1,4 @@
 import 'dart:developer' as developer;
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
-import 'api_service.dart';
 
 /// Push Notification Token Service
 /// 
