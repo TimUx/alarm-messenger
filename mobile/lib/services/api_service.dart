@@ -125,4 +125,18 @@ class ApiService {
       throw Exception('Failed to update push token: ${response.body}');
     }
   }
+
+  // Get device details with assigned groups
+  static Future<DeviceDetails> getDeviceDetails(String deviceId) async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/devices/$deviceId/details'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      return DeviceDetails.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to get device details: ${response.body}');
+    }
+  }
 }

@@ -29,7 +29,7 @@ class NotificationService {
         requestCriticalPermission: true,
       );
 
-      final initSettings = InitializationSettings(
+      const initSettings = InitializationSettings(
         android: androidSettings,
         iOS: iosSettings,
       );
