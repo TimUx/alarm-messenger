@@ -252,7 +252,7 @@ router.post('/update-push-token', async (req: Request, res: Response) => {
 router.get('/', async (req: Request, res: Response) => {
   try {
     const rows = await dbAll(
-      `SELECT d.*, GROUP_CONCAT(dg.group_code) AS group_codes
+      `SELECT d.*, GROUP_CONCAT(dg.group_code, '|') AS group_codes
        FROM devices d
        LEFT JOIN device_groups dg ON d.id = dg.device_id
        WHERE d.active = 1
@@ -276,7 +276,7 @@ router.get('/', async (req: Request, res: Response) => {
         paramedic: row.qual_paramedic === 1,
       },
       leadershipRole: row.leadership_role || 'none',
-      assignedGroups: row.group_codes ? row.group_codes.split(',') : [],
+      assignedGroups: row.group_codes ? row.group_codes.split('|') : [],
     }));
 
     res.json(devices);

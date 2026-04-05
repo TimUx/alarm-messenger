@@ -2,9 +2,11 @@ import express, { Application } from 'express';
 import request from 'supertest';
 import sqlite3 from 'sqlite3';
 
-// Using var so the declaration is hoisted and accessible inside jest.mock factories
-// eslint-disable-next-line no-var
-var inMemoryDb: sqlite3.Database;
+// Container object for the in-memory database instance.
+// Using an object instead of a plain variable lets the jest.mock factories below
+// close over the container reference (set at module load) and read the .db property
+// lazily at call time, after beforeAll has assigned it.
+const dbHolder: { db: sqlite3.Database | null } = { db: null };
 
 // Mock the websocket and push-notification services before importing routes
 jest.mock('../services/websocket', () => ({
@@ -21,23 +23,23 @@ jest.mock('../services/push-notification', () => ({
   },
 }));
 
-// Mock the database module to use the in-memory sqlite3 instance.
-// The inner functions close over `inMemoryDb` (a var-hoisted reference) so they
-// read the correct value once it is assigned in beforeAll.
+// Mock the database module to delegate to the in-memory sqlite3 instance stored in
+// dbHolder. The factory closes over dbHolder (a const object) so the reference is
+// stable; the actual db is assigned in beforeAll before any test runs.
 jest.mock('../services/database', () => ({
   dbRun: (sql: string, params: any[] = []): Promise<void> =>
     new Promise((resolve, reject) =>
-      inMemoryDb.run(sql, params, (err: Error | null) => (err ? reject(err) : resolve()))
+      dbHolder.db!.run(sql, params, (err: Error | null) => (err ? reject(err) : resolve()))
     ),
   dbGet: (sql: string, params: any[] = []): Promise<any> =>
     new Promise((resolve, reject) =>
-      inMemoryDb.get(sql, params, (err: Error | null, row: any) =>
+      dbHolder.db!.get(sql, params, (err: Error | null, row: any) =>
         err ? reject(err) : resolve(row)
       )
     ),
   dbAll: (sql: string, params: any[] = []): Promise<any[]> =>
     new Promise((resolve, reject) =>
-      inMemoryDb.all(sql, params, (err: Error | null, rows: any[]) =>
+      dbHolder.db!.all(sql, params, (err: Error | null, rows: any[]) =>
         err ? reject(err) : resolve(rows)
       )
     ),
@@ -100,12 +102,12 @@ beforeAll(async () => {
   process.env.API_SECRET_KEY = TEST_API_KEY;
 
   // Create an in-memory SQLite database and build the schema
-  inMemoryDb = new sqlite3.Database(':memory:');
-  await createSchema(inMemoryDb);
+  dbHolder.db = new sqlite3.Database(':memory:');
+  await createSchema(dbHolder.db);
 });
 
 afterAll(() => {
-  inMemoryDb.close();
+  dbHolder.db?.close();
 });
 
 describe('POST /api/emergencies', () => {
