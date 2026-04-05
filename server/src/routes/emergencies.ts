@@ -50,6 +50,24 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
       return;
     }
 
+    // Validate input lengths
+    if (emergencyNumber.length > 50) {
+      res.status(400).json({ error: 'emergencyNumber must not exceed 50 characters' });
+      return;
+    }
+    if (emergencyKeyword.length > 100) {
+      res.status(400).json({ error: 'emergencyKeyword must not exceed 100 characters' });
+      return;
+    }
+    if (emergencyDescription.length > 1000) {
+      res.status(400).json({ error: 'emergencyDescription must not exceed 1000 characters' });
+      return;
+    }
+    if (emergencyLocation.length > 500) {
+      res.status(400).json({ error: 'emergencyLocation must not exceed 500 characters' });
+      return;
+    }
+
     const id = uuidv4();
     const createdAt = new Date().toISOString();
 

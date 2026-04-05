@@ -252,35 +252,31 @@ router.post('/update-push-token', async (req: Request, res: Response) => {
 router.get('/', async (req: Request, res: Response) => {
   try {
     const rows = await dbAll(
-      'SELECT * FROM devices WHERE active = 1 ORDER BY registered_at DESC',
+      `SELECT d.*, GROUP_CONCAT(dg.group_code) AS group_codes
+       FROM devices d
+       LEFT JOIN device_groups dg ON d.id = dg.device_id
+       WHERE d.active = 1
+       GROUP BY d.id
+       ORDER BY d.registered_at DESC`,
       []
     );
 
-    const devices: Device[] = await Promise.all(rows.map(async (row: any) => {
-      // Get assigned groups for each device
-      const groupRows = await dbAll(
-        'SELECT group_code FROM device_groups WHERE device_id = ?',
-        [row.id]
-      );
-      const assignedGroups = groupRows.map((g: any) => g.group_code);
-
-      return {
-        id: row.id,
-        deviceToken: row.device_token,
-        registrationToken: row.registration_token,
-        platform: row.platform,
-        registeredAt: row.registered_at,
-        active: row.active === 1,
-        firstName: row.first_name,
-        lastName: row.last_name,
-        qualifications: {
-          machinist: row.qual_machinist === 1,
-          agt: row.qual_agt === 1,
-          paramedic: row.qual_paramedic === 1,
-        },
-        leadershipRole: row.leadership_role || 'none',
-        assignedGroups,
-      };
+    const devices: Device[] = rows.map((row: any) => ({
+      id: row.id,
+      deviceToken: row.device_token,
+      registrationToken: row.registration_token,
+      platform: row.platform,
+      registeredAt: row.registered_at,
+      active: row.active === 1,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      qualifications: {
+        machinist: row.qual_machinist === 1,
+        agt: row.qual_agt === 1,
+        paramedic: row.qual_paramedic === 1,
+      },
+      leadershipRole: row.leadership_role || 'none',
+      assignedGroups: row.group_codes ? row.group_codes.split(',') : [],
     }));
 
     res.json(devices);
