@@ -4,8 +4,7 @@ import { dbRun, dbGet, dbAll } from '../services/database';
 import { websocketService } from '../services/websocket';
 import { pushNotificationService } from '../services/push-notification';
 import { redisPubSubService } from '../services/redis-pubsub';
-import { verifyApiKey } from '../middleware/auth';
-import { verifyDeviceToken } from '../middleware/auth';
+import { verifyApiKey, verifyDeviceToken, DeviceRequest } from '../middleware/auth';
 import {
   Emergency,
   CreateEmergencyRequest,
@@ -287,9 +286,10 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.post('/:id/responses', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { id: emergencyId } = req.params;
-    const { deviceId, participating }: EmergencyResponseRequest = req.body;
+    const { participating }: { participating: boolean } = req.body;
+    const deviceId = (req as DeviceRequest).device!.id;
 
-    if (!deviceId || participating === undefined) {
+    if (participating === undefined) {
       res.status(400).json({ error: 'Missing required fields' });
       return;
     }
@@ -300,13 +300,6 @@ router.post('/:id/responses', verifyDeviceToken, async (req: Request, res: Respo
     ]);
     if (!emergency) {
       res.status(404).json({ error: 'Emergency not found' });
-      return;
-    }
-
-    // Check if device exists
-    const device = await dbGet('SELECT * FROM devices WHERE id = ?', [deviceId]);
-    if (!device) {
-      res.status(404).json({ error: 'Device not found' });
       return;
     }
 

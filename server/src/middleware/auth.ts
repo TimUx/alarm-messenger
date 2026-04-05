@@ -20,6 +20,10 @@ export interface AuthRequest extends Request {
   userRole?: string;
 }
 
+export interface DeviceRequest extends Request {
+  device?: { id: string };
+}
+
 // Middleware to verify JWT token
 export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
@@ -99,6 +103,7 @@ export const verifyDeviceToken = async (req: Request, res: Response, next: NextF
       return;
     }
 
+    (req as DeviceRequest).device = { id: device.id };
     next();
   } catch (error) {
     console.error('Error verifying device token:', error);
