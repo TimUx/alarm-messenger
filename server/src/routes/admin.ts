@@ -1,13 +1,20 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { generateToken, verifyAdmin, verifySession, generateCsrfToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
+const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: 'Too many login attempts. Please try again later.' },
+});
+
 // Login endpoint
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
 
