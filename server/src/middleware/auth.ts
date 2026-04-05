@@ -104,9 +104,9 @@ export const verifySession = async (req: AuthRequest, res: Response, next: NextF
     return;
   }
 
-  // CSRF protection for state-mutating requests
-  const method = req.method.toUpperCase();
-  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+  // CSRF protection for state-mutating requests (allowlist safe methods)
+  const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+  if (!SAFE_METHODS.has(req.method.toUpperCase())) {
     const csrfToken = req.headers['x-csrf-token'] as string | undefined;
     if (!csrfToken || csrfToken !== req.session.csrfToken) {
       res.status(403).json({ error: 'Invalid CSRF token' });
