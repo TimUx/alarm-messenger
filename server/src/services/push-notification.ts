@@ -22,7 +22,7 @@
  */
 
 import * as admin from 'firebase-admin';
-import apn from 'apn';
+import { Provider, Notification } from '@parse/node-apn';
 import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger';
@@ -40,7 +40,7 @@ interface PushNotificationData {
 class PushNotificationService {
   private fcmEnabled = false;
   private apnsEnabled = false;
-  private apnsProvider: apn.Provider | null = null;
+  private apnsProvider: Provider | null = null;
 
   constructor() {
     this.initializeFCM();
@@ -109,7 +109,7 @@ class PushNotificationService {
         return;
       }
 
-      this.apnsProvider = new apn.Provider({
+      this.apnsProvider = new Provider({
         token: {
           key: keyPath,
           keyId: keyId,
@@ -189,7 +189,7 @@ class PushNotificationService {
     }
 
     try {
-      const notification = new apn.Notification();
+      const notification = new Notification();
       
       // Critical alert for emergency notifications (bypasses Do Not Disturb)
       notification.sound = 'default';
@@ -199,11 +199,8 @@ class PushNotificationService {
         body: body,
       };
       
-      // Set as critical alert with high interruption level
-      // Note: interruption-level is a custom property for iOS 15+
-      // The apn library doesn't have this in types yet, but APNs supports it
-      const notificationPayload = notification as apn.Notification & { 'interruption-level'?: string };
-      notificationPayload['interruption-level'] = 'critical';
+      // Set interruption level for iOS 15+ (natively supported by @parse/node-apn)
+      notification.aps['interruption-level'] = 'critical';
       
       // Add custom data
       notification.payload = {
@@ -226,7 +223,7 @@ class PushNotificationService {
       // Set priority to immediate
       notification.priority = 10;
 
-      const result = await this.apnsProvider.send(notificationPayload, apnsToken);
+      const result = await this.apnsProvider.send(notification, apnsToken);
       
       if (result.failed && result.failed.length > 0) {
         const failure = result.failed[0];
