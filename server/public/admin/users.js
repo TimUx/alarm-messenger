@@ -1,4 +1,3 @@
-const API_BASE = window.location.origin + '/api';
 let currentUser = null;
 let allUsers = [];
 let isEditMode = false;
@@ -29,38 +28,6 @@ window.addEventListener('DOMContentLoaded', () => {
     // Load users
     loadUsers();
 });
-
-function logout() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('username');
-    window.location.href = 'login.html';
-}
-
-async function apiRequest(url, options = {}) {
-    const token = localStorage.getItem('authToken');
-    
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
-    
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(url, {
-        ...options,
-        headers
-    });
-    
-    if (response.status === 401) {
-        // Token expired or invalid
-        logout();
-        return;
-    }
-    
-    return response;
-}
 
 async function loadCurrentUser() {
     try {

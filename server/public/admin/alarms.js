@@ -1,4 +1,3 @@
-const API_BASE = window.location.origin + '/api';
 let availableGroups = [];
 
 // Check authentication on page load
@@ -31,40 +30,11 @@ window.addEventListener('DOMContentLoaded', () => {
     loadGroups();
 });
 
-function logout() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('username');
-    window.location.href = 'login.html';
-}
-
-async function apiRequest(url, options = {}) {
-    const token = localStorage.getItem('authToken');
-    
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
-    
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    return fetch(url, {
-        ...options,
-        headers
-    });
-}
-
 async function loadUserInfo() {
     try {
         const response = await apiRequest(`${API_BASE}/admin/profile`);
         
-        if (response.status === 401) {
-            logout();
-            return;
-        }
-        
-        if (!response.ok) {
+        if (!response || !response.ok) {
             console.error('Failed to load user info');
             return;
         }
