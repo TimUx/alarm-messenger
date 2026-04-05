@@ -13,6 +13,7 @@ import infoRoutes from './routes/info';
 import { initializeDatabase } from './services/database';
 import { websocketService } from './services/websocket';
 import { emergencyScheduler } from './services/emergency-scheduler';
+import { redisPubSubService } from './services/redis-pubsub';
 
 dotenv.config();
 
@@ -103,6 +104,9 @@ async function startServer() {
   try {
     await initializeDatabase();
     console.log('✓ Database initialized');
+
+    // Connect Redis pub/sub (no-op when REDIS_URL is unset)
+    redisPubSubService.connect();
     
     // Create HTTP server
     const server = http.createServer(app);

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { websocketService } from '../services/websocket';
 import { pushNotificationService } from '../services/push-notification';
+import { redisPubSubService } from '../services/redis-pubsub';
 import { verifyApiKey } from '../middleware/auth';
 import {
   Emergency,
@@ -175,13 +176,22 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
         }
       }
       
-      // Also send via WebSocket as fallback/redundancy
-      await websocketService.sendBulkNotifications(
-        deviceIds,
-        notificationTitle,
-        notificationBody,
-        notificationData
-      );
+      // Send WebSocket notifications via Redis pub/sub (or directly as fallback)
+      if (redisPubSubService.isEnabled()) {
+        await redisPubSubService.publish({
+          deviceIds,
+          title: notificationTitle,
+          body: notificationBody,
+          data: notificationData,
+        });
+      } else {
+        await websocketService.sendBulkNotifications(
+          deviceIds,
+          notificationTitle,
+          notificationBody,
+          notificationData
+        );
+      }
       
       // Count WebSocket connected devices
       websocketSuccessCount = deviceIds.filter(id => 

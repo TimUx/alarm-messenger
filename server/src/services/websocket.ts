@@ -1,5 +1,6 @@
 import { Server as HTTPServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
+import { redisPubSubService } from './redis-pubsub';
 
 interface Client {
   ws: WebSocket;
@@ -90,6 +91,11 @@ class WebSocketService {
     });
 
     console.log('✓ WebSocket server initialized on /ws');
+
+    // Forward Redis pub/sub emergency messages to locally connected clients
+    redisPubSubService.subscribe((message) => {
+      this.sendBulkNotifications(message.deviceIds, message.title, message.body, message.data);
+    });
   }
 
   async sendNotification(
