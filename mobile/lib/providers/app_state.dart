@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/storage_service.dart';
@@ -13,6 +15,7 @@ class AppState extends ChangeNotifier {
   bool _showAlarmDialog = false;
   List<Emergency> _emergencies = [];
   bool _isLoading = false;
+  String? _errorMessage;
   ServerInfo? _serverInfo;
   DeviceDetails? _deviceDetails;
 
@@ -26,8 +29,14 @@ class AppState extends ChangeNotifier {
   bool get showAlarmDialog => _showAlarmDialog;
   List<Emergency> get emergencies => _emergencies;
   bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
   ServerInfo? get serverInfo => _serverInfo;
   DeviceDetails? get deviceDetails => _deviceDetails;
+
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
 
   Future<void> _checkRegistration() async {
     _isRegistered = StorageService.isRegistered();
@@ -207,6 +216,10 @@ class AppState extends ChangeNotifier {
 
     try {
       _emergencies = await ApiService.getEmergencies();
+    } on SocketException {
+      _errorMessage = 'Keine Verbindung zum Server. Bitte Netzwerk prüfen.';
+    } on TimeoutException {
+      _errorMessage = 'Zeitüberschreitung beim Laden der Einsätze.';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -216,6 +229,10 @@ class AppState extends ChangeNotifier {
   Future<void> _loadServerInfo() async {
     try {
       _serverInfo = await ApiService.getServerInfo();
+    } on SocketException {
+      _errorMessage = 'Keine Verbindung zum Server. Bitte Netzwerk prüfen.';
+    } on TimeoutException {
+      _errorMessage = 'Zeitüberschreitung beim Laden der Server-Informationen.';
     } catch (e) {
       debugPrint('Error loading server info: $e');
     }

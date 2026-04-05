@@ -123,22 +123,44 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await _loadEmergencies();
-          await appState.refreshInfo();
-        },
-        child: appState.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : appState.emergencies.isEmpty
-                ? _buildEmptyState(appState)
-                : ListView.builder(
-                    itemCount: appState.emergencies.length,
-                    itemBuilder: (context, index) {
-                      final emergency = appState.emergencies[index];
-                      return _buildEmergencyCard(emergency);
-                    },
+      body: Column(
+        children: [
+          if (appState.errorMessage != null)
+            MaterialBanner(
+              content: Text(appState.errorMessage!),
+              leading: const Icon(Icons.error_outline, color: Colors.white),
+              backgroundColor: Colors.red[700],
+              contentTextStyle: const TextStyle(color: Colors.white),
+              actions: [
+                TextButton(
+                  onPressed: appState.clearError,
+                  child: const Text(
+                    'Schließen',
+                    style: TextStyle(color: Colors.white),
                   ),
+                ),
+              ],
+            ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await _loadEmergencies();
+                await appState.refreshInfo();
+              },
+              child: appState.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : appState.emergencies.isEmpty
+                      ? _buildEmptyState(appState)
+                      : ListView.builder(
+                          itemCount: appState.emergencies.length,
+                          itemBuilder: (context, index) {
+                            final emergency = appState.emergencies[index];
+                            return _buildEmergencyCard(emergency);
+                          },
+                        ),
+            ),
+          ),
+        ],
       ),
     );
   }
