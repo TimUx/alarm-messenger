@@ -1,7 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import 'express-session';
 import { decodeSecret } from '../utils/secrets';
 import { dbGet } from '../services/database';
+
+declare module 'express-session' {
+  interface SessionData {
+    userId: string;
+    csrfToken: string;
+  }
+}
 
 const JWT_SECRET = decodeSecret(process.env.JWT_SECRET) || 'change-this-secret-in-production';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
@@ -85,6 +94,46 @@ export const verifyAdmin = (req: AuthRequest, res: Response, next: NextFunction)
   }
   next();
 };
+
+// Middleware to verify browser session (HttpOnly cookie set on login)
+export const verifySession = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  const userId = req.session.userId;
+
+  if (!userId) {
+    res.status(401).json({ error: 'Not authenticated' });
+    return;
+  }
+
+  // CSRF protection for state-mutating requests
+  const method = req.method.toUpperCase();
+  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+    const csrfToken = req.headers['x-csrf-token'] as string | undefined;
+    if (!csrfToken || csrfToken !== req.session.csrfToken) {
+      res.status(403).json({ error: 'Invalid CSRF token' });
+      return;
+    }
+  }
+
+  try {
+    const user = await dbGet('SELECT id, username, role FROM admin_users WHERE id = ?', [userId]);
+
+    if (!user) {
+      res.status(401).json({ error: 'Session invalid' });
+      return;
+    }
+
+    req.userId = user.id;
+    req.username = user.username;
+    req.userRole = user.role || 'admin';
+    next();
+  } catch (error) {
+    console.error('Error verifying session:', error);
+    res.status(500).json({ error: 'Failed to verify session' });
+  }
+};
+
+// Generate a cryptographically random CSRF token
+export const generateCsrfToken = (): string => crypto.randomBytes(32).toString('hex');
 
 // Middleware to verify device token from X-Device-Token header
 export const verifyDeviceToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

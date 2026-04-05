@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import session from 'express-session';
 import path from 'path';
 import http from 'http';
 import emergencyRoutes from './routes/emergencies';
@@ -14,8 +15,20 @@ import { initializeDatabase } from './services/database';
 import { websocketService } from './services/websocket';
 import { emergencyScheduler } from './services/emergency-scheduler';
 import { redisPubSubService } from './services/redis-pubsub';
+import { decodeSecret } from './utils/secrets';
 
 dotenv.config();
+
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const SESSION_SECRET = decodeSecret(process.env.SESSION_SECRET) || 'change-this-session-secret-in-production';
+
+if (SESSION_SECRET === 'change-this-session-secret-in-production') {
+  const message = '⚠️  WARNING: SESSION_SECRET is using default value. Set a secure SESSION_SECRET in your .env file for production!';
+  console.error(message);
+  if (IS_PRODUCTION) {
+    throw new Error('SESSION_SECRET must be set to a secure value in production environments');
+  }
+}
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
@@ -75,6 +88,19 @@ app.use(limiter);
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session middleware (HttpOnly cookie for browser-based admin routes)
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: IS_PRODUCTION,
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  },
+}));
 
 // Redirect /admin and /admin/ to login page (server-side authentication gate)
 app.get('/admin', (req, res) => {
