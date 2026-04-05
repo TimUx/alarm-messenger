@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import 'express-session';
 import { decodeSecret, resolveSecret } from '../utils/secrets';
 import { dbGet } from '../services/database';
+import logger from '../utils/logger';
 
 declare module 'express-session' {
   interface SessionData {
@@ -18,7 +19,7 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 if (JWT_SECRET === 'change-this-secret-in-production') {
   const message = '⚠️  WARNING: JWT_SECRET is using default value. Set a secure JWT_SECRET in your .env file for production!';
-  console.error(message);
+  logger.error(message);
   if (IS_PRODUCTION) {
     throw new Error('JWT_SECRET must be set to a secure value in production environments');
   }
@@ -26,7 +27,7 @@ if (JWT_SECRET === 'change-this-secret-in-production') {
 
 if (VALID_API_KEY === 'change-me-in-production') {
   const message = '⚠️  WARNING: API_SECRET_KEY is using default value. Set a secure API_SECRET_KEY in your .env file for production!';
-  console.error(message);
+  logger.error(message);
   if (IS_PRODUCTION) {
     throw new Error('API_SECRET_KEY must be set to a secure value in production environments');
   }
@@ -126,7 +127,7 @@ export const verifySession = async (req: AuthRequest, res: Response, next: NextF
     req.userRole = user.role || 'admin';
     next();
   } catch (error) {
-    console.error('Error verifying session:', error);
+    logger.error({ err: error }, 'Error verifying session');
     res.status(500).json({ error: 'Failed to verify session' });
   }
 };
@@ -154,7 +155,7 @@ export const verifyDeviceToken = async (req: Request, res: Response, next: NextF
     (req as DeviceRequest).device = { id: device.id };
     next();
   } catch (error) {
-    console.error('Error verifying device token:', error);
+    logger.error({ err: error }, 'Error verifying device token');
     res.status(500).json({ error: 'Failed to verify device token' });
   }
 };

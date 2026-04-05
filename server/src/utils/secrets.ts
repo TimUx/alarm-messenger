@@ -18,6 +18,7 @@
 
 import fs from 'fs';
 import crypto from 'crypto';
+import logger from './logger';
 
 /**
  * Checks if a string looks like Base64 encoded
@@ -83,7 +84,7 @@ export function decodeSecret(secret: string | undefined): string | undefined {
       // If decoding fails, treat it as plain text (backward compatibility)
       // Silent fallback for security reasons (avoid leaking implementation details)
       if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️  DEBUG: Failed to decode potential Base64 secret, using as plain text');
+        logger.warn('⚠️  DEBUG: Failed to decode potential Base64 secret, using as plain text');
       }
     }
   }

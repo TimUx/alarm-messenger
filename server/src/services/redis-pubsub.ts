@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import logger from '../utils/logger';
 
 const EMERGENCY_CHANNEL = 'emergency:created';
 
@@ -25,7 +26,7 @@ class RedisPubSubService {
   connect(): void {
     const redisUrl = process.env.REDIS_URL;
     if (!redisUrl) {
-      console.log('ℹ Redis pub/sub disabled (REDIS_URL not set)');
+      logger.info('ℹ Redis pub/sub disabled (REDIS_URL not set)');
       return;
     }
 
@@ -35,15 +36,15 @@ class RedisPubSubService {
       this.enabled = true;
 
       this.publisher.on('error', (err) => {
-        console.error('Redis publisher error:', err);
+        logger.error({ err }, 'Redis publisher error');
       });
       this.subscriber.on('error', (err) => {
-        console.error('Redis subscriber error:', err);
+        logger.error({ err }, 'Redis subscriber error');
       });
 
-      console.log('✓ Redis pub/sub connected');
+      logger.info('✓ Redis pub/sub connected');
     } catch (error) {
-      console.error('Failed to connect to Redis:', error);
+      logger.error({ err: error }, 'Failed to connect to Redis');
     }
   }
 
@@ -54,7 +55,7 @@ class RedisPubSubService {
     try {
       await this.publisher.publish(EMERGENCY_CHANNEL, JSON.stringify(message));
     } catch (error) {
-      console.error('Error publishing to Redis:', error);
+      logger.error({ err: error }, 'Error publishing to Redis');
     }
   }
 
@@ -64,7 +65,7 @@ class RedisPubSubService {
     }
     this.subscriber.subscribe(EMERGENCY_CHANNEL, (err) => {
       if (err) {
-        console.error(`Failed to subscribe to Redis channel "${EMERGENCY_CHANNEL}":`, err);
+        logger.error({ err }, `Failed to subscribe to Redis channel "${EMERGENCY_CHANNEL}"`);
       }
     });
     this.subscriber.on('message', (channel: string, payload: string) => {
@@ -75,7 +76,7 @@ class RedisPubSubService {
         const message: EmergencyMessage = JSON.parse(payload);
         handler(message);
       } catch (error) {
-        console.error('Error parsing Redis emergency message:', error);
+        logger.error({ err: error }, 'Error parsing Redis emergency message');
       }
     });
   }

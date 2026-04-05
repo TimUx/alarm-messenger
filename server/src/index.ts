@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import session from 'express-session';
 import path from 'path';
 import http from 'http';
+import pinoHttp from 'pino-http';
 import emergencyRoutes from './routes/emergencies';
 import deviceRoutes from './routes/devices';
 import adminRoutes from './routes/admin';
@@ -16,6 +17,7 @@ import { websocketService } from './services/websocket';
 import { emergencyScheduler } from './services/emergency-scheduler';
 import { redisPubSubService } from './services/redis-pubsub';
 import { decodeSecret } from './utils/secrets';
+import logger from './utils/logger';
 
 dotenv.config();
 
@@ -24,7 +26,7 @@ const SESSION_SECRET = decodeSecret(process.env.SESSION_SECRET) || 'change-this-
 
 if (SESSION_SECRET === 'change-this-session-secret-in-production') {
   const message = '⚠️  WARNING: SESSION_SECRET is using default value. Set a secure SESSION_SECRET in your .env file for production!';
-  console.error(message);
+  logger.error(message);
   if (IS_PRODUCTION) {
     throw new Error('SESSION_SECRET must be set to a secure value in production environments');
   }
@@ -89,6 +91,9 @@ app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// HTTP request logging
+app.use(pinoHttp({ logger }));
+
 // Session middleware (HttpOnly cookie for browser-based admin routes)
 app.use(session({
   secret: SESSION_SECRET,
@@ -129,7 +134,7 @@ app.get('/health', (req, res) => {
 async function startServer() {
   try {
     await initializeDatabase();
-    console.log('✓ Database initialized');
+    logger.info('✓ Database initialized');
 
     // Connect Redis pub/sub (no-op when REDIS_URL is unset)
     redisPubSubService.connect();
@@ -144,13 +149,13 @@ async function startServer() {
     emergencyScheduler.start();
     
     server.listen(PORT, () => {
-      console.log(`\n🚀 Alarm Messenger Server running on port ${PORT}`);
-      console.log(`📡 Health check: http://localhost:${PORT}/health`);
-      console.log(`📋 API Base URL: http://localhost:${PORT}/api`);
-      console.log(`🔌 WebSocket URL: ws://localhost:${PORT}/ws\n`);
+      logger.info(`Alarm Messenger Server running on port ${PORT}`);
+      logger.info(`Health check: http://localhost:${PORT}/health`);
+      logger.info(`API Base URL: http://localhost:${PORT}/api`);
+      logger.info(`WebSocket URL: ws://localhost:${PORT}/ws`);
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    logger.error({ err: error }, '❌ Failed to start server');
     process.exit(1);
   }
 }

@@ -10,6 +10,7 @@ import {
   CreateEmergencyRequest,
   EmergencyResponseRequest,
 } from '../models/types';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -124,14 +125,14 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
         groupCodes
       );
       
-      console.log(`✓ Found ${devices.length} devices matching groups: ${sanitizedGroups}`);
+      logger.info(`✓ Found ${devices.length} devices matching groups: ${sanitizedGroups}`);
     } else {
       // If no groups specified, notify all active devices
       devices = await dbAll(
         'SELECT id, platform, fcm_token, apns_token FROM devices WHERE active = 1',
         []
       );
-      console.log(`✓ No groups specified, notifying all ${devices.length} active devices`);
+      logger.info(`✓ No groups specified, notifying all ${devices.length} active devices`);
     }
 
     // Prepare notification data
@@ -172,7 +173,7 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
         ).length;
         
         if (pushSuccessCount > 0) {
-          console.log(`✓ Push notifications sent to ${pushSuccessCount}/${devices.length} devices`);
+          logger.info(`✓ Push notifications sent to ${pushSuccessCount}/${devices.length} devices`);
         }
       }
       
@@ -198,8 +199,8 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
         websocketService.isDeviceConnected(id)
       ).length;
       
-      console.log(`✓ WebSocket notifications sent to ${websocketSuccessCount}/${devices.length} connected devices`);
-      console.log(`📊 Notification summary: Push=${pushSuccessCount}, WebSocket=${websocketSuccessCount}, Total devices=${devices.length}`);
+      logger.info(`✓ WebSocket notifications sent to ${websocketSuccessCount}/${devices.length} connected devices`);
+      logger.info(`📊 Notification summary: Push=${pushSuccessCount}, WebSocket=${websocketSuccessCount}, Total devices=${devices.length}`);
     }
 
     const emergency: Emergency = {
@@ -216,7 +217,7 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
 
     res.status(201).json(emergency);
   } catch (error) {
-    console.error('Error creating emergency:', error);
+    logger.error({ err: error }, 'Error creating emergency');
     res.status(500).json({ error: 'Failed to create emergency' });
   }
 });
@@ -247,7 +248,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     res.json(emergencies);
   } catch (error) {
-    console.error('Error fetching emergencies:', error);
+    logger.error({ err: error }, 'Error fetching emergencies');
     res.status(500).json({ error: 'Failed to fetch emergencies' });
   }
 });
@@ -277,7 +278,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     res.json(emergency);
   } catch (error) {
-    console.error('Error fetching emergency:', error);
+    logger.error({ err: error }, 'Error fetching emergency');
     res.status(500).json({ error: 'Failed to fetch emergency' });
   }
 });
@@ -321,7 +322,7 @@ router.post('/:id/responses', verifyDeviceToken, async (req: Request, res: Respo
       respondedAt,
     });
   } catch (error) {
-    console.error('Error submitting response:', error);
+    logger.error({ err: error }, 'Error submitting response');
     res.status(500).json({ error: 'Failed to submit response' });
   }
 });
@@ -363,7 +364,7 @@ router.get('/:id/participants', verifyApiKey, async (req: Request, res: Response
       participants,
     });
   } catch (error) {
-    console.error('Error fetching participants:', error);
+    logger.error({ err: error }, 'Error fetching participants');
     res.status(500).json({ error: 'Failed to fetch participants' });
   }
 });
@@ -396,7 +397,7 @@ router.get('/:id/responses', verifyApiKey, async (req: Request, res: Response) =
 
     res.json(responses);
   } catch (error) {
-    console.error('Error fetching responses:', error);
+    logger.error({ err: error }, 'Error fetching responses');
     res.status(500).json({ error: 'Failed to fetch responses' });
   }
 });

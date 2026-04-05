@@ -1,6 +1,7 @@
 import sqlite3 from 'sqlite3';
 import path from 'path';
 import fs from 'fs';
+import logger from '../utils/logger';
 
 const dbPath = process.env.DATABASE_PATH || './data/alarm-messenger.db';
 let db: sqlite3.Database;
@@ -259,18 +260,18 @@ async function runMigrations(): Promise<void> {
       return;
     }
 
-    console.log(`🔄 Running ${pending.length} database migration(s)…`);
+    logger.info(`🔄 Running ${pending.length} database migration(s)…`);
 
     for (const migration of pending) {
-      console.log(`   ↳ v${migration.version}: ${migration.description}`);
+      logger.info(`   ↳ v${migration.version}: ${migration.description}`);
       await migration.run();
       await dbRun('UPDATE schema_migrations SET version = ?', [migration.version]);
       currentVersion = migration.version;
     }
 
-    console.log('✓ Database migrations completed');
+    logger.info('✓ Database migrations completed');
   } catch (error) {
-    console.error('⚠️  Database migration warning:', error);
+    logger.error({ err: error }, '⚠️  Database migration warning');
     // Don't fail startup if a migration has issues (e.g. column already exists
     // from a partial previous run).
   }

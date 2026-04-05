@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { verifyToken, verifyAdmin, AuthRequest, verifyDeviceToken } from '../middleware/auth';
 import { Device } from '../models/types';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -46,7 +47,7 @@ router.post('/registration-token', async (req: Request, res: Response) => {
       registrationData,
     });
   } catch (error) {
-    console.error('Error generating registration token:', error);
+    logger.error({ err: error }, 'Error generating registration token');
     res.status(500).json({ error: 'Failed to generate registration token' });
   }
 });
@@ -171,7 +172,7 @@ router.post('/register', async (req: Request, res: Response) => {
       res.status(201).json(device);
     }
   } catch (error) {
-    console.error('Error registering device:', error);
+    logger.error({ err: error }, 'Error registering device');
     res.status(500).json({ error: 'Failed to register device' });
   }
 });
@@ -234,7 +235,7 @@ router.post('/update-push-token', verifyDeviceToken, async (req: Request, res: R
       params
     );
 
-    console.log(`✓ Push tokens updated for device: ${deviceToken.substring(0, 20)}...`);
+    logger.info(`✓ Push tokens updated for device: ${deviceToken.substring(0, 20)}...`);
     
     res.json({ 
       success: true, 
@@ -243,7 +244,7 @@ router.post('/update-push-token', verifyDeviceToken, async (req: Request, res: R
       apnsTokenUpdated: apnsToken !== undefined,
     });
   } catch (error) {
-    console.error('Error updating push tokens:', error);
+    logger.error({ err: error }, 'Error updating push tokens');
     res.status(500).json({ error: 'Failed to update push tokens' });
   }
 });
@@ -276,7 +277,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     res.json(devices);
   } catch (error) {
-    console.error('Error fetching devices:', error);
+    logger.error({ err: error }, 'Error fetching devices');
     res.status(500).json({ error: 'Failed to fetch devices' });
   }
 });
@@ -319,7 +320,7 @@ router.get('/:id', verifyDeviceToken, async (req: Request, res: Response) => {
 
     res.json(device);
   } catch (error) {
-    console.error('Error fetching device:', error);
+    logger.error({ err: error }, 'Error fetching device');
     res.status(500).json({ error: 'Failed to fetch device' });
   }
 });
@@ -374,7 +375,7 @@ router.get('/:id/details', async (req: Request, res: Response) => {
       assignedGroups,
     });
   } catch (error) {
-    console.error('Error fetching device details:', error);
+    logger.error({ err: error }, 'Error fetching device details');
     res.status(500).json({ error: 'Failed to fetch device details' });
   }
 });
@@ -417,7 +418,7 @@ router.get('/:id/qr-code', verifyDeviceToken, async (req: Request, res: Response
       },
     });
   } catch (error) {
-    console.error('Error fetching QR code:', error);
+    logger.error({ err: error }, 'Error fetching QR code');
     res.status(500).json({ error: 'Failed to fetch QR code' });
   }
 });
@@ -436,7 +437,7 @@ router.delete('/:id', verifyToken, verifyAdmin, async (req: AuthRequest, res: Re
     await dbRun('UPDATE devices SET active = 0 WHERE id = ?', [id]);
     res.json({ message: 'Device deactivated successfully' });
   } catch (error) {
-    console.error('Error deactivating device:', error);
+    logger.error({ err: error }, 'Error deactivating device');
     res.status(500).json({ error: 'Failed to deactivate device' });
   }
 });

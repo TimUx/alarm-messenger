@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { version } from '../../package.json';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     res.json(serverInfo);
   } catch (error) {
-    console.error('Error fetching server info:', error);
+    logger.error({ err: error }, 'Error fetching server info');
     res.status(500).json({ error: 'Failed to fetch server info' });
   }
 });

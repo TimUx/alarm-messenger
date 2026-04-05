@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { generateToken, verifyAdmin, verifySession, generateCsrfToken, AuthRequest } from '../middleware/auth';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -57,7 +58,7 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error during login:', error);
+    logger.error({ err: error }, 'Error during login');
     res.status(500).json({ error: 'Login failed' });
   }
 });
@@ -66,7 +67,7 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
 router.post('/logout', (req: Request, res: Response) => {
   req.session.destroy((err) => {
     if (err) {
-      console.error('Error destroying session:', err);
+      logger.error({ err }, 'Error destroying session');
       res.status(500).json({ error: 'Logout failed' });
       return;
     }
@@ -120,7 +121,7 @@ router.post('/users', verifySession, verifyAdmin, async (req: AuthRequest, res: 
       createdAt,
     });
   } catch (error) {
-    console.error('Error creating admin user:', error);
+    logger.error({ err: error }, 'Error creating admin user');
     res.status(500).json({ error: 'Failed to create admin user' });
   }
 });
@@ -173,7 +174,7 @@ router.post('/init', async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error initializing admin:', error);
+    logger.error({ err: error }, 'Error initializing admin');
     res.status(500).json({ error: 'Failed to initialize admin' });
   }
 });
@@ -196,7 +197,7 @@ router.get('/users', verifySession, verifyAdmin, async (req: AuthRequest, res: R
       })),
     });
   } catch (error) {
-    console.error('Error fetching users:', error);
+    logger.error({ err: error }, 'Error fetching users');
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
@@ -246,7 +247,7 @@ router.put('/users/:id', verifySession, verifyAdmin, async (req: AuthRequest, re
 
     res.json({ message: 'User updated successfully' });
   } catch (error) {
-    console.error('Error updating user:', error);
+    logger.error({ err: error }, 'Error updating user');
     res.status(500).json({ error: 'Failed to update user' });
   }
 });
@@ -273,7 +274,7 @@ router.delete('/users/:id', verifySession, verifyAdmin, async (req: AuthRequest,
 
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
-    console.error('Error deleting user:', error);
+    logger.error({ err: error }, 'Error deleting user');
     res.status(500).json({ error: 'Failed to delete user' });
   }
 });
@@ -321,7 +322,7 @@ router.put('/users/:id/password', verifySession, async (req: AuthRequest, res: R
 
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
-    console.error('Error changing password:', error);
+    logger.error({ err: error }, 'Error changing password');
     res.status(500).json({ error: 'Failed to change password' });
   }
 });
@@ -347,7 +348,7 @@ router.get('/profile', verifySession, async (req: AuthRequest, res: Response) =>
       createdAt: user.created_at,
     });
   } catch (error) {
-    console.error('Error fetching profile:', error);
+    logger.error({ err: error }, 'Error fetching profile');
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
@@ -392,7 +393,7 @@ router.put('/devices/:id', verifySession, verifyAdmin, async (req: AuthRequest, 
 
     res.json({ message: 'Device updated successfully' });
   } catch (error) {
-    console.error('Error updating device:', error);
+    logger.error({ err: error }, 'Error updating device');
     res.status(500).json({ error: 'Failed to update device' });
   }
 });
@@ -436,7 +437,7 @@ router.get('/emergencies', verifySession, async (req: AuthRequest, res: Response
       },
     });
   } catch (error) {
-    console.error('Error fetching emergencies:', error);
+    logger.error({ err: error }, 'Error fetching emergencies');
     res.status(500).json({ error: 'Failed to fetch emergencies' });
   }
 });
@@ -507,7 +508,7 @@ router.get('/emergencies/:id', verifySession, async (req: AuthRequest, res: Resp
       },
     });
   } catch (error) {
-    console.error('Error fetching emergency details:', error);
+    logger.error({ err: error }, 'Error fetching emergency details');
     res.status(500).json({ error: 'Failed to fetch emergency details' });
   }
 });
