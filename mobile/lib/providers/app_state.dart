@@ -10,6 +10,7 @@ import '../services/notification_service.dart';
 class AppState extends ChangeNotifier {
   bool _isRegistered = false;
   Emergency? _currentEmergency;
+  bool _showAlarmDialog = false;
   List<Emergency> _emergencies = [];
   bool _isLoading = false;
   ServerInfo? _serverInfo;
@@ -22,6 +23,7 @@ class AppState extends ChangeNotifier {
 
   bool get isRegistered => _isRegistered;
   Emergency? get currentEmergency => _currentEmergency;
+  bool get showAlarmDialog => _showAlarmDialog;
   List<Emergency> get emergencies => _emergencies;
   bool get isLoading => _isLoading;
   ServerInfo? get serverInfo => _serverInfo;
@@ -78,8 +80,30 @@ class AppState extends ChangeNotifier {
     // Sort by date descending to get the most recent
     emergenciesWithDates.sort((a, b) => b.date.compareTo(a.date));
     
-    _currentEmergency = emergenciesWithDates.first.emergency;
-    AlarmService.playAlarm();
+    final mostRecent = emergenciesWithDates.first;
+    _currentEmergency = mostRecent.emergency;
+
+    // Only play the alarm and show the alert dialog for emergencies created
+    // within the last 5 minutes. Older emergencies are surfaced silently so
+    // that the app reflects the current state without waking the user for a
+    // stale event they already missed.
+    DateTime? createdAt;
+    try {
+      createdAt = DateTime.parse(mostRecent.emergency.createdAt);
+    } catch (error) {
+      developer.log(
+        'Error parsing createdAt for emergency ${mostRecent.emergency.id}: ${mostRecent.emergency.createdAt}',
+        name: 'AppState',
+        error: error,
+      );
+    }
+    final age = createdAt != null
+        ? DateTime.now().difference(createdAt)
+        : const Duration(minutes: 0); // treat unparseable as fresh to avoid silent failures
+    if (age <= const Duration(minutes: 5)) {
+      AlarmService.playAlarm();
+      _showAlarmDialog = true;
+    }
     notifyListeners();
   }
 
@@ -137,6 +161,7 @@ class AppState extends ChangeNotifier {
 
   void handleEmergencyNotification(PushNotificationData notification) {
     _currentEmergency = notification.toEmergency();
+    _showAlarmDialog = true;
     
     // Play alarm sound
     AlarmService.playAlarm();
@@ -169,6 +194,7 @@ class AppState extends ChangeNotifier {
 
       await AlarmService.stopAlarm();
       _currentEmergency = null;
+      _showAlarmDialog = false;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -217,6 +243,7 @@ class AppState extends ChangeNotifier {
     WebSocketService.disconnect();
     _isRegistered = false;
     _currentEmergency = null;
+    _showAlarmDialog = false;
     _emergencies = [];
     _serverInfo = null;
     _deviceDetails = null;

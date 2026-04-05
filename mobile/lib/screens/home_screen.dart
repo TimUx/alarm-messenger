@@ -32,10 +32,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final appState = Provider.of<AppState>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
 
-    // Show emergency alert dialog if there's a current emergency
-    // Capture the emergency in a local variable to avoid race conditions
+    // Show emergency alert dialog only when the alarm is active (i.e. the
+    // emergency was created within the last 5 minutes, or arrived via WebSocket).
+    // Capture the emergency in a local variable to avoid race conditions.
     final currentEmergency = appState.currentEmergency;
-    if (currentEmergency != null && !_isDialogShowing) {
+    if (appState.showAlarmDialog && currentEmergency != null && !_isDialogShowing) {
       _isDialogShowing = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showEmergencyDialog(context, currentEmergency);
