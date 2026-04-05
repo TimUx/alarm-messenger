@@ -516,16 +516,21 @@ router.get('/emergencies/:id', verifySession, async (req: AuthRequest, res: Resp
 
 // Server-Sent Events endpoint for real-time updates (protected)
 router.get('/events', verifySession, (req: AuthRequest, res: Response) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders();
+  try {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
 
-  addSseClient(res);
+    addSseClient(res);
 
-  req.on('close', () => {
+    req.on('close', () => {
+      removeSseClient(res);
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Error setting up SSE connection');
     removeSseClient(res);
-  });
+  }
 });
 
 export default router;

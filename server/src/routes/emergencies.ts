@@ -335,13 +335,17 @@ router.post('/:id/responses', verifyDeviceToken, async (req: Request, res: Respo
       respondedAt,
     });
 
-    broadcastSseEvent('response', {
-      id: responseId,
-      emergencyId,
-      deviceId,
-      participating,
-      respondedAt,
-    });
+    try {
+      broadcastSseEvent('response', {
+        id: responseId,
+        emergencyId,
+        deviceId,
+        participating,
+        respondedAt,
+      });
+    } catch (sseError) {
+      logger.error({ err: sseError }, 'Error broadcasting SSE response event');
+    }
   } catch (error) {
     logger.error({ err: error }, 'Error submitting response');
     res.status(500).json({ error: 'Failed to submit response' });

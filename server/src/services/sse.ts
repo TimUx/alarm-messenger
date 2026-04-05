@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import logger from '../utils/logger';
 
 const clients = new Set<Response>();
 
@@ -15,7 +16,8 @@ export function broadcastSseEvent(event: string, data: unknown): void {
   for (const res of clients) {
     try {
       res.write(payload);
-    } catch {
+    } catch (error) {
+      logger.error({ err: error }, 'Error writing to SSE client; removing from pool');
       clients.delete(res);
     }
   }

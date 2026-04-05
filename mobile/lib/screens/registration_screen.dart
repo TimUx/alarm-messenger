@@ -29,7 +29,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       _isProcessing = true;
     });
 
-    await _controller.stop();
+    try {
+      await _controller.stop();
+    } catch (_) {
+      // Ignore stop errors; proceed with processing
+    }
 
     try {
       // Parse QR code - supports both formats:
@@ -139,6 +143,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 : MobileScanner(
                     controller: _controller,
                     onDetect: (capture) {
+                      if (_isProcessing) return;
                       final barcode = capture.barcodes.firstOrNull;
                       if (barcode?.rawValue != null) {
                         _processQRCode(barcode!.rawValue!);

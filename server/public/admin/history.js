@@ -495,7 +495,8 @@ function subscribeToEvents() {
     evtSource.addEventListener('response', () => {
         loadEmergencies();
     });
-    evtSource.onerror = () => {
+    evtSource.onerror = (e) => {
+        console.warn('SSE connection error; reconnecting in 5 s', e);
         evtSource.close();
         setTimeout(subscribeToEvents, 5000);
     };
