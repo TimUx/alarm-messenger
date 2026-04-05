@@ -154,19 +154,21 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
     if (deviceIds.length > 0) {
       // Try push notifications first (FCM for Android, APNs for iOS)
       if (pushNotificationService.isPushEnabled()) {
-        for (const device of devices) {
-          const pushSuccess = await pushNotificationService.sendPushNotification(
-            device.platform,
-            device.fcm_token,
-            device.apns_token,
-            notificationTitle,
-            notificationBody,
-            notificationData
-          );
-          if (pushSuccess) {
-            pushSuccessCount++;
-          }
-        }
+        const pushResults = await Promise.allSettled(
+          devices.map((device: any) =>
+            pushNotificationService.sendPushNotification(
+              device.platform,
+              device.fcm_token,
+              device.apns_token,
+              notificationTitle,
+              notificationBody,
+              notificationData
+            )
+          )
+        );
+        pushSuccessCount = pushResults.filter(
+          (r) => r.status === 'fulfilled' && r.value === true
+        ).length;
         
         if (pushSuccessCount > 0) {
           console.log(`✓ Push notifications sent to ${pushSuccessCount}/${devices.length} devices`);

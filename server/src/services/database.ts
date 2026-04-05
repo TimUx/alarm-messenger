@@ -57,7 +57,7 @@ const MIGRATIONS: { version: number; description: string; run: () => Promise<voi
     description: 'Add role and full_name columns to admin_users',
     async run() {
       await dbRun('ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT "operator"');
-      await dbRun('UPDATE admin_users SET role = "admin" WHERE role IS NULL');
+      await dbRun('UPDATE admin_users SET role = "admin" WHERE role = "operator"');
       await dbRun('ALTER TABLE admin_users ADD COLUMN full_name TEXT');
     },
   },
@@ -236,7 +236,7 @@ export const dbAll = <T = any>(sql: string, params: any[] = []): Promise<T[]> =>
  */
 async function runMigrations(): Promise<void> {
   try {
-    // Initialise the version row if the table is empty (brand-new database or
+    // Initialize the version row if the table is empty (brand-new database or
     // a database that predates this migration system).
     const row = await dbGet<{ version: number } | undefined>('SELECT version FROM schema_migrations LIMIT 1');
     let currentVersion = row ? row.version : 0;
