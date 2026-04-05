@@ -13,6 +13,7 @@ declare module 'express-session' {
 }
 
 const JWT_SECRET = decodeSecret(process.env.JWT_SECRET) || 'change-this-secret-in-production';
+const VALID_API_KEY = decodeSecret(process.env.API_SECRET_KEY) || 'change-me-in-production';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 if (JWT_SECRET === 'change-this-secret-in-production') {
@@ -20,6 +21,14 @@ if (JWT_SECRET === 'change-this-secret-in-production') {
   console.error(message);
   if (IS_PRODUCTION) {
     throw new Error('JWT_SECRET must be set to a secure value in production environments');
+  }
+}
+
+if (VALID_API_KEY === 'change-me-in-production') {
+  const message = '⚠️  WARNING: API_SECRET_KEY is using default value. Set a secure API_SECRET_KEY in your .env file for production!';
+  console.error(message);
+  if (IS_PRODUCTION) {
+    throw new Error('API_SECRET_KEY must be set to a secure value in production environments');
   }
 }
 
@@ -58,18 +67,8 @@ export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction)
 // Middleware to verify API key for emergency creation
 export const verifyApiKey = (req: Request, res: Response, next: NextFunction) => {
   const apiKey = req.headers['x-api-key'] as string;
-  const validApiKey = decodeSecret(process.env.API_SECRET_KEY) || 'change-me-in-production';
 
-  if (validApiKey === 'change-me-in-production') {
-    const message = '⚠️  WARNING: API_SECRET_KEY is using default value. Set a secure API_SECRET_KEY in your .env file for production!';
-    console.error(message);
-    if (IS_PRODUCTION) {
-      res.status(500).json({ error: 'Server configuration error: API_SECRET_KEY not properly configured' });
-      return;
-    }
-  }
-
-  if (!apiKey || apiKey !== validApiKey) {
+  if (!apiKey || apiKey !== VALID_API_KEY) {
     res.status(401).json({ error: 'Invalid or missing API key' });
     return;
   }
