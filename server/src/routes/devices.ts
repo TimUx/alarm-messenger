@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import QRCode from 'qrcode';
 import { dbRun, dbGet, dbAll } from '../services/database';
-import { verifyToken, verifyAdmin, AuthRequest } from '../middleware/auth';
+import { verifyToken, verifyAdmin, AuthRequest, verifyDeviceToken } from '../middleware/auth';
 import { Device } from '../models/types';
 
 const router = Router();
@@ -177,7 +177,7 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 // Update push notification tokens (FCM/APNs)
-router.post('/update-push-token', async (req: Request, res: Response) => {
+router.post('/update-push-token', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { deviceToken, fcmToken, apnsToken } = req.body;
 
@@ -282,7 +282,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // Get a specific device
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const row = await dbGet('SELECT * FROM devices WHERE id = ?', [id]);
@@ -380,7 +380,7 @@ router.get('/:id/details', async (req: Request, res: Response) => {
 });
 
 // Get QR code for a specific device
-router.get('/:id/qr-code', async (req: Request, res: Response) => {
+router.get('/:id/qr-code', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const row = await dbGet('SELECT device_token, qr_code_data FROM devices WHERE id = ?', [id]);

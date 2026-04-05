@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { decodeSecret } from '../utils/secrets';
+import { dbGet } from '../services/database';
 
 const JWT_SECRET = decodeSecret(process.env.JWT_SECRET) || 'change-this-secret-in-production';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
@@ -79,4 +80,28 @@ export const verifyAdmin = (req: AuthRequest, res: Response, next: NextFunction)
     return;
   }
   next();
+};
+
+// Middleware to verify device token from X-Device-Token header
+export const verifyDeviceToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const deviceToken = req.headers['x-device-token'] as string | undefined;
+
+  if (!deviceToken) {
+    res.status(401).json({ error: 'Missing X-Device-Token header' });
+    return;
+  }
+
+  try {
+    const device = await dbGet('SELECT id, active FROM devices WHERE device_token = ?', [deviceToken]);
+
+    if (!device || device.active !== 1) {
+      res.status(401).json({ error: 'Invalid or inactive device token' });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    console.error('Error verifying device token:', error);
+    res.status(500).json({ error: 'Failed to verify device token' });
+  }
 };

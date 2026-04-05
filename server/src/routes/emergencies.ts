@@ -5,6 +5,7 @@ import { websocketService } from '../services/websocket';
 import { pushNotificationService } from '../services/push-notification';
 import { redisPubSubService } from '../services/redis-pubsub';
 import { verifyApiKey } from '../middleware/auth';
+import { verifyDeviceToken } from '../middleware/auth';
 import {
   Emergency,
   CreateEmergencyRequest,
@@ -283,7 +284,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Submit response to an emergency
-router.post('/:id/responses', async (req: Request, res: Response) => {
+router.post('/:id/responses', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { id: emergencyId } = req.params;
     const { deviceId, participating }: EmergencyResponseRequest = req.body;
