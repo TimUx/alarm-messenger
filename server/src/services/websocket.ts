@@ -1,6 +1,7 @@
 import { Server as HTTPServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { redisPubSubService } from './redis-pubsub';
+import { dbGet } from './database';
 
 interface Client {
   ws: WebSocket;
@@ -46,15 +47,26 @@ class WebSocketService {
         }
       });
 
-      ws.on('message', (message: string) => {
+      ws.on('message', async (message: string) => {
         try {
           const data = JSON.parse(message.toString());
-          
-          if (data.type === 'register' && data.deviceId) {
-            const registeredDeviceId = data.deviceId;
+
+          if (data.type === 'register' && data.deviceToken) {
+            const device = await dbGet(
+              'SELECT id, active FROM devices WHERE device_token = ?',
+              [data.deviceToken]
+            );
+
+            if (!device || device.active !== 1) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Invalid or inactive device token' }));
+              ws.close();
+              return;
+            }
+
+            const registeredDeviceId = device.id;
             deviceId = registeredDeviceId;
             console.log(`Device registered via WebSocket: ${registeredDeviceId}`);
-            
+
             // Store the client connection
             this.clients.set(registeredDeviceId, {
               ws,
