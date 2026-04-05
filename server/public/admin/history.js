@@ -68,6 +68,9 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // Load data
     loadEmergencies();
+    
+    // Subscribe to real-time response events
+    subscribeToEvents();
 });
 
 async function loadEmergencies() {
@@ -485,4 +488,15 @@ function displayEmergencyDetails(data) {
 
 function closeDetailsModal() {
     document.getElementById('details-modal').style.display = 'none';
+}
+
+function subscribeToEvents() {
+    const evtSource = new EventSource(`${API_BASE}/admin/events`, { withCredentials: true });
+    evtSource.addEventListener('response', () => {
+        loadEmergencies();
+    });
+    evtSource.onerror = () => {
+        evtSource.close();
+        setTimeout(subscribeToEvents, 5000);
+    };
 }

@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
-import 'package:permission_handler/permission_handler.dart';
 import '../providers/app_state.dart';
 
 class RegistrationScreen extends StatefulWidget {
@@ -14,42 +13,13 @@ class RegistrationScreen extends StatefulWidget {
 }
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? controller;
+  final MobileScannerController _controller = MobileScannerController();
   bool _isProcessing = false;
 
   @override
-  void initState() {
-    super.initState();
-    _requestCameraPermission();
-  }
-
-  Future<void> _requestCameraPermission() async {
-    final status = await Permission.camera.request();
-    if (!status.isGranted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Camera permission is required to scan QR code'),
-          ),
-        );
-      }
-    }
-  }
-
-  @override
   void dispose() {
-    controller?.dispose();
+    _controller.dispose();
     super.dispose();
-  }
-
-  void _onQRViewCreated(QRViewController controller) {
-    this.controller = controller;
-    controller.scannedDataStream.listen((scanData) {
-      if (!_isProcessing && scanData.code != null) {
-        _processQRCode(scanData.code!);
-      }
-    });
   }
 
   Future<void> _processQRCode(String code) async {
@@ -58,6 +28,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     setState(() {
       _isProcessing = true;
     });
+
+    await _controller.stop();
 
     try {
       // Parse QR code - supports both formats:
@@ -113,6 +85,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           ),
         );
       }
+      await _controller.start();
       setState(() {
         _isProcessing = false;
       });
@@ -163,16 +136,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       ],
                     ),
                   )
-                : QRView(
-                    key: qrKey,
-                    onQRViewCreated: _onQRViewCreated,
-                    overlay: QrScannerOverlayShape(
-                      borderColor: Theme.of(context).colorScheme.primary,
-                      borderRadius: 10,
-                      borderLength: 30,
-                      borderWidth: 10,
-                      cutOutSize: 300,
-                    ),
+                : MobileScanner(
+                    controller: _controller,
+                    onDetect: (capture) {
+                      final barcode = capture.barcodes.firstOrNull;
+                      if (barcode?.rawValue != null) {
+                        _processQRCode(barcode!.rawValue!);
+                      }
+                    },
                   ),
           ),
           Padding(

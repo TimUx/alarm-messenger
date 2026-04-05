@@ -4,6 +4,7 @@ import { dbRun, dbGet, dbAll } from '../services/database';
 import { websocketService } from '../services/websocket';
 import { pushNotificationService } from '../services/push-notification';
 import { redisPubSubService } from '../services/redis-pubsub';
+import { broadcastSseEvent } from '../services/sse';
 import { verifyApiKey, verifyDeviceToken, DeviceRequest } from '../middleware/auth';
 import {
   Emergency,
@@ -227,12 +228,24 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     // Support query parameter to include inactive emergencies
     const includeInactive = req.query.includeInactive === 'true';
-    
-    const query = includeInactive
-      ? 'SELECT * FROM emergencies ORDER BY created_at DESC'
-      : 'SELECT * FROM emergencies WHERE active = 1 ORDER BY created_at DESC';
+    const emergencyNumberFilter = req.query.emergencyNumber as string | undefined;
 
-    const rows = await dbAll(query, []);
+    let query: string;
+    let params: (string | boolean)[];
+
+    if (emergencyNumberFilter) {
+      query = includeInactive
+        ? 'SELECT * FROM emergencies WHERE emergency_number = ? ORDER BY created_at DESC'
+        : 'SELECT * FROM emergencies WHERE active = 1 AND emergency_number = ? ORDER BY created_at DESC';
+      params = [emergencyNumberFilter];
+    } else {
+      query = includeInactive
+        ? 'SELECT * FROM emergencies ORDER BY created_at DESC'
+        : 'SELECT * FROM emergencies WHERE active = 1 ORDER BY created_at DESC';
+      params = [];
+    }
+
+    const rows = await dbAll(query, params);
 
     const emergencies: Emergency[] = rows.map((row: any) => ({
       id: row.id,
@@ -315,6 +328,14 @@ router.post('/:id/responses', verifyDeviceToken, async (req: Request, res: Respo
     );
 
     res.status(201).json({
+      id: responseId,
+      emergencyId,
+      deviceId,
+      participating,
+      respondedAt,
+    });
+
+    broadcastSseEvent('response', {
       id: responseId,
       emergencyId,
       deviceId,

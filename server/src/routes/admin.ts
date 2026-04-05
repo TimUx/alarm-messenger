@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { generateToken, verifyAdmin, verifySession, generateCsrfToken, AuthRequest } from '../middleware/auth';
+import { addSseClient, removeSseClient } from '../services/sse';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -511,6 +512,20 @@ router.get('/emergencies/:id', verifySession, async (req: AuthRequest, res: Resp
     logger.error({ err: error }, 'Error fetching emergency details');
     res.status(500).json({ error: 'Failed to fetch emergency details' });
   }
+});
+
+// Server-Sent Events endpoint for real-time updates (protected)
+router.get('/events', verifySession, (req: AuthRequest, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  addSseClient(res);
+
+  req.on('close', () => {
+    removeSseClient(res);
+  });
 });
 
 export default router;
