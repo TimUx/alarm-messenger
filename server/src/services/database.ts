@@ -167,6 +167,11 @@ export async function initializeDatabase(): Promise<void> {
           )
         `);
 
+        // Indexes for common query patterns
+        db.run(`CREATE INDEX IF NOT EXISTS idx_emergencies_active ON emergencies(active, created_at)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_devices_device_token ON devices(device_token)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_responses_emergency_id ON responses(emergency_id)`);
+
         // Admin users table
         db.run(`
           CREATE TABLE IF NOT EXISTS admin_users (
