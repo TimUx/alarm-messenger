@@ -128,11 +128,11 @@ export const dbRun = (sql: string, params: any[] = []): Promise<void> => {
   });
 };
 
-export const dbGet = <T = any>(sql: string, params: any[] = []): Promise<T | undefined> => {
+export const dbGet = <T = any>(sql: string, params: any[] = []): Promise<T> => {
   return new Promise((resolve, reject) => {
     getDatabase().get(sql, params, (err, row) => {
       if (err) reject(err);
-      else resolve(row as T | undefined);
+      else resolve(row as T);
     });
   });
 };
