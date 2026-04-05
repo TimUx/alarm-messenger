@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import 'express-session';
-import { decodeSecret } from '../utils/secrets';
+import { decodeSecret, resolveSecret } from '../utils/secrets';
 import { dbGet } from '../services/database';
 
 declare module 'express-session' {
@@ -12,7 +12,7 @@ declare module 'express-session' {
   }
 }
 
-const JWT_SECRET = decodeSecret(process.env.JWT_SECRET) || 'change-this-secret-in-production';
+const JWT_SECRET = resolveSecret('JWT_SECRET') || 'change-this-secret-in-production';
 const VALID_API_KEY = decodeSecret(process.env.API_SECRET_KEY) || 'change-me-in-production';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
