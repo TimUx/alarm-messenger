@@ -88,6 +88,9 @@ export async function initializeDatabase(): Promise<void> {
       // Create base tables (all fully-featured from the start so that fresh
       // installs never need to run the ALTER TABLE migrations above).
       db.serialize(() => {
+        db.run('PRAGMA journal_mode=WAL');
+        db.run('PRAGMA synchronous=NORMAL');
+
         // Schema migrations tracking table
         db.run(`
           CREATE TABLE IF NOT EXISTS schema_migrations (
