@@ -174,6 +174,25 @@ export const verifySession = async (req: AuthRequest, res: Response, next: NextF
 // Generate a cryptographically random CSRF token
 export const generateCsrfToken = (): string => crypto.randomBytes(32).toString('hex');
 
+// Accepts either a valid API key (X-Api-Key) or a valid device token (X-Device-Token).
+// This allows both server-to-server calls (alarm-monitor) and mobile-app calls on the same route.
+// If an X-Api-Key header is present but invalid, the request is rejected immediately.
+export const verifyApiKeyOrDeviceToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  const apiKey = req.headers['x-api-key'] as string | undefined;
+  if (apiKey !== undefined) {
+    if (safeCompare(apiKey, VALID_API_KEY)) {
+      return next();
+    }
+    res.status(401).json({ error: 'Invalid or missing API key' });
+    return;
+  }
+  return verifyDeviceToken(req, res, next);
+};
+
 // Middleware to verify device token from X-Device-Token header
 export const verifyDeviceToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const deviceToken = req.headers['x-device-token'] as string | undefined;

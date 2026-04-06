@@ -6,7 +6,7 @@ import { pushNotificationService } from '../services/push-notification';
 import { redisPubSubService } from '../services/redis-pubsub';
 import { broadcastSseEvent } from '../services/sse';
 import { updateOutboxEntry } from '../services/notification-outbox';
-import { verifyApiKey, verifyDeviceToken, DeviceRequest } from '../middleware/auth';
+import { verifyApiKey, verifyApiKeyOrDeviceToken, verifyDeviceToken, DeviceRequest } from '../middleware/auth';
 import { mapEmergencyRow, mapResponderDetails } from '../mappers';
 import { EmergencyRow, DeviceRow } from '../models/db-types';
 import {
@@ -312,7 +312,8 @@ router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: 
 });
 
 // Get all emergencies (only active ones by default, with pagination)
-router.get('/', verifyDeviceToken, async (req: Request, res: Response) => {
+// Accepts X-Device-Token (mobile app) or X-Api-Key (server-to-server, e.g. alarm-monitor)
+router.get('/', verifyApiKeyOrDeviceToken, async (req: Request, res: Response) => {
   try {
     const includeInactive = req.query.includeInactive === 'true';
     const emergencyNumberFilter = req.query.emergencyNumber as string | undefined;
@@ -443,6 +444,8 @@ router.post('/:id/responses', verifyDeviceToken, async (req: Request, res: Respo
 });
 
 // Get participants for an emergency with full responder details (protected with API key)
+// Response shape consumed by alarm-monitor:
+// { emergencyId: string, totalParticipants: number, participants: [...] }
 router.get('/:id/participants', verifyApiKey, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
