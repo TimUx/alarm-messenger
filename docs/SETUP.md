@@ -7,8 +7,9 @@
   - [Schritt 1: Abhängigkeiten installieren](#schritt-1-abhängigkeiten-installieren)
   - [Schritt 2: Umgebungsvariablen konfigurieren](#schritt-2-umgebungsvariablen-konfigurieren)
   - [Schritt 3: Anwendung bauen](#schritt-3-anwendung-bauen)
-  - [Schritt 4: Admin-Benutzer erstellen](#schritt-4-admin-benutzer-erstellen)
-  - [Schritt 5: Server starten](#schritt-5-server-starten)
+  - [Schritt 4: Server starten](#schritt-4-server-starten)
+  - [Schritt 5: Admin-Benutzer erstellen](#schritt-5-admin-benutzer-erstellen)
+  - [Schritt 6: Installation verifizieren](#schritt-6-installation-verifizieren)
 - [Produktiv-Deployment](#produktiv-deployment)
   - [Systemd Service](#systemd-service)
   - [PM2 Process Manager](#pm2-process-manager)
@@ -82,9 +83,24 @@ npm start
 
 Der Server startet auf dem in `.env` angegebenen Port (Standard: 3000).
 
-**Hinweis:** Das System verwendet WebSocket für Push-Benachrichtigungen. Firebase wird nicht mehr benötigt!
+**Hinweis:** Das System verwendet WebSocket für Push-Benachrichtigungen. FCM (Firebase) und APNs sind optional konfigurierbar, aber nicht erforderlich.
 
-## Schritt 5: Installation verifizieren
+## Schritt 5: Admin-Benutzer erstellen
+
+Beim ersten Start gibt es noch keine Admin-Benutzer. Erstellen Sie den ersten Administrator mit dem Init-Endpunkt:
+
+```bash
+curl -X POST http://localhost:3000/api/admin/init \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "ihr-sicheres-passwort"
+  }'
+```
+
+Dieser Endpunkt ist nur aufrufbar, wenn noch **keine** Admin-Benutzer existieren. Danach kann der Admin weitere Benutzer über `POST /api/admin/users` anlegen.
+
+## Schritt 6: Installation verifizieren
 
 Testen Sie den Gesundheitsendpunkt:
 
@@ -115,6 +131,7 @@ Die SQLite-Datenbank wird beim ersten Start automatisch im `data`-Verzeichnis er
 - `emergency_location` (TEXT)
 - `created_at` (TEXT)
 - `active` (INTEGER)
+- `groups` (TEXT, optional – kommagetrennte Gruppen-Codes)
 
 **devices**
 - `id` (TEXT, PRIMARY KEY)
@@ -123,6 +140,16 @@ Die SQLite-Datenbank wird beim ersten Start automatisch im `data`-Verzeichnis er
 - `platform` (TEXT)
 - `registered_at` (TEXT)
 - `active` (INTEGER)
+- `first_name` (TEXT)
+- `last_name` (TEXT)
+- `qual_machinist` (INTEGER)
+- `qual_agt` (INTEGER)
+- `qual_paramedic` (INTEGER)
+- `leadership_role` (TEXT)
+- `fcm_token` (TEXT)
+- `apns_token` (TEXT)
+- `qr_code_data` (TEXT)
+- `registration_expires_at` (TEXT)
 
 **responses**
 - `id` (TEXT, PRIMARY KEY)
@@ -130,6 +157,40 @@ Die SQLite-Datenbank wird beim ersten Start automatisch im `data`-Verzeichnis er
 - `device_id` (TEXT, FOREIGN KEY)
 - `participating` (INTEGER)
 - `responded_at` (TEXT)
+
+**admin_users**
+- `id` (TEXT, PRIMARY KEY)
+- `username` (TEXT, UNIQUE)
+- `password_hash` (TEXT)
+- `full_name` (TEXT)
+- `role` (TEXT – `"admin"` oder `"operator"`)
+- `created_at` (TEXT)
+
+**groups**
+- `code` (TEXT, PRIMARY KEY)
+- `name` (TEXT)
+- `description` (TEXT)
+- `created_at` (TEXT)
+
+**device_groups**
+- `device_id` (TEXT, FOREIGN KEY)
+- `group_code` (TEXT, FOREIGN KEY)
+- `assigned_at` (TEXT)
+
+**notification_outbox** (Benachrichtigungs-Tracking pro Gerät)
+- `id` (TEXT, PRIMARY KEY)
+- `emergency_id` (TEXT, FOREIGN KEY)
+- `device_id` (TEXT, FOREIGN KEY)
+- `channel` (TEXT – `"fcm"`, `"apns"` oder `"websocket"`)
+- `status` (TEXT – `"pending"`, `"delivered"` oder `"failed"`)
+- `retry_count` (INTEGER)
+- `last_error` (TEXT)
+- `created_at` (TEXT)
+- `updated_at` (TEXT)
+
+**revoked_tokens** (JWT-Blacklist)
+- `token_hash` (TEXT, PRIMARY KEY)
+- `expires_at` (TEXT)
 
 ### Datenbank sichern
 

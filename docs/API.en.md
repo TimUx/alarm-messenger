@@ -95,9 +95,14 @@ X-API-Key: your-secret-api-key
   "emergencyDate": "2024-12-07T19:00:00Z",
   "emergencyKeyword": "BRAND 3",
   "emergencyDescription": "Wohnungsbrand im 2. OG, Menschenrettung",
-  "emergencyLocation": "Hauptstraße 123, 12345 Stadt"
+  "emergencyLocation": "Hauptstraße 123, 12345 Stadt",
+  "groups": "WIL26,SWA11"
 }
 ```
+
+**Parameters:**
+- `emergencyNumber`, `emergencyDate`, `emergencyKeyword`, `emergencyDescription`, `emergencyLocation` – Required fields
+- `groups` – Optional: Comma-separated list of group codes. If specified, only devices assigned to these groups are notified. Without this field, all active devices are notified.
 
 **Response:** `201 Created`
 ```json
@@ -109,37 +114,65 @@ X-API-Key: your-secret-api-key
   "emergencyDescription": "Wohnungsbrand im 2. OG, Menschenrettung",
   "emergencyLocation": "Hauptstraße 123, 12345 Stadt",
   "createdAt": "2024-12-07T19:00:00.000Z",
-  "active": true
+  "active": true,
+  "groups": "WIL26,SWA11"
 }
 ```
 
 **Error Responses:**
-- `400 Bad Request` - Missing required fields
+- `400 Bad Request` - Missing required fields or invalid characters in `groups` parameter
+- `401 Unauthorized` - API key missing or invalid
+- `409 Conflict` - An active emergency with this number already exists
 - `500 Internal Server Error` - Server error
 
 ---
 
 ### Get All Emergencies
 
-Retrieve all emergencies ordered by creation date (newest first).
+Retrieve all emergencies ordered by creation date (newest first). By default, only active emergencies are returned.
 
 **Endpoint:** `GET /api/emergencies`
 
+🔒 **Authentication required:** Device token via `X-Device-Token` header
+
+**Request Headers:**
+```
+X-Device-Token: your-device-token
+```
+
+**Query Parameters (optional):**
+- `page` – Page number (default: 1)
+- `limit` – Items per page (default: 50, max: 200)
+- `includeInactive=true` – Include completed emergencies
+- `emergencyNumber` – Filter by emergency number
+
 **Response:** `200 OK`
 ```json
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "emergencyNumber": "2024-001",
-    "emergencyDate": "2024-12-07T19:00:00Z",
-    "emergencyKeyword": "BRAND 3",
-    "emergencyDescription": "Wohnungsbrand im 2. OG",
-    "emergencyLocation": "Hauptstraße 123, 12345 Stadt",
-    "createdAt": "2024-12-07T19:00:00.000Z",
-    "active": true
+{
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "emergencyNumber": "2024-001",
+      "emergencyDate": "2024-12-07T19:00:00Z",
+      "emergencyKeyword": "BRAND 3",
+      "emergencyDescription": "Wohnungsbrand im 2. OG",
+      "emergencyLocation": "Hauptstraße 123, 12345 Stadt",
+      "createdAt": "2024-12-07T19:00:00.000Z",
+      "active": true,
+      "groups": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 1,
+    "totalPages": 1
   }
-]
+}
 ```
+
+**Error Responses:**
+- `401 Unauthorized` - Device token missing or invalid
 
 ---
 
@@ -148,6 +181,13 @@ Retrieve all emergencies ordered by creation date (newest first).
 Retrieve a specific emergency.
 
 **Endpoint:** `GET /api/emergencies/:id`
+
+🔒 **Authentication required:** Device token via `X-Device-Token` header
+
+**Request Headers:**
+```
+X-Device-Token: your-device-token
+```
 
 **Response:** `200 OK`
 ```json
@@ -159,11 +199,13 @@ Retrieve a specific emergency.
   "emergencyDescription": "Wohnungsbrand im 2. OG",
   "emergencyLocation": "Hauptstraße 123, 12345 Stadt",
   "createdAt": "2024-12-07T19:00:00.000Z",
-  "active": true
+  "active": true,
+  "groups": null
 }
 ```
 
 **Error Responses:**
+- `401 Unauthorized` - Device token missing or invalid
 - `404 Not Found` - Emergency not found
 
 ---
@@ -174,10 +216,17 @@ Submit a device's response (participate or decline) to an emergency.
 
 **Endpoint:** `POST /api/emergencies/:id/responses`
 
+🔒 **Authentication required:** Device token via `X-Device-Token` header
+
+**Request Headers:**
+```
+Content-Type: application/json
+X-Device-Token: your-device-token
+```
+
 **Request Body:**
 ```json
 {
-  "deviceId": "device-uuid",
   "participating": true
 }
 ```
@@ -195,48 +244,84 @@ Submit a device's response (participate or decline) to an emergency.
 
 **Error Responses:**
 - `400 Bad Request` - Missing required fields
-- `404 Not Found` - Emergency or device not found
+- `401 Unauthorized` - Device token missing or invalid
+- `404 Not Found` - Emergency not found
 
 ---
 
 ### Get Emergency Participants
 
-Retrieve all devices that confirmed participation for an emergency.
+Retrieve all devices that confirmed participation for an emergency, **including full responder details** (name, qualifications, leadership role).
 
 **Endpoint:** `GET /api/emergencies/:id/participants`
+
+🔒 **Authentication required:** API Key via `X-API-Key` header
+
+**Request Headers:**
+```
+X-API-Key: your-secret-api-key
+```
 
 **Response:** `200 OK`
 ```json
 {
   "emergencyId": "550e8400-e29b-41d4-a716-446655440000",
-  "totalParticipants": 5,
+  "totalParticipants": 2,
   "participants": [
     {
       "id": "response-uuid-1",
       "deviceId": "device-uuid-1",
       "platform": "android",
-      "respondedAt": "2024-12-07T19:02:00.000Z"
+      "respondedAt": "2024-12-07T19:02:00.000Z",
+      "responder": {
+        "firstName": "Max",
+        "lastName": "Mustermann",
+        "qualifications": {
+          "machinist": true,
+          "agt": true,
+          "paramedic": false
+        },
+        "leadershipRole": "groupLeader"
+      }
     },
     {
       "id": "response-uuid-2",
       "deviceId": "device-uuid-2",
       "platform": "ios",
-      "respondedAt": "2024-12-07T19:03:00.000Z"
+      "respondedAt": "2024-12-07T19:03:00.000Z",
+      "responder": {
+        "firstName": "Anna",
+        "lastName": "Schmidt",
+        "qualifications": {
+          "machinist": false,
+          "agt": true,
+          "paramedic": true
+        },
+        "leadershipRole": "none"
+      }
     }
   ]
 }
 ```
 
 **Error Responses:**
+- `401 Unauthorized` - API key missing or invalid
 - `404 Not Found` - Emergency not found
 
 ---
 
 ### Get All Responses
 
-Retrieve all responses (both participating and declining) for an emergency.
+Retrieve all responses (both participating and declining) for an emergency, **including full responder details**.
 
 **Endpoint:** `GET /api/emergencies/:id/responses`
+
+🔒 **Authentication required:** API Key via `X-API-Key` header
+
+**Request Headers:**
+```
+X-API-Key: your-secret-api-key
+```
 
 **Response:** `200 OK`
 ```json
@@ -247,7 +332,17 @@ Retrieve all responses (both participating and declining) for an emergency.
     "deviceId": "device-uuid-1",
     "platform": "android",
     "participating": true,
-    "respondedAt": "2024-12-07T19:02:00.000Z"
+    "respondedAt": "2024-12-07T19:02:00.000Z",
+    "responder": {
+      "firstName": "Max",
+      "lastName": "Mustermann",
+      "qualifications": {
+        "machinist": true,
+        "agt": true,
+        "paramedic": false
+      },
+      "leadershipRole": "groupLeader"
+    }
   },
   {
     "id": "response-uuid-2",
@@ -255,10 +350,23 @@ Retrieve all responses (both participating and declining) for an emergency.
     "deviceId": "device-uuid-2",
     "platform": "ios",
     "participating": false,
-    "respondedAt": "2024-12-07T19:03:00.000Z"
+    "respondedAt": "2024-12-07T19:03:00.000Z",
+    "responder": {
+      "firstName": "Anna",
+      "lastName": "Schmidt",
+      "qualifications": {
+        "machinist": false,
+        "agt": true,
+        "paramedic": true
+      },
+      "leadershipRole": "none"
+    }
   }
 ]
 ```
+
+**Error Responses:**
+- `401 Unauthorized` - API key missing or invalid
 
 ---
 
@@ -286,7 +394,7 @@ Generate a QR code for device registration.
 
 ### Register Device
 
-Register a mobile device with the server.
+Register a mobile device with the server. The `deviceToken` must first be generated via `POST /api/devices/registration-token`.
 
 **Endpoint:** `POST /api/devices/register`
 
@@ -295,16 +403,31 @@ Register a mobile device with the server.
 {
   "deviceToken": "generated-uuid",
   "registrationToken": "device-unique-identifier",
-  "platform": "android"
+  "platform": "android",
+  "firstName": "Max",
+  "lastName": "Mustermann",
+  "qualifications": {
+    "machinist": true,
+    "agt": false,
+    "paramedic": false
+  },
+  "leadershipRole": "none",
+  "fcmToken": "firebase-cloud-messaging-token",
+  "apnsToken": "apple-push-notification-token"
 }
 ```
 
 **Parameters:**
-- `deviceToken` - Token from QR code
-- `registrationToken` - Unique device identifier for WebSocket connection
-- `platform` - Either "ios" or "android"
+- `deviceToken` – Token from QR code (required)
+- `registrationToken` – Unique device identifier for WebSocket connection (required)
+- `platform` – Either `"ios"` or `"android"` (required)
+- `firstName`, `lastName` – Optional responder name
+- `qualifications` – Optional qualifications (`machinist`, `agt`, `paramedic`)
+- `leadershipRole` – Optional leadership role: `"none"`, `"groupLeader"`, `"commandLeader"`
+- `fcmToken` – Optional Firebase Cloud Messaging token (Android push notifications)
+- `apnsToken` – Optional Apple Push Notification Service token (iOS push notifications)
 
-**Response:** `201 Created` (or `200 OK` if updating existing)
+**Response:** `200 OK`
 ```json
 {
   "id": "device-uuid",
@@ -312,12 +435,21 @@ Register a mobile device with the server.
   "registrationToken": "device-unique-identifier",
   "platform": "android",
   "registeredAt": "2024-12-07T19:00:00.000Z",
-  "active": true
+  "active": true,
+  "firstName": "Max",
+  "lastName": "Mustermann",
+  "qualifications": {
+    "machinist": true,
+    "agt": false,
+    "paramedic": false
+  },
+  "leadershipRole": "none"
 }
 ```
 
 **Error Responses:**
 - `400 Bad Request` - Missing required fields or invalid platform
+- `403 Forbidden` - Invalid, expired, or already active token
 
 ---
 
@@ -392,6 +524,7 @@ Deactivate a registered device (soft delete).
 const axios = require('axios');
 
 const API_BASE_URL = 'http://localhost:3000/api';
+const API_KEY = process.env.API_SECRET_KEY; // Load from environment!
 
 // Create an emergency
 async function createEmergency() {
@@ -401,16 +534,19 @@ async function createEmergency() {
     emergencyKeyword: 'BRAND 3',
     emergencyDescription: 'Wohnungsbrand im 2. OG',
     emergencyLocation: 'Hauptstraße 123, 12345 Stadt'
+  }, {
+    headers: { 'X-API-Key': API_KEY }
   });
   
   console.log('Emergency created:', response.data);
   return response.data.id;
 }
 
-// Get participants
+// Get participants (requires API key)
 async function getParticipants(emergencyId) {
   const response = await axios.get(
-    `${API_BASE_URL}/emergencies/${emergencyId}/participants`
+    `${API_BASE_URL}/emergencies/${emergencyId}/participants`,
+    { headers: { 'X-API-Key': API_KEY } }
   );
   
   console.log('Participants:', response.data);
@@ -432,9 +568,11 @@ async function getParticipants(emergencyId) {
 ```python
 import requests
 import json
+import os
 from datetime import datetime
 
 API_BASE_URL = 'http://localhost:3000/api'
+API_KEY = os.environ.get('API_SECRET_KEY')  # Load from environment!
 
 def create_emergency():
     data = {
@@ -445,7 +583,11 @@ def create_emergency():
         'emergencyLocation': 'Hauptstraße 123, 12345 Stadt'
     }
     
-    response = requests.post(f'{API_BASE_URL}/emergencies', json=data)
+    response = requests.post(
+        f'{API_BASE_URL}/emergencies',
+        json=data,
+        headers={'X-API-Key': API_KEY}
+    )
     response.raise_for_status()
     
     emergency = response.json()
@@ -454,7 +596,8 @@ def create_emergency():
 
 def get_participants(emergency_id):
     response = requests.get(
-        f'{API_BASE_URL}/emergencies/{emergency_id}/participants'
+        f'{API_BASE_URL}/emergencies/{emergency_id}/participants',
+        headers={'X-API-Key': API_KEY}
     )
     response.raise_for_status()
     
@@ -470,9 +613,10 @@ participants = get_participants(emergency_id)
 ### cURL Examples
 
 ```bash
-# Create emergency
+# Create emergency (requires API key)
 curl -X POST http://localhost:3000/api/emergencies \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-secret-api-key" \
   -d '{
     "emergencyNumber": "2024-001",
     "emergencyDate": "2024-12-07T19:00:00Z",
@@ -481,8 +625,13 @@ curl -X POST http://localhost:3000/api/emergencies \
     "emergencyLocation": "Hauptstraße 123, 12345 Stadt"
   }'
 
-# Get participants
-curl http://localhost:3000/api/emergencies/{emergency-id}/participants
+# Get participants (requires API key)
+curl http://localhost:3000/api/emergencies/{emergency-id}/participants \
+  -H "X-API-Key: your-secret-api-key"
+
+# Get all responses (requires API key)
+curl http://localhost:3000/api/emergencies/{emergency-id}/responses \
+  -H "X-API-Key: your-secret-api-key"
 
 # Generate registration QR code
 curl -X POST http://localhost:3000/api/devices/registration-token
