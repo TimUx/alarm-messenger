@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
@@ -63,5 +64,22 @@ class StorageService {
     final id = getDeviceId();
     final url = getServerUrl();
     return token != null && id != null && url != null;
+  }
+
+  // Emergency cache
+  static Future<void> setEmergencyCache(List<dynamic> emergencies) async {
+    final jsonStr = jsonEncode(emergencies.map((e) => e.toJson()).toList());
+    await _prefs.setString('emergencyCache', jsonStr);
+  }
+
+  static List<Map<String, dynamic>>? getEmergencyCache() {
+    final jsonStr = _prefs.getString('emergencyCache');
+    if (jsonStr == null) return null;
+    try {
+      final List<dynamic> data = jsonDecode(jsonStr);
+      return data.cast<Map<String, dynamic>>();
+    } catch (e) {
+      return null;
+    }
   }
 }

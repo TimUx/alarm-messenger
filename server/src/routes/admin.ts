@@ -407,6 +407,30 @@ router.put('/devices/:id', verifySession, verifyAdmin, async (req: AuthRequest, 
   }
 });
 
+// Manually end an emergency (set active = 0)
+router.patch('/emergencies/:id', verifySession, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { active } = req.body;
+
+    const emergency = await dbGet('SELECT * FROM emergencies WHERE id = ?', [id]);
+    if (!emergency) {
+      res.status(404).json({ error: 'Emergency not found' });
+      return;
+    }
+
+    await dbRun(
+      'UPDATE emergencies SET active = ? WHERE id = ?',
+      [active ? 1 : 0, id]
+    );
+
+    res.json({ message: 'Emergency updated successfully' });
+  } catch (error) {
+    logger.error({ err: error }, 'Error updating emergency');
+    res.status(500).json({ error: 'Failed to update emergency' });
+  }
+});
+
 // Get emergency history with pagination
 router.get('/emergencies', verifySession, async (req: AuthRequest, res: Response) => {
   try {

@@ -12,7 +12,7 @@
         <header class="dashboard-header">
             <h1>🚨 Alarm Messenger - Admin</h1>
             <div class="header-actions">
-                <button id="theme-toggle" title="Theme wechseln">🌙</button>
+                <button id="theme-toggle" title="Theme wechseln" aria-label="Theme wechseln">🌙</button>
                 <span id="username-display"></span>
                 <button class="btn btn-secondary" id="logout-btn">Abmelden</button>
             </div>
@@ -51,7 +51,7 @@
                     <h2>Systemübersicht</h2>
                     <button class="btn btn-secondary" id="refresh-stats-btn">🔄 Aktualisieren</button>
                 </div>
-                <div class="stats-grid" id="stats-grid">
+                <div class="stats-grid" id="stats-grid" role="status" aria-live="polite">
                     <div class="stat-card">
                         <div class="stat-icon">📱</div>
                         <div class="stat-content">
@@ -100,5 +100,6 @@
     </div>
     <script src="/admin/api-client.js"></script>
     <script src="/admin/dashboard.js"></script>
+    <div id="toast-container" aria-live="polite" role="status"></div>
 </body>
 </html>

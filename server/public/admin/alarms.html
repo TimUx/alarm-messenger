@@ -12,7 +12,7 @@
         <header class="dashboard-header">
             <h1>🚨 Alarm Messenger - Alarmierung</h1>
             <div class="header-actions">
-                <button id="theme-toggle" title="Theme wechseln">🌙</button>
+                <button id="theme-toggle" title="Theme wechseln" aria-label="Theme wechseln">🌙</button>
                 <span id="username-display"></span>
                 <button class="btn btn-secondary" id="logout-btn">Abmelden</button>
             </div>
@@ -88,5 +88,6 @@
     </div>
     <script src="/admin/api-client.js"></script>
     <script src="/admin/alarms.js"></script>
+    <div id="toast-container" aria-live="polite" role="status"></div>
 </body>
 </html>

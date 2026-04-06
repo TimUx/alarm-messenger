@@ -5,6 +5,7 @@ import '../providers/theme_provider.dart';
 import '../models/models.dart';
 import 'emergency_alert_screen.dart';
 import 'package:intl/intl.dart';
+import '../l10n/strings.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -77,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Abmelden'),
+                    title: const Text(AppStrings.logout),
                     content: const Text(
                       'Möchten Sie sich wirklich abmelden? Sie müssen sich erneut registrieren.',
                     ),
@@ -115,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Icon(Icons.logout),
                     SizedBox(width: 8),
-                    Text('Abmelden'),
+                    Text(AppStrings.logout),
                   ],
                 ),
               ),

@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../services/websocket_service.dart';
 import '../services/alarm_service.dart';
 import '../services/notification_service.dart';
+import '../l10n/strings.dart';
 
 class AppState extends ChangeNotifier {
   bool _isRegistered = false;
@@ -18,6 +19,8 @@ class AppState extends ChangeNotifier {
   String? _errorMessage;
   ServerInfo? _serverInfo;
   DeviceDetails? _deviceDetails;
+  bool _isInitializing = true;
+  bool _isOffline = false;
 
   AppState() {
     _checkRegistration();
@@ -32,6 +35,8 @@ class AppState extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   ServerInfo? get serverInfo => _serverInfo;
   DeviceDetails? get deviceDetails => _deviceDetails;
+  bool get isInitializing => _isInitializing;
+  bool get isOffline => _isOffline;
 
   void clearError() {
     _errorMessage = null;
@@ -53,10 +58,9 @@ class AppState extends ChangeNotifier {
         _checkForActiveEmergency();
       }
     }
+    _isInitializing = false;
     notifyListeners();
-  }
-
-  void _checkForActiveEmergency() {
+  } {
     // Find the most recent active emergency
     final activeEmergencies = _emergencies.where((e) => e.active).toList();
     if (activeEmergencies.isEmpty) {
@@ -211,15 +215,27 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> loadEmergencies() async {
+    // Load cached data first for immediate display
+    final cached = StorageService.getEmergencyCache();
+    if (cached != null && _emergencies.isEmpty) {
+      _emergencies = cached.map((json) => Emergency.fromJson(json)).toList();
+      notifyListeners();
+    }
+
     _isLoading = true;
     notifyListeners();
 
     try {
       _emergencies = await ApiService.getEmergencies();
+      _isOffline = false;
+      // Update cache with fresh data
+      await StorageService.setEmergencyCache(_emergencies);
     } on SocketException {
-      _errorMessage = 'Keine Verbindung zum Server. Bitte Netzwerk prüfen.';
+      _isOffline = true;
+      _errorMessage = AppStrings.noConnection;
     } on TimeoutException {
-      _errorMessage = 'Zeitüberschreitung beim Laden der Einsätze.';
+      _isOffline = true;
+      _errorMessage = '${AppStrings.timeout} (Einsätze)';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -230,7 +246,7 @@ class AppState extends ChangeNotifier {
     try {
       _serverInfo = await ApiService.getServerInfo();
     } on SocketException {
-      _errorMessage = 'Keine Verbindung zum Server. Bitte Netzwerk prüfen.';
+      _errorMessage = AppStrings.noConnection;
     } on TimeoutException {
       _errorMessage = 'Zeitüberschreitung beim Laden der Server-Informationen.';
     } catch (e) {
