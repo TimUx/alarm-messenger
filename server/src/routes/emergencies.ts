@@ -115,24 +115,39 @@ router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: 
     let websocketSuccessCount = 0;
     
     if (deviceIds.length > 0) {
-      // Try push notifications first (FCM for Android, APNs for iOS)
+      // Try push notifications first (FCM bulk for Android, APNs per-device for iOS)
       if (pushNotificationService.isPushEnabled()) {
-        const pushResults = await Promise.allSettled(
-          devices.map((device: any) =>
-            pushNotificationService.sendPushNotification(
-              device.platform,
-              device.fcm_token,
-              device.apns_token,
-              notificationTitle,
-              notificationBody,
-              notificationData
+        // FCM bulk notifications for Android devices
+        const fcmDevices = devices.filter((d: any) => d.platform === 'android' && d.fcm_token);
+        const fcmTokens = fcmDevices.map((d: any) => d.fcm_token as string);
+        if (fcmTokens.length > 0) {
+          const fcmSuccess = await pushNotificationService.sendBulkFCMNotification(
+            fcmTokens,
+            notificationTitle,
+            notificationBody,
+            notificationData
+          );
+          pushSuccessCount += fcmSuccess;
+        }
+
+        // APNs per-device for iOS (no bulk API)
+        const apnsDevices = devices.filter((d: any) => d.platform === 'ios' && d.apns_token);
+        if (apnsDevices.length > 0) {
+          const apnsResults = await Promise.allSettled(
+            apnsDevices.map((device: any) =>
+              pushNotificationService.sendAPNsNotification(
+                device.apns_token,
+                notificationTitle,
+                notificationBody,
+                notificationData
+              )
             )
-          )
-        );
-        pushSuccessCount = pushResults.filter(
-          (r) => r.status === 'fulfilled' && r.value === true
-        ).length;
-        
+          );
+          pushSuccessCount += apnsResults.filter(
+            (r) => r.status === 'fulfilled' && r.value === true
+          ).length;
+        }
+
         if (pushSuccessCount > 0) {
           logger.info(`✓ Push notifications sent to ${pushSuccessCount}/${devices.length} devices`);
         }
@@ -183,33 +198,57 @@ router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: 
   }
 });
 
-// Get all emergencies (only active ones by default)
+// Get all emergencies (only active ones by default, with pagination)
 router.get('/', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
-    // Support query parameter to include inactive emergencies
     const includeInactive = req.query.includeInactive === 'true';
     const emergencyNumberFilter = req.query.emergencyNumber as string | undefined;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const offset = (page - 1) * limit;
 
-    let query: string;
-    let params: (string | boolean)[];
+    let countQuery: string;
+    let dataQuery: string;
+    let params: (string | number)[];
+    let countParams: (string | number)[];
 
     if (emergencyNumberFilter) {
-      query = includeInactive
-        ? 'SELECT * FROM emergencies WHERE emergency_number = ? ORDER BY created_at DESC'
-        : 'SELECT * FROM emergencies WHERE active = 1 AND emergency_number = ? ORDER BY created_at DESC';
-      params = [emergencyNumberFilter];
+      if (includeInactive) {
+        countQuery = 'SELECT COUNT(*) as total FROM emergencies WHERE emergency_number = ?';
+        dataQuery = 'SELECT * FROM emergencies WHERE emergency_number = ? ORDER BY created_at DESC LIMIT ? OFFSET ?';
+      } else {
+        countQuery = 'SELECT COUNT(*) as total FROM emergencies WHERE active = 1 AND emergency_number = ?';
+        dataQuery = 'SELECT * FROM emergencies WHERE active = 1 AND emergency_number = ? ORDER BY created_at DESC LIMIT ? OFFSET ?';
+      }
+      countParams = [emergencyNumberFilter];
+      params = [emergencyNumberFilter, limit, offset];
     } else {
-      query = includeInactive
-        ? 'SELECT * FROM emergencies ORDER BY created_at DESC'
-        : 'SELECT * FROM emergencies WHERE active = 1 ORDER BY created_at DESC';
-      params = [];
+      if (includeInactive) {
+        countQuery = 'SELECT COUNT(*) as total FROM emergencies';
+        dataQuery = 'SELECT * FROM emergencies ORDER BY created_at DESC LIMIT ? OFFSET ?';
+      } else {
+        countQuery = 'SELECT COUNT(*) as total FROM emergencies WHERE active = 1';
+        dataQuery = 'SELECT * FROM emergencies WHERE active = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?';
+      }
+      countParams = [];
+      params = [limit, offset];
     }
 
-    const rows = await dbAll(query, params);
+    const countResult = await dbGet(countQuery, countParams);
+    const total = countResult?.total || 0;
+    const rows = await dbAll(dataQuery, params);
 
-    const emergencies: Emergency[] = rows.map((row: EmergencyRow) => mapEmergencyRow(row));
+    const emergencies = rows.map((row: EmergencyRow) => mapEmergencyRow(row));
 
-    res.json(emergencies);
+    res.json({
+      data: emergencies,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     logger.error({ err: error }, 'Error fetching emergencies');
     res.status(500).json({ error: 'Failed to fetch emergencies' });

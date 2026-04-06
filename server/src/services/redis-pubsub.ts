@@ -84,6 +84,26 @@ class RedisPubSubService {
   isEnabled(): boolean {
     return this.enabled;
   }
+
+  async disconnect(): Promise<void> {
+    if (!this.enabled) {
+      return;
+    }
+    try {
+      if (this.subscriber) {
+        await this.subscriber.quit();
+        this.subscriber = null;
+      }
+      if (this.publisher) {
+        await this.publisher.quit();
+        this.publisher = null;
+      }
+      this.enabled = false;
+      logger.info('Redis pub/sub disconnected');
+    } catch (error) {
+      logger.error({ err: error }, 'Error disconnecting Redis');
+    }
+  }
 }
 
 export const redisPubSubService = new RedisPubSubService();

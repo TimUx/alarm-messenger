@@ -27,7 +27,7 @@ import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger';
 
-interface PushNotificationData {
+export interface PushNotificationData {
   emergencyId: string;
   emergencyNumber: string;
   emergencyDate: string;
@@ -263,6 +263,59 @@ class PushNotificationService {
     }
 
     return false;
+  }
+
+  async sendBulkFCMNotification(
+    tokens: string[],
+    title: string,
+    body: string,
+    data: PushNotificationData
+  ): Promise<number> {
+    if (!this.fcmEnabled || tokens.length === 0) {
+      return 0;
+    }
+
+    const BATCH_SIZE = 500;
+    let successCount = 0;
+
+    for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
+      const batch = tokens.slice(i, i + BATCH_SIZE);
+      try {
+        const message = {
+          tokens: batch,
+          notification: { title, body },
+          data: {
+            type: 'emergency',
+            emergencyId: data.emergencyId,
+            emergencyNumber: data.emergencyNumber,
+            emergencyDate: data.emergencyDate,
+            emergencyKeyword: data.emergencyKeyword,
+            emergencyDescription: data.emergencyDescription,
+            emergencyLocation: data.emergencyLocation,
+            groups: data.groups || '',
+          },
+          android: {
+            priority: 'high' as const,
+            notification: {
+              channelId: 'emergency_channel',
+              priority: 'max' as const,
+              sound: 'default',
+              visibility: 'public' as const,
+            },
+          },
+        };
+        const result = await admin.messaging().sendEachForMulticast(message);
+        successCount += result.successCount;
+        if (result.failureCount > 0) {
+          logger.warn(`FCM bulk: ${result.failureCount} failures in batch`);
+        }
+      } catch (error: any) {
+        logger.error(`❌ Failed to send FCM bulk notification batch: ${error.message}`);
+      }
+    }
+
+    logger.info(`✓ FCM bulk notifications: ${successCount}/${tokens.length} successful`);
+    return successCount;
   }
 
   /**

@@ -65,8 +65,15 @@ class ApiService {
     );
 
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((json) => Emergency.fromJson(json)).toList();
+      final responseData = jsonDecode(response.body);
+      // Handle both old (array) and new (paginated object) response formats
+      if (responseData is List) {
+        return responseData.map((json) => Emergency.fromJson(json)).toList();
+      } else if (responseData is Map && responseData.containsKey('data')) {
+        final List<dynamic> data = responseData['data'];
+        return data.map((json) => Emergency.fromJson(json)).toList();
+      }
+      return [];
     } else {
       throw Exception('Failed to get emergencies: ${response.body}');
     }

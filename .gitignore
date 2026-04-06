@@ -17,5 +17,8 @@ nginx/ssl/*.crt
 # Docker volumes
 docker-volumes/
 
+# Docker secrets (never commit secret values)
+secrets/
+
 # React Native backup
 mobile-react-native-backup/

@@ -41,8 +41,8 @@ router.post('/registration-token', registrationRateLimiter, async (req: Request,
     
     await dbRun(
       `INSERT INTO devices (
-        id, device_token, registration_token, platform, registered_at, active, qr_code_data, registration_expires_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, device_token, registration_token, platform, registered_at, active, registration_expires_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         deviceToken,
@@ -50,7 +50,6 @@ router.post('/registration-token', registrationRateLimiter, async (req: Request,
         'android', // Default platform, will be updated on registration
         registeredAt,
         0, // Not active until registered
-        qrCodeDataUrl,
         expiresAt,
       ]
     );
@@ -118,7 +117,6 @@ router.post('/register', registrationRateLimiter, validateBody(DeviceRegistratio
         qual_agt = ?,
         qual_paramedic = ?,
         leadership_role = ?,
-        qr_code_data = ?,
         fcm_token = ?,
         apns_token = ?
       WHERE device_token = ?`,
@@ -131,7 +129,6 @@ router.post('/register', registrationRateLimiter, validateBody(DeviceRegistratio
         qualifications?.agt ? 1 : 0,
         qualifications?.paramedic ? 1 : 0,
         leadershipRole || 'none',
-        existing.qr_code_data || null,
         fcmToken || null,
         apnsToken || null,
         deviceToken
@@ -230,17 +227,32 @@ router.post('/update-push-token', verifyDeviceToken, async (req: Request, res: R
   }
 });
 
-// Get all registered devices
+// Get all registered devices (with pagination)
 router.get('/', verifySession, async (req: Request, res: Response) => {
   try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const offset = (page - 1) * limit;
+
+    const countResult = await dbGet('SELECT COUNT(*) as total FROM devices WHERE active = 1', []);
+    const total = countResult?.total || 0;
+
     const rows = await dbAll<DeviceRow>(
-      `SELECT d.*, GROUP_CONCAT(dg.group_code) as group_codes FROM devices d LEFT JOIN device_groups dg ON d.id = dg.device_id WHERE d.active = 1 GROUP BY d.id ORDER BY d.registered_at DESC`,
-      []
+      `SELECT d.*, GROUP_CONCAT(dg.group_code) as group_codes FROM devices d LEFT JOIN device_groups dg ON d.id = dg.device_id WHERE d.active = 1 GROUP BY d.id ORDER BY d.registered_at DESC LIMIT ? OFFSET ?`,
+      [limit, offset]
     );
 
-    const devices = rows.map((row) => mapDeviceRow(row));
+    const devices = rows.map((row: DeviceRow) => mapDeviceRow(row, false));
 
-    res.json(devices);
+    res.json({
+      data: devices,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     logger.error({ err: error }, 'Error fetching devices');
     res.status(500).json({ error: 'Failed to fetch devices' });
@@ -306,42 +318,29 @@ router.get('/:id/details', verifyDeviceToken, async (req: Request, res: Response
   }
 });
 
-// Get QR code for a specific device
+// Get QR code for a specific device (always generated on-the-fly)
 router.get('/:id/qr-code', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const row = await dbGet('SELECT device_token, qr_code_data FROM devices WHERE id = ?', [id]);
+    const row = await dbGet('SELECT device_token FROM devices WHERE id = ?', [id]);
 
     if (!row) {
       res.status(404).json({ error: 'Device not found' });
       return;
     }
 
-    // If QR code is not stored, regenerate it
-    let qrCodeDataUrl = row.qr_code_data;
-    
-    if (!qrCodeDataUrl) {
-      const registrationData = {
-        token: row.device_token,
-        serverUrl: process.env.SERVER_URL || 'http://localhost:3000',
-      };
-      
-      qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(registrationData));
-      
-      // Save it for future use
-      await dbRun(
-        'UPDATE devices SET qr_code_data = ? WHERE id = ?',
-        [qrCodeDataUrl, id]
-      );
-    }
+    const registrationData = {
+      token: row.device_token,
+      serverUrl: process.env.SERVER_URL || 'http://localhost:3000',
+    };
 
+    const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(registrationData));
+
+    res.setHeader('Cache-Control', 'max-age=3600');
     res.json({
       deviceToken: row.device_token,
       qrCode: qrCodeDataUrl,
-      registrationData: {
-        token: row.device_token,
-        serverUrl: process.env.SERVER_URL || 'http://localhost:3000',
-      },
+      registrationData,
     });
   } catch (error) {
     logger.error({ err: error }, 'Error fetching QR code');

@@ -1,3 +1,4 @@
+import connectSqlite3 from 'connect-sqlite3';
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -12,7 +13,7 @@ import deviceRoutes from './routes/devices';
 import adminRoutes from './routes/admin';
 import groupRoutes from './routes/groups';
 import infoRoutes from './routes/info';
-import { initializeDatabase } from './services/database';
+import { initializeDatabase, getDatabase } from './services/database';
 import { websocketService } from './services/websocket';
 import { emergencyScheduler } from './services/emergency-scheduler';
 import { redisPubSubService } from './services/redis-pubsub';
@@ -103,10 +104,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(pinoHttp({ logger }));
 
 // Session middleware (HttpOnly cookie for browser-based admin routes)
+const SQLiteStore = connectSqlite3(session);
+const dbDir = path.dirname(process.env.DATABASE_PATH || './data/alarm-messenger.db');
+
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  store: new (SQLiteStore as any)({ db: 'sessions.db', dir: dbDir }),
   cookie: {
     httpOnly: true,
     secure: IS_PRODUCTION,
@@ -142,6 +147,8 @@ app.get('/health', (req, res) => {
 });
 
 // Initialize database and WebSocket
+let server: http.Server;
+
 async function startServer() {
   try {
     await initializeDatabase();
@@ -151,7 +158,7 @@ async function startServer() {
     redisPubSubService.connect();
     
     // Create HTTP server
-    const server = http.createServer(app);
+    server = http.createServer(app);
     
     // Initialize WebSocket service
     websocketService.initialize(server);
@@ -172,5 +179,28 @@ async function startServer() {
 }
 
 startServer();
+
+async function shutdown(signal: string): Promise<void> {
+  logger.info(`Received ${signal}, starting graceful shutdown...`);
+  server.close(async () => {
+    try {
+      emergencyScheduler.stop();
+      await redisPubSubService.disconnect();
+      getDatabase().close();
+      logger.info('Graceful shutdown complete');
+      process.exit(0);
+    } catch (error) {
+      logger.error({ err: error }, 'Error during shutdown');
+      process.exit(1);
+    }
+  });
+  setTimeout(() => {
+    logger.error('Hard kill timeout - forcing exit');
+    process.exit(1);
+  }, 10000);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 export default app;
