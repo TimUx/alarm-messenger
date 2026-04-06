@@ -11,11 +11,14 @@
     <div class="login-container">
         <div class="login-box">
             <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-                <button id="theme-toggle" style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 50%; width: 35px; height: 35px; font-size: 1em; cursor: pointer;">🌙</button>
+                <button id="theme-toggle" style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 50%; width: 35px; height: 35px; font-size: 1em; cursor: pointer;" aria-label="Theme wechseln">🌙</button>
             </div>
             <h1>🚨 Alarm Messenger</h1>
             <h2>Admin Login</h2>
             <form id="loginForm">
+                <div id="session-expired-msg" class="alert alert-warning" style="display: none; margin-bottom: 16px; padding: 10px 14px; background-color: var(--warning-color); color: var(--warning-text); border-radius: 4px;">
+                    ⚠️ Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.
+                </div>
                 <div class="form-group">
                     <label for="username">Benutzername</label>
                     <input type="text" id="username" name="username" required autocomplete="username">
@@ -34,5 +37,13 @@
         </div>
     </div>
     <script src="/admin/login.js"></script>
+    <script>
+        // Show session expired message
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('reason') === 'session_expired') {
+            const msg = document.getElementById('session-expired-msg');
+            if (msg) msg.style.display = 'block';
+        }
+    </script>
 </body>
 </html>

@@ -1,3 +1,4 @@
+import connectSqlite3 from 'connect-sqlite3';
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -12,11 +13,12 @@ import deviceRoutes from './routes/devices';
 import adminRoutes from './routes/admin';
 import groupRoutes from './routes/groups';
 import infoRoutes from './routes/info';
-import { initializeDatabase } from './services/database';
+import { initializeDatabase, getDatabase } from './services/database';
 import { websocketService } from './services/websocket';
 import { emergencyScheduler } from './services/emergency-scheduler';
 import { redisPubSubService } from './services/redis-pubsub';
 import { decodeSecret } from './utils/secrets';
+import { errorHandler } from './middleware/errorHandler';
 import logger from './utils/logger';
 
 dotenv.config();
@@ -29,6 +31,13 @@ if (SESSION_SECRET === 'change-this-session-secret-in-production') {
   logger.error(message);
   if (IS_PRODUCTION) {
     throw new Error('SESSION_SECRET must be set to a secure value in production environments');
+  }
+}
+
+if (IS_PRODUCTION) {
+  const serverUrl = process.env.SERVER_URL || '';
+  if (!serverUrl || serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1') || serverUrl.includes('0.0.0.0') || serverUrl.includes('[::]')) {
+    logger.warn('⚠️  WARNING: SERVER_URL is set to localhost in production. Make sure this is intentional and you are using a reverse proxy.');
   }
 }
 
@@ -95,10 +104,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(pinoHttp({ logger }));
 
 // Session middleware (HttpOnly cookie for browser-based admin routes)
+const SQLiteStore = connectSqlite3(session);
+const dbDir = path.dirname(process.env.DATABASE_PATH || './data/alarm-messenger.db');
+
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  store: new (SQLiteStore as any)({ db: 'sessions.db', dir: dbDir }),
   cookie: {
     httpOnly: true,
     secure: IS_PRODUCTION,
@@ -125,12 +138,17 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/info', infoRoutes);
 
+// Global error handler
+app.use(errorHandler);
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Initialize database and WebSocket
+let server: http.Server;
+
 async function startServer() {
   try {
     await initializeDatabase();
@@ -140,7 +158,7 @@ async function startServer() {
     redisPubSubService.connect();
     
     // Create HTTP server
-    const server = http.createServer(app);
+    server = http.createServer(app);
     
     // Initialize WebSocket service
     websocketService.initialize(server);
@@ -161,5 +179,29 @@ async function startServer() {
 }
 
 startServer();
+
+async function shutdown(signal: string): Promise<void> {
+  logger.info(`Received ${signal}, starting graceful shutdown...`);
+  const hardKillTimer = setTimeout(() => {
+    logger.error('Hard kill timeout - forcing exit');
+    process.exit(1);
+  }, 10000);
+  server.close(async () => {
+    clearTimeout(hardKillTimer);
+    try {
+      emergencyScheduler.stop();
+      await redisPubSubService.disconnect();
+      getDatabase().close();
+      logger.info('Graceful shutdown complete');
+      process.exit(0);
+    } catch (error) {
+      logger.error({ err: error }, 'Error during shutdown');
+      process.exit(1);
+    }
+  });
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 export default app;

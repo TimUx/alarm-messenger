@@ -2,6 +2,8 @@ let currentPage = 1;
 let totalPages = 1;
 let allEmergencies = []; // Store all emergencies for client-side filtering/sorting
 let filteredEmergencies = []; // Store filtered emergencies
+let currentEmergencyId = null;
+let currentEmergencyActive = false;
 
 // Filter and sort state
 let filters = {
@@ -35,6 +37,11 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('prev-page-btn').addEventListener('click', () => displayPage(currentPage - 1));
     document.getElementById('next-page-btn').addEventListener('click', () => displayPage(currentPage + 1));
     document.getElementById('close-details-modal-btn').addEventListener('click', closeDetailsModal);
+    document.getElementById('end-emergency-btn').addEventListener('click', () => {
+        if (currentEmergencyId && currentEmergencyActive) {
+            endEmergency(currentEmergencyId);
+        }
+    });
     document.getElementById('details-modal').addEventListener('click', (e) => {
         if (e.target.id === 'details-modal') {
             closeDetailsModal();
@@ -267,6 +274,7 @@ function updatePagination(pagination) {
 }
 
 async function showEmergencyDetails(emergencyId) {
+    currentEmergencyId = emergencyId;
     try {
         document.getElementById('details-modal').style.display = 'flex';
         const detailsContent = document.getElementById('emergency-details-content');
@@ -275,6 +283,7 @@ async function showEmergencyDetails(emergencyId) {
         loadingP.className = 'loading';
         loadingP.textContent = 'Lade Details...';
         detailsContent.appendChild(loadingP);
+        document.getElementById('end-emergency-btn').style.display = 'none';
         
         const response = await apiRequest(`${API_BASE}/admin/emergencies/${emergencyId}`);
         
@@ -283,6 +292,8 @@ async function showEmergencyDetails(emergencyId) {
         }
         
         const data = await response.json();
+        currentEmergencyActive = data.emergency && data.emergency.active;
+        document.getElementById('end-emergency-btn').style.display = currentEmergencyActive ? 'block' : 'none';
         displayEmergencyDetails(data);
     } catch (error) {
         const detailsContent = document.getElementById('emergency-details-content');
@@ -488,6 +499,32 @@ function displayEmergencyDetails(data) {
 
 function closeDetailsModal() {
     document.getElementById('details-modal').style.display = 'none';
+    currentEmergencyId = null;
+    currentEmergencyActive = false;
+    document.getElementById('end-emergency-btn').style.display = 'none';
+}
+
+async function endEmergency(emergencyId) {
+    if (!confirm('Einsatz wirklich beenden?')) return;
+    
+    try {
+        const response = await apiRequest(`${API_BASE}/admin/emergencies/${emergencyId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ active: false }),
+        });
+        
+        if (response && response.ok) {
+            showToast('Einsatz erfolgreich beendet', 'success');
+            document.getElementById('end-emergency-btn').style.display = 'none';
+            currentEmergencyActive = false;
+            // Reload list
+            loadEmergencies();
+        } else {
+            showToast('Fehler beim Beenden des Einsatzes', 'error');
+        }
+    } catch (error) {
+        showToast('Fehler beim Beenden des Einsatzes', 'error');
+    }
 }
 
 function subscribeToEvents() {

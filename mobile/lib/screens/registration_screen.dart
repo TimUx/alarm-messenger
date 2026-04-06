@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../l10n/strings.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -28,6 +29,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     setState(() {
       _isProcessing = true;
     });
+
+    final appState = Provider.of<AppState>(context, listen: false);
 
     try {
       await _controller.stop();
@@ -64,7 +67,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       final platform = Platform.isAndroid ? 'android' : 'ios';
       final deviceToken = registrationToken; // Use the token from QR code
 
-      final appState = Provider.of<AppState>(context, listen: false);
       await appState.register(
         serverUrl: serverUrl,
         registrationToken: registrationToken,
@@ -75,7 +77,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✓ Successfully registered'),
+            content: Text(AppStrings.registrationSuccess),
             backgroundColor: Colors.green,
           ),
         );
@@ -84,7 +86,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Registration failed: $e'),
+            content: Text('${AppStrings.registrationFailed}$e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -136,7 +138,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       children: [
                         CircularProgressIndicator(),
                         SizedBox(height: 16),
-                        Text('Registrierung läuft...'),
+                        Text(AppStrings.registering),
                       ],
                     ),
                   )

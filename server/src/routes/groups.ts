@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { verifyToken, verifyAdmin, AuthRequest } from '../middleware/auth';
 import { Group, CreateGroupRequest, ImportGroupsRequest } from '../models/types';
+import { GroupRow } from '../models/db-types';
+import { mapGroupRow } from '../mappers';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -9,17 +11,12 @@ const router = Router();
 // Get all groups
 router.get('/', verifyToken, async (req: AuthRequest, res: Response) => {
   try {
-    const rows = await dbAll(
+    const rows = await dbAll<GroupRow>(
       'SELECT * FROM groups ORDER BY code ASC',
       []
     );
 
-    const groups: Group[] = rows.map((row: any) => ({
-      code: row.code,
-      name: row.name,
-      description: row.description,
-      createdAt: row.created_at,
-    }));
+    const groups: Group[] = rows.map(mapGroupRow);
 
     res.json(groups);
   } catch (error) {
@@ -32,21 +29,14 @@ router.get('/', verifyToken, async (req: AuthRequest, res: Response) => {
 router.get('/:code', verifyToken, async (req: AuthRequest, res: Response) => {
   try {
     const { code } = req.params;
-    const row = await dbGet('SELECT * FROM groups WHERE code = ?', [code]);
+    const row = await dbGet<GroupRow>('SELECT * FROM groups WHERE code = ?', [code]);
 
     if (!row) {
       res.status(404).json({ error: 'Group not found' });
       return;
     }
 
-    const group: Group = {
-      code: row.code,
-      name: row.name,
-      description: row.description,
-      createdAt: row.created_at,
-    };
-
-    res.json(group);
+    res.json(mapGroupRow(row));
   } catch (error) {
     logger.error({ err: error }, 'Error fetching group');
     res.status(500).json({ error: 'Failed to fetch group' });
@@ -206,7 +196,7 @@ router.get('/device/:deviceId', verifyToken, async (req: AuthRequest, res: Respo
   try {
     const { deviceId } = req.params;
 
-    const rows = await dbAll(
+    const rows = await dbAll<GroupRow>(
       `SELECT g.* FROM groups g
        INNER JOIN device_groups dg ON g.code = dg.group_code
        WHERE dg.device_id = ?
@@ -214,12 +204,7 @@ router.get('/device/:deviceId', verifyToken, async (req: AuthRequest, res: Respo
       [deviceId]
     );
 
-    const groups: Group[] = rows.map((row: any) => ({
-      code: row.code,
-      name: row.name,
-      description: row.description,
-      createdAt: row.created_at,
-    }));
+    const groups: Group[] = rows.map(mapGroupRow);
 
     res.json(groups);
   } catch (error) {

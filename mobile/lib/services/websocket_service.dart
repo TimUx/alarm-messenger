@@ -6,32 +6,36 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/models.dart';
 
 class WebSocketService {
-  static WebSocketChannel? _channel;
-  static StreamController<PushNotificationData>? _messageController;
-  static bool _isConnected = false;
-  static String? _serverUrl;
-  static String? _deviceId;
-  static Timer? _heartbeatTimer;
-  static Timer? _reconnectTimer;
-  static int _reconnectAttempts = 0;
+  static final WebSocketService _instance = WebSocketService._internal();
+  factory WebSocketService() => _instance;
+  WebSocketService._internal();
+
+  WebSocketChannel? _channel;
+  StreamController<PushNotificationData>? _messageController;
+  bool _isConnected = false;
+  String? _serverUrl;
+  String? _deviceToken;
+  Timer? _heartbeatTimer;
+  Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
   static const int _maxReconnectAttempts = 10;
 
-  static Stream<PushNotificationData>? get messageStream => _messageController?.stream;
-  static bool get isConnected => _isConnected;
+  Stream<PushNotificationData>? get messageStream => _messageController?.stream;
+  bool get isConnected => _isConnected;
 
-  static void connect(String serverUrl, String deviceId) {
+  void connect(String serverUrl, String deviceToken) {
     if (_isConnected) {
       return;
     }
 
     // Store connection details for reconnection
     _serverUrl = serverUrl;
-    _deviceId = deviceId;
+    _deviceToken = deviceToken;
 
     try {
       // Convert http(s) URL to ws(s) URL
       final wsUrl = serverUrl.replaceFirst('http', 'ws');
-      final uri = Uri.parse('$wsUrl/ws'); // Remove query param, will register separately
+      final uri = Uri.parse('$wsUrl/ws');
 
       _channel = WebSocketChannel.connect(uri);
       _messageController = StreamController<PushNotificationData>.broadcast();
@@ -53,12 +57,12 @@ class WebSocketService {
         onError: (error) {
           developer.log('WebSocket error', name: 'WebSocketService', error: error);
           _isConnected = false;
-          _reconnect(serverUrl, deviceId);
+          _reconnect(serverUrl, deviceToken);
         },
         onDone: () {
           developer.log('WebSocket connection closed', name: 'WebSocketService');
           _isConnected = false;
-          _reconnect(serverUrl, deviceId);
+          _reconnect(serverUrl, deviceToken);
         },
       );
 
@@ -66,10 +70,10 @@ class WebSocketService {
       _reconnectAttempts = 0;
       developer.log('WebSocket connected to $wsUrl', name: 'WebSocketService');
       
-      // Register device with WebSocket server
+      // Register device with WebSocket server using deviceToken
       sendMessage({
         'type': 'register',
-        'deviceId': deviceId,
+        'deviceToken': deviceToken,
       });
 
       // Start heartbeat to keep connection alive (important for iOS)
@@ -77,11 +81,11 @@ class WebSocketService {
     } catch (e) {
       developer.log('Failed to connect WebSocket', name: 'WebSocketService', error: e);
       _isConnected = false;
-      _reconnect(serverUrl, deviceId);
+      _reconnect(serverUrl, deviceToken);
     }
   }
 
-  static void _startHeartbeat() {
+  void _startHeartbeat() {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       if (_isConnected) {
@@ -91,7 +95,7 @@ class WebSocketService {
     });
   }
 
-  static void _reconnect(String serverUrl, String deviceId) {
+  void _reconnect(String serverUrl, String deviceToken) {
     // Cancel any existing reconnect timer
     _reconnectTimer?.cancel();
 
@@ -117,12 +121,12 @@ class WebSocketService {
           'Attempting to reconnect WebSocket... (attempt $_reconnectAttempts, delay ${backoffSeconds}s)',
           name: 'WebSocketService',
         );
-        connect(serverUrl, deviceId);
+        connect(serverUrl, deviceToken);
       }
     });
   }
 
-  static void disconnect() {
+  void disconnect() {
     _isConnected = false;
     _heartbeatTimer?.cancel();
     _reconnectTimer?.cancel();
@@ -134,17 +138,17 @@ class WebSocketService {
     developer.log('WebSocket disconnected', name: 'WebSocketService');
   }
 
-  static void sendMessage(Map<String, dynamic> message) {
+  void sendMessage(Map<String, dynamic> message) {
     if (_isConnected && _channel != null) {
       _channel!.sink.add(jsonEncode(message));
     }
   }
 
   // Method to manually trigger reconnection (useful when app comes to foreground)
-  static void ensureConnected() {
-    if (!_isConnected && _serverUrl != null && _deviceId != null) {
+  void ensureConnected() {
+    if (!_isConnected && _serverUrl != null && _deviceToken != null) {
       developer.log('Manually reconnecting WebSocket...', name: 'WebSocketService');
-      connect(_serverUrl!, _deviceId!);
+      connect(_serverUrl!, _deviceToken!);
     }
   }
 }

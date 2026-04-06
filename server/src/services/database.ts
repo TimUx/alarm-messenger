@@ -70,6 +70,13 @@ const MIGRATIONS: { version: number; description: string; run: () => Promise<voi
       await dbRun('ALTER TABLE devices ADD COLUMN apns_token TEXT');
     },
   },
+  {
+    version: 7,
+    description: 'Add registration_expires_at column to devices',
+    async run() {
+      await dbRun('ALTER TABLE devices ADD COLUMN registration_expires_at TEXT');
+    },
+  },
 ];
 
 export async function initializeDatabase(): Promise<void> {
@@ -132,7 +139,8 @@ export async function initializeDatabase(): Promise<void> {
             last_name TEXT,
             qr_code_data TEXT,
             fcm_token TEXT,
-            apns_token TEXT
+            apns_token TEXT,
+            registration_expires_at TEXT
           )
         `);
 

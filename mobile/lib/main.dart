@@ -52,7 +52,7 @@ class _AlarmMessengerAppState extends State<AlarmMessengerApp> with WidgetsBindi
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       // When app comes to foreground, ensure WebSocket is connected
-      WebSocketService.ensureConnected();
+      WebSocketService().ensureConnected();
     }
   }
 
@@ -66,7 +66,29 @@ class _AlarmMessengerAppState extends State<AlarmMessengerApp> with WidgetsBindi
       theme: ThemeData.light(useMaterial3: true),
       darkTheme: ThemeData.dark(useMaterial3: true),
       themeMode: themeProvider.themeMode,
-      home: appState.isRegistered ? const HomeScreen() : const RegistrationScreen(),
+      home: appState.isInitializing
+          ? const Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.emergency,
+                      size: 64,
+                      color: Colors.red,
+                    ),
+                    SizedBox(height: 24),
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text(
+                      'Alarm Messenger',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : appState.isRegistered ? const HomeScreen() : const RegistrationScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

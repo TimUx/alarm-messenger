@@ -12,7 +12,7 @@
         <header class="dashboard-header">
             <h1>🚨 Alarm Messenger - Gruppenverwaltung</h1>
             <div class="header-actions">
-                <button id="theme-toggle" title="Theme wechseln">🌙</button>
+                <button id="theme-toggle" title="Theme wechseln" aria-label="Theme wechseln">🌙</button>
                 <span id="username-display"></span>
                 <button class="btn btn-secondary" id="logout-btn">Abmelden</button>
             </div>
@@ -46,7 +46,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3 id="group-modal-title">Neue Gruppe</h3>
-                        <button class="close-btn" id="close-group-modal-btn">&times;</button>
+                        <button class="close-btn" id="close-group-modal-btn" aria-label="Schließen">&times;</button>
                     </div>
                     <form id="groupForm">
                         <input type="hidden" id="edit-group-original-code">
@@ -75,7 +75,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3>Gruppen CSV Import</h3>
-                        <button class="close-btn" id="close-import-modal-btn">&times;</button>
+                        <button class="close-btn" id="close-import-modal-btn" aria-label="Schließen">&times;</button>
                     </div>
                     <div>
                         <div class="import-instructions">
@@ -105,5 +105,6 @@ GUL02,GUL Ransbach M,TME GUL02</pre>
     </div>
     <script src="/admin/api-client.js"></script>
     <script src="/admin/groups.js"></script>
+    <div id="toast-container" aria-live="polite" role="status"></div>
 </body>
 </html>

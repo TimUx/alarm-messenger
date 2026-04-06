@@ -1,36 +1,26 @@
 import { Router, Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { websocketService } from '../services/websocket';
 import { pushNotificationService } from '../services/push-notification';
 import { redisPubSubService } from '../services/redis-pubsub';
 import { broadcastSseEvent } from '../services/sse';
 import { verifyApiKey, verifyDeviceToken, DeviceRequest } from '../middleware/auth';
+import { mapEmergencyRow, mapResponderDetails } from '../mappers';
+import { EmergencyRow, DeviceRow } from '../models/db-types';
 import {
   Emergency,
   CreateEmergencyRequest,
   EmergencyResponseRequest,
 } from '../models/types';
+import { validateBody } from '../middleware/validate';
+import { CreateEmergencySchema } from '../validation/schemas';
 import logger from '../utils/logger';
 
 const router = Router();
 
-// Helper function to map database row to responder object
-function mapResponderDetails(row: any) {
-  return {
-    firstName: row.first_name,
-    lastName: row.last_name,
-    qualifications: {
-      machinist: row.qual_machinist === 1,
-      agt: row.qual_agt === 1,
-      paramedic: row.qual_paramedic === 1,
-    },
-    leadershipRole: row.leadership_role || 'none',
-  };
-}
-
 // Create a new emergency and trigger push notifications (protected with API key)
-router.post('/', verifyApiKey, async (req: Request, res: Response) => {
+router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: Request, res: Response) => {
   try {
     const {
       emergencyNumber,
@@ -41,37 +31,7 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
       groups,
     }: CreateEmergencyRequest = req.body;
 
-    // Validate required fields
-    if (
-      !emergencyNumber ||
-      !emergencyDate ||
-      !emergencyKeyword ||
-      !emergencyDescription ||
-      !emergencyLocation
-    ) {
-      res.status(400).json({ error: 'Missing required fields' });
-      return;
-    }
-
-    // Validate input lengths
-    if (emergencyNumber.length > 50) {
-      res.status(400).json({ error: 'emergencyNumber must not exceed 50 characters' });
-      return;
-    }
-    if (emergencyKeyword.length > 100) {
-      res.status(400).json({ error: 'emergencyKeyword must not exceed 100 characters' });
-      return;
-    }
-    if (emergencyDescription.length > 1000) {
-      res.status(400).json({ error: 'emergencyDescription must not exceed 1000 characters' });
-      return;
-    }
-    if (emergencyLocation.length > 500) {
-      res.status(400).json({ error: 'emergencyLocation must not exceed 500 characters' });
-      return;
-    }
-
-    const id = uuidv4();
+    const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
     // Validate and sanitize groups parameter
@@ -155,24 +115,39 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
     let websocketSuccessCount = 0;
     
     if (deviceIds.length > 0) {
-      // Try push notifications first (FCM for Android, APNs for iOS)
+      // Try push notifications first (FCM bulk for Android, APNs per-device for iOS)
       if (pushNotificationService.isPushEnabled()) {
-        const pushResults = await Promise.allSettled(
-          devices.map((device: any) =>
-            pushNotificationService.sendPushNotification(
-              device.platform,
-              device.fcm_token,
-              device.apns_token,
-              notificationTitle,
-              notificationBody,
-              notificationData
+        // FCM bulk notifications for Android devices
+        const fcmDevices = devices.filter((d: any) => d.platform === 'android' && d.fcm_token);
+        const fcmTokens = fcmDevices.map((d: any) => d.fcm_token as string);
+        if (fcmTokens.length > 0) {
+          const fcmSuccess = await pushNotificationService.sendBulkFCMNotification(
+            fcmTokens,
+            notificationTitle,
+            notificationBody,
+            notificationData
+          );
+          pushSuccessCount += fcmSuccess;
+        }
+
+        // APNs per-device for iOS (no bulk API)
+        const apnsDevices = devices.filter((d: any) => d.platform === 'ios' && d.apns_token);
+        if (apnsDevices.length > 0) {
+          const apnsResults = await Promise.allSettled(
+            apnsDevices.map((device: any) =>
+              pushNotificationService.sendAPNsNotification(
+                device.apns_token,
+                notificationTitle,
+                notificationBody,
+                notificationData
+              )
             )
-          )
-        );
-        pushSuccessCount = pushResults.filter(
-          (r) => r.status === 'fulfilled' && r.value === true
-        ).length;
-        
+          );
+          pushSuccessCount += apnsResults.filter(
+            (r) => r.status === 'fulfilled' && r.value === true
+          ).length;
+        }
+
         if (pushSuccessCount > 0) {
           logger.info(`✓ Push notifications sent to ${pushSuccessCount}/${devices.length} devices`);
         }
@@ -223,43 +198,57 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
   }
 });
 
-// Get all emergencies (only active ones by default)
-router.get('/', async (req: Request, res: Response) => {
+// Get all emergencies (only active ones by default, with pagination)
+router.get('/', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
-    // Support query parameter to include inactive emergencies
     const includeInactive = req.query.includeInactive === 'true';
     const emergencyNumberFilter = req.query.emergencyNumber as string | undefined;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const offset = (page - 1) * limit;
 
-    let query: string;
-    let params: (string | boolean)[];
+    let countQuery: string;
+    let dataQuery: string;
+    let params: (string | number)[];
+    let countParams: (string | number)[];
 
     if (emergencyNumberFilter) {
-      query = includeInactive
-        ? 'SELECT * FROM emergencies WHERE emergency_number = ? ORDER BY created_at DESC'
-        : 'SELECT * FROM emergencies WHERE active = 1 AND emergency_number = ? ORDER BY created_at DESC';
-      params = [emergencyNumberFilter];
+      if (includeInactive) {
+        countQuery = 'SELECT COUNT(*) as total FROM emergencies WHERE emergency_number = ?';
+        dataQuery = 'SELECT * FROM emergencies WHERE emergency_number = ? ORDER BY created_at DESC LIMIT ? OFFSET ?';
+      } else {
+        countQuery = 'SELECT COUNT(*) as total FROM emergencies WHERE active = 1 AND emergency_number = ?';
+        dataQuery = 'SELECT * FROM emergencies WHERE active = 1 AND emergency_number = ? ORDER BY created_at DESC LIMIT ? OFFSET ?';
+      }
+      countParams = [emergencyNumberFilter];
+      params = [emergencyNumberFilter, limit, offset];
     } else {
-      query = includeInactive
-        ? 'SELECT * FROM emergencies ORDER BY created_at DESC'
-        : 'SELECT * FROM emergencies WHERE active = 1 ORDER BY created_at DESC';
-      params = [];
+      if (includeInactive) {
+        countQuery = 'SELECT COUNT(*) as total FROM emergencies';
+        dataQuery = 'SELECT * FROM emergencies ORDER BY created_at DESC LIMIT ? OFFSET ?';
+      } else {
+        countQuery = 'SELECT COUNT(*) as total FROM emergencies WHERE active = 1';
+        dataQuery = 'SELECT * FROM emergencies WHERE active = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?';
+      }
+      countParams = [];
+      params = [limit, offset];
     }
 
-    const rows = await dbAll(query, params);
+    const countResult = await dbGet(countQuery, countParams);
+    const total = countResult?.total || 0;
+    const rows = await dbAll(dataQuery, params);
 
-    const emergencies: Emergency[] = rows.map((row: any) => ({
-      id: row.id,
-      emergencyNumber: row.emergency_number,
-      emergencyDate: row.emergency_date,
-      emergencyKeyword: row.emergency_keyword,
-      emergencyDescription: row.emergency_description,
-      emergencyLocation: row.emergency_location,
-      createdAt: row.created_at,
-      active: row.active === 1,
-      groups: row.groups,
-    }));
+    const emergencies = rows.map((row: EmergencyRow) => mapEmergencyRow(row));
 
-    res.json(emergencies);
+    res.json({
+      data: emergencies,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     logger.error({ err: error }, 'Error fetching emergencies');
     res.status(500).json({ error: 'Failed to fetch emergencies' });
@@ -267,29 +256,17 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // Get a specific emergency
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const row = await dbGet('SELECT * FROM emergencies WHERE id = ?', [id]);
+    const row = await dbGet<EmergencyRow>('SELECT * FROM emergencies WHERE id = ?', [id]);
 
     if (!row) {
       res.status(404).json({ error: 'Emergency not found' });
       return;
     }
 
-    const emergency: Emergency = {
-      id: row.id,
-      emergencyNumber: row.emergency_number,
-      emergencyDate: row.emergency_date,
-      emergencyKeyword: row.emergency_keyword,
-      emergencyDescription: row.emergency_description,
-      emergencyLocation: row.emergency_location,
-      createdAt: row.created_at,
-      active: row.active === 1,
-      groups: row.groups,
-    };
-
-    res.json(emergency);
+    res.json(mapEmergencyRow(row));
   } catch (error) {
     logger.error({ err: error }, 'Error fetching emergency');
     res.status(500).json({ error: 'Failed to fetch emergency' });
@@ -317,7 +294,7 @@ router.post('/:id/responses', verifyDeviceToken, async (req: Request, res: Respo
       return;
     }
 
-    const responseId = uuidv4();
+    const responseId = crypto.randomUUID();
     const respondedAt = new Date().toISOString();
 
     // Insert or update response
@@ -374,13 +351,13 @@ router.get('/:id/participants', verifyApiKey, async (req: Request, res: Response
       [id]
     );
 
-    const participants = rows.map((row: any) => ({
+    const participants = rows.map((row: DeviceRow & any) => ({
       id: row.id,
       deviceId: row.device_id,
       platform: row.platform,
       respondedAt: row.responded_at,
       // Responder details from devices table
-      responder: mapResponderDetails(row),
+      responder: mapResponderDetails(row as DeviceRow),
     }));
 
     res.json({
@@ -409,7 +386,7 @@ router.get('/:id/responses', verifyApiKey, async (req: Request, res: Response) =
       [id]
     );
 
-    const responses = rows.map((row: any) => ({
+    const responses = rows.map((row: DeviceRow & any) => ({
       id: row.id,
       emergencyId: row.emergency_id,
       deviceId: row.device_id,
@@ -417,7 +394,7 @@ router.get('/:id/responses', verifyApiKey, async (req: Request, res: Response) =
       participating: row.participating === 1,
       respondedAt: row.responded_at,
       // Responder details from devices table
-      responder: mapResponderDetails(row),
+      responder: mapResponderDetails(row as DeviceRow),
     }));
 
     res.json(responses);

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/models.dart';
+import '../services/storage_service.dart';
 
 class ApiService {
   static String _baseUrl = 'http://localhost:3000/api';
@@ -36,9 +37,13 @@ class ApiService {
 
   // Get emergency by ID
   static Future<Emergency> getEmergency(String id) async {
+    final deviceToken = StorageService.getDeviceToken();
     final response = await http.get(
       Uri.parse('$_baseUrl/emergencies/$id'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        if (deviceToken != null) 'X-Device-Token': deviceToken,
+      },
     );
 
     if (response.statusCode == 200) {
@@ -50,14 +55,25 @@ class ApiService {
 
   // Get all emergencies
   static Future<List<Emergency>> getEmergencies() async {
+    final deviceToken = StorageService.getDeviceToken();
     final response = await http.get(
       Uri.parse('$_baseUrl/emergencies'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        if (deviceToken != null) 'X-Device-Token': deviceToken,
+      },
     );
 
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((json) => Emergency.fromJson(json)).toList();
+      final responseData = jsonDecode(response.body);
+      // Handle both old (array) and new (paginated object) response formats
+      if (responseData is List) {
+        return responseData.map((json) => Emergency.fromJson(json)).toList();
+      } else if (responseData is Map && responseData.containsKey('data')) {
+        final List<dynamic> data = responseData['data'];
+        return data.map((json) => Emergency.fromJson(json)).toList();
+      }
+      return [];
     } else {
       throw Exception('Failed to get emergencies: ${response.body}');
     }
@@ -69,9 +85,13 @@ class ApiService {
     required String deviceId,
     required bool participating,
   }) async {
+    final deviceToken = StorageService.getDeviceToken();
     final response = await http.post(
       Uri.parse('$_baseUrl/emergencies/$emergencyId/responses'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        if (deviceToken != null) 'X-Device-Token': deviceToken,
+      },
       body: jsonEncode({
         'deviceId': deviceId,
         'participating': participating,
@@ -117,7 +137,10 @@ class ApiService {
 
     final response = await http.post(
       Uri.parse('$_baseUrl/devices/update-push-token'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        if (deviceToken.isNotEmpty) 'X-Device-Token': deviceToken,
+      },
       body: jsonEncode(body),
     );
 
@@ -128,9 +151,13 @@ class ApiService {
 
   // Get device details with assigned groups
   static Future<DeviceDetails> getDeviceDetails(String deviceId) async {
+    final deviceToken = StorageService.getDeviceToken();
     final response = await http.get(
       Uri.parse('$_baseUrl/devices/$deviceId/details'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        if (deviceToken != null) 'X-Device-Token': deviceToken,
+      },
     );
 
     if (response.statusCode == 200) {

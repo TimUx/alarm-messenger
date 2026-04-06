@@ -12,7 +12,7 @@
         <header class="dashboard-header">
             <h1>🚨 Alarm Messenger - Einsatz Historie</h1>
             <div class="header-actions">
-                <button id="theme-toggle" title="Theme wechseln">🌙</button>
+                <button id="theme-toggle" title="Theme wechseln" aria-label="Theme wechseln">🌙</button>
                 <span id="username-display"></span>
                 <button class="btn btn-secondary" id="logout-btn">Abmelden</button>
             </div>
@@ -71,10 +71,13 @@
                 <div class="modal-content modal-large">
                     <div class="modal-header">
                         <h3>Einsatz Details</h3>
-                        <button class="close-btn" id="close-details-modal-btn">&times;</button>
+                        <button class="close-btn" id="close-details-modal-btn" aria-label="Schließen">&times;</button>
                     </div>
                     <div id="emergency-details-content">
                         <p class="loading">Lade Details...</p>
+                    </div>
+                    <div class="modal-actions" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                        <button class="btn btn-secondary" id="end-emergency-btn" style="display: none;">🛑 Einsatz beenden</button>
                     </div>
                 </div>
             </div>
@@ -82,5 +85,6 @@
     </div>
     <script src="/admin/api-client.js"></script>
     <script src="/admin/history.js"></script>
+    <div id="toast-container" aria-live="polite" role="status"></div>
 </body>
 </html>

@@ -12,7 +12,7 @@
         <header class="dashboard-header">
             <h1>🚨 Alarm Messenger - Benutzerverwaltung</h1>
             <div class="header-actions">
-                <button id="theme-toggle" title="Theme wechseln">🌙</button>
+                <button id="theme-toggle" title="Theme wechseln" aria-label="Theme wechseln">🌙</button>
                 <span id="username-display" class="user-info"></span>
                 <button class="btn btn-secondary" id="logout-btn">Abmelden</button>
             </div>
@@ -43,7 +43,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3 id="modal-title">Benutzer hinzufügen</h3>
-                        <button class="close-btn" id="close-modal-btn">&times;</button>
+                        <button class="close-btn" id="close-modal-btn" aria-label="Schließen">&times;</button>
                     </div>
                     <form id="userForm">
                         <input type="hidden" id="user-id">
@@ -85,7 +85,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3>Passwort ändern</h3>
-                        <button class="close-btn" id="close-password-modal-btn">&times;</button>
+                        <button class="close-btn" id="close-password-modal-btn" aria-label="Schließen">&times;</button>
                     </div>
                     <form id="passwordForm">
                         <input type="hidden" id="password-user-id">
@@ -112,5 +112,6 @@
     </div>
     <script src="/admin/api-client.js"></script>
     <script src="/admin/users.js"></script>
+    <div id="toast-container" aria-live="polite" role="status"></div>
 </body>
 </html>

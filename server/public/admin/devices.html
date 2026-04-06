@@ -12,7 +12,7 @@
         <header class="dashboard-header">
             <h1>🚨 Alarm Messenger - Einsatzkräfte</h1>
             <div class="header-actions">
-                <button id="theme-toggle" title="Theme wechseln">🌙</button>
+                <button id="theme-toggle" title="Theme wechseln" aria-label="Theme wechseln">🌙</button>
                 <span id="username-display"></span>
                 <button class="btn btn-secondary" id="logout-btn">Abmelden</button>
             </div>
@@ -43,7 +43,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3>Einsatzkraft bearbeiten</h3>
-                        <button class="close-btn" id="close-modal-btn">&times;</button>
+                        <button class="close-btn" id="close-modal-btn" aria-label="Schließen">&times;</button>
                     </div>
                     <form id="editDeviceForm">
                         <input type="hidden" id="edit-device-id">
@@ -108,7 +108,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3>QR-Code für Geräteregistrierung</h3>
-                        <button class="close-btn" id="close-qr-modal-btn">&times;</button>
+                        <button class="close-btn" id="close-qr-modal-btn" aria-label="Schließen">&times;</button>
                     </div>
                     <div class="qr-code-card">
                         <img id="qr-modal-image" alt="QR Code" style="max-width: 100%; height: auto;">
@@ -124,5 +124,6 @@
     </div>
     <script src="/admin/api-client.js"></script>
     <script src="/admin/devices.js"></script>
+    <div id="toast-container" aria-live="polite" role="status"></div>
 </body>
 </html>
