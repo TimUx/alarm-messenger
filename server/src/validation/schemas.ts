@@ -3,6 +3,8 @@ import { z } from 'zod';
 export const CreateEmergencySchema = z.object({
   emergencyNumber: z.string().min(1).max(50),
   emergencyDate: z.string().min(1),
+  // Note: alarm-mail must never send "" for these fields.
+  // It uses fallback value "—" when the source XML field is absent.
   emergencyKeyword: z.string().min(1).max(100),
   emergencyDescription: z.string().min(1).max(1000),
   emergencyLocation: z.string().min(1).max(500),
