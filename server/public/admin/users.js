@@ -1,12 +1,11 @@
-const API_BASE = window.location.origin + '/api';
 let currentUser = null;
 let allUsers = [];
 let isEditMode = false;
 
 // Check authentication on page load
 window.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('authToken');
-    const username = localStorage.getItem('username');
+    const token = sessionStorage.getItem('csrfToken');
+    const username = sessionStorage.getItem('username');
     
     if (!token || !username) {
         window.location.href = 'login.html';
@@ -29,38 +28,6 @@ window.addEventListener('DOMContentLoaded', () => {
     // Load users
     loadUsers();
 });
-
-function logout() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('username');
-    window.location.href = 'login.html';
-}
-
-async function apiRequest(url, options = {}) {
-    const token = localStorage.getItem('authToken');
-    
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
-    
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(url, {
-        ...options,
-        headers
-    });
-    
-    if (response.status === 401) {
-        // Token expired or invalid
-        logout();
-        return;
-    }
-    
-    return response;
-}
 
 async function loadCurrentUser() {
     try {
@@ -109,15 +76,18 @@ async function loadUsers() {
 
 function displayUsers(users) {
     const container = document.getElementById('users-list');
-    
+
     if (users.length === 0) {
-        container.innerHTML = '<p>Keine Benutzer vorhanden.</p>';
+        container.textContent = '';
+        const p = document.createElement('p');
+        p.textContent = 'Keine Benutzer vorhanden.';
+        container.appendChild(p);
         return;
     }
-    
+
     const table = document.createElement('table');
     table.className = 'data-table';
-    
+
     const thead = document.createElement('thead');
     thead.innerHTML = `
         <tr>
@@ -129,41 +99,73 @@ function displayUsers(users) {
         </tr>
     `;
     table.appendChild(thead);
-    
+
     const tbody = document.createElement('tbody');
     users.forEach(user => {
         const row = document.createElement('tr');
-        
+
         const roleText = user.role === 'admin' ? 'Administrator' : 'Operator';
         const roleClass = user.role === 'admin' ? 'role-admin' : 'role-operator';
         const createdDate = new Date(user.createdAt).toLocaleString('de-DE');
         const isCurrentUser = currentUser && user.id === currentUser.id;
-        
-        row.innerHTML = `
-            <td>${escapeHtml(user.username)}</td>
-            <td>${user.fullName ? escapeHtml(user.fullName) : '-'}</td>
-            <td><span class="badge ${roleClass}">${roleText}</span></td>
-            <td>${createdDate}</td>
-            <td class="actions">
-                <button class="btn-icon" onclick="changePassword('${user.id}', ${isCurrentUser})" title="Passwort ändern">🔑</button>
-                ${currentUser && currentUser.role === 'admin' && !isCurrentUser ? `
-                    <button class="btn-icon" onclick="editUser('${user.id}')" title="Bearbeiten">✏️</button>
-                    <button class="btn-icon" onclick="deleteUser('${user.id}', '${escapeHtml(user.username)}')" title="Löschen">🗑️</button>
-                ` : ''}
-            </td>
-        `;
+
+        // Username cell
+        const usernameCell = document.createElement('td');
+        usernameCell.textContent = user.username;
+        row.appendChild(usernameCell);
+
+        // Full name cell
+        const fullNameCell = document.createElement('td');
+        fullNameCell.textContent = user.fullName || '-';
+        row.appendChild(fullNameCell);
+
+        // Role cell
+        const roleCell = document.createElement('td');
+        const roleBadge = document.createElement('span');
+        roleBadge.className = `badge ${roleClass}`;
+        roleBadge.textContent = roleText;
+        roleCell.appendChild(roleBadge);
+        row.appendChild(roleCell);
+
+        // Created date cell
+        const dateCell = document.createElement('td');
+        dateCell.textContent = createdDate;
+        row.appendChild(dateCell);
+
+        // Actions cell
+        const actionsCell = document.createElement('td');
+        actionsCell.className = 'actions';
+
+        const changePasswordBtn = document.createElement('button');
+        changePasswordBtn.className = 'btn-icon';
+        changePasswordBtn.title = 'Passwort ändern';
+        changePasswordBtn.textContent = '🔑';
+        changePasswordBtn.addEventListener('click', () => window.changePassword(user.id, isCurrentUser));
+        actionsCell.appendChild(changePasswordBtn);
+
+        if (currentUser && currentUser.role === 'admin' && !isCurrentUser) {
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn-icon';
+            editBtn.title = 'Bearbeiten';
+            editBtn.textContent = '✏️';
+            editBtn.addEventListener('click', () => window.editUser(user.id));
+            actionsCell.appendChild(editBtn);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn-icon';
+            deleteBtn.title = 'Löschen';
+            deleteBtn.textContent = '🗑️';
+            deleteBtn.addEventListener('click', () => window.deleteUser(user.id, user.username));
+            actionsCell.appendChild(deleteBtn);
+        }
+
+        row.appendChild(actionsCell);
         tbody.appendChild(row);
     });
     table.appendChild(tbody);
-    
+
     container.innerHTML = '';
     container.appendChild(table);
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 function showAddUserModal() {

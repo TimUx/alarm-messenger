@@ -22,9 +22,10 @@
  */
 
 import * as admin from 'firebase-admin';
-import apn from 'apn';
+import { Provider, Notification } from '@parse/node-apn';
 import fs from 'fs';
 import path from 'path';
+import logger from '../utils/logger';
 
 interface PushNotificationData {
   emergencyId: string;
@@ -39,7 +40,7 @@ interface PushNotificationData {
 class PushNotificationService {
   private fcmEnabled = false;
   private apnsEnabled = false;
-  private apnsProvider: apn.Provider | null = null;
+  private apnsProvider: Provider | null = null;
 
   constructor() {
     this.initializeFCM();
@@ -51,7 +52,7 @@ class PushNotificationService {
    */
   private initializeFCM(): void {
     if (process.env.ENABLE_FCM !== 'true') {
-      console.log('ℹ️  FCM push notifications disabled (set ENABLE_FCM=true to enable)');
+      logger.info('ℹ️  FCM push notifications disabled (set ENABLE_FCM=true to enable)');
       return;
     }
 
@@ -59,12 +60,12 @@ class PushNotificationService {
       const serviceAccountPath = process.env.FCM_SERVICE_ACCOUNT_PATH;
       
       if (!serviceAccountPath) {
-        console.warn('⚠️  FCM enabled but FCM_SERVICE_ACCOUNT_PATH not set');
+        logger.warn('⚠️  FCM enabled but FCM_SERVICE_ACCOUNT_PATH not set');
         return;
       }
 
       if (!fs.existsSync(serviceAccountPath)) {
-        console.warn(`⚠️  FCM service account file not found: ${serviceAccountPath}`);
+        logger.warn(`⚠️  FCM service account file not found: ${serviceAccountPath}`);
         return;
       }
 
@@ -75,9 +76,9 @@ class PushNotificationService {
       });
 
       this.fcmEnabled = true;
-      console.log('✓ Firebase Cloud Messaging (FCM) initialized');
+      logger.info('✓ Firebase Cloud Messaging (FCM) initialized');
     } catch (error) {
-      console.error('❌ Failed to initialize FCM:', error);
+      logger.error({ err: error }, '❌ Failed to initialize FCM');
     }
   }
 
@@ -86,7 +87,7 @@ class PushNotificationService {
    */
   private initializeAPNs(): void {
     if (process.env.ENABLE_APNS !== 'true') {
-      console.log('ℹ️  APNs push notifications disabled (set ENABLE_APNS=true to enable)');
+      logger.info('ℹ️  APNs push notifications disabled (set ENABLE_APNS=true to enable)');
       return;
     }
 
@@ -98,17 +99,17 @@ class PushNotificationService {
       const production = process.env.APNS_PRODUCTION === 'true';
 
       if (!keyPath || !keyId || !teamId || !topic) {
-        console.warn('⚠️  APNs enabled but required environment variables not set');
-        console.warn('     Required: APNS_KEY_PATH, APNS_KEY_ID, APNS_TEAM_ID, APNS_TOPIC');
+        logger.warn('⚠️  APNs enabled but required environment variables not set');
+        logger.warn('     Required: APNS_KEY_PATH, APNS_KEY_ID, APNS_TEAM_ID, APNS_TOPIC');
         return;
       }
 
       if (!fs.existsSync(keyPath)) {
-        console.warn(`⚠️  APNs key file not found: ${keyPath}`);
+        logger.warn(`⚠️  APNs key file not found: ${keyPath}`);
         return;
       }
 
-      this.apnsProvider = new apn.Provider({
+      this.apnsProvider = new Provider({
         token: {
           key: keyPath,
           keyId: keyId,
@@ -118,9 +119,9 @@ class PushNotificationService {
       });
 
       this.apnsEnabled = true;
-      console.log(`✓ Apple Push Notification service (APNs) initialized (${production ? 'production' : 'development'})`);
+      logger.info(`✓ Apple Push Notification service (APNs) initialized (${production ? 'production' : 'development'})`);
     } catch (error) {
-      console.error('❌ Failed to initialize APNs:', error);
+      logger.error({ err: error }, '❌ Failed to initialize APNs');
     }
   }
 
@@ -166,10 +167,10 @@ class PushNotificationService {
       };
 
       await admin.messaging().send(message);
-      console.log(`✓ FCM notification sent to token: ${fcmToken.substring(0, 20)}...`);
+      logger.info(`✓ FCM notification sent to token: ${fcmToken.substring(0, 20)}...`);
       return true;
     } catch (error: any) {
-      console.error(`❌ Failed to send FCM notification:`, error.message);
+      logger.error(`❌ Failed to send FCM notification: ${error.message}`);
       return false;
     }
   }
@@ -188,7 +189,7 @@ class PushNotificationService {
     }
 
     try {
-      const notification = new apn.Notification();
+      const notification = new Notification();
       
       // Critical alert for emergency notifications (bypasses Do Not Disturb)
       notification.sound = 'default';
@@ -198,11 +199,8 @@ class PushNotificationService {
         body: body,
       };
       
-      // Set as critical alert with high interruption level
-      // Note: interruption-level is a custom property for iOS 15+
-      // The apn library doesn't have this in types yet, but APNs supports it
-      const notificationPayload = notification as apn.Notification & { 'interruption-level'?: string };
-      notificationPayload['interruption-level'] = 'critical';
+      // Set interruption level for iOS 15+ (natively supported by @parse/node-apn)
+      notification.aps['interruption-level'] = 'critical';
       
       // Add custom data
       notification.payload = {
@@ -225,18 +223,18 @@ class PushNotificationService {
       // Set priority to immediate
       notification.priority = 10;
 
-      const result = await this.apnsProvider.send(notificationPayload, apnsToken);
+      const result = await this.apnsProvider.send(notification, apnsToken);
       
       if (result.failed && result.failed.length > 0) {
         const failure = result.failed[0];
-        console.error(`❌ Failed to send APNs notification: ${failure.response?.reason || 'Unknown error'}`);
+        logger.error(`❌ Failed to send APNs notification: ${failure.response?.reason || 'Unknown error'}`);
         return false;
       }
 
-      console.log(`✓ APNs notification sent to token: ${apnsToken.substring(0, 20)}...`);
+      logger.info(`✓ APNs notification sent to token: ${apnsToken.substring(0, 20)}...`);
       return true;
     } catch (error: any) {
-      console.error(`❌ Failed to send APNs notification:`, error.message);
+      logger.error(`❌ Failed to send APNs notification: ${error.message}`);
       return false;
     }
   }

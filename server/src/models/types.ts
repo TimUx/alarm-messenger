@@ -60,7 +60,6 @@ export interface DeviceRegistrationRequest {
 }
 
 export interface EmergencyResponseRequest {
-  deviceId: string;
   participating: boolean;
 }
 

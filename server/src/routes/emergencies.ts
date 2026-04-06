@@ -3,12 +3,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { websocketService } from '../services/websocket';
 import { pushNotificationService } from '../services/push-notification';
-import { verifyApiKey } from '../middleware/auth';
+import { redisPubSubService } from '../services/redis-pubsub';
+import { broadcastSseEvent } from '../services/sse';
+import { verifyApiKey, verifyDeviceToken, DeviceRequest } from '../middleware/auth';
 import {
   Emergency,
   CreateEmergencyRequest,
   EmergencyResponseRequest,
 } from '../models/types';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -123,14 +126,14 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
         groupCodes
       );
       
-      console.log(`✓ Found ${devices.length} devices matching groups: ${sanitizedGroups}`);
+      logger.info(`✓ Found ${devices.length} devices matching groups: ${sanitizedGroups}`);
     } else {
       // If no groups specified, notify all active devices
       devices = await dbAll(
         'SELECT id, platform, fcm_token, apns_token FROM devices WHERE active = 1',
         []
       );
-      console.log(`✓ No groups specified, notifying all ${devices.length} active devices`);
+      logger.info(`✓ No groups specified, notifying all ${devices.length} active devices`);
     }
 
     // Prepare notification data
@@ -154,40 +157,51 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
     if (deviceIds.length > 0) {
       // Try push notifications first (FCM for Android, APNs for iOS)
       if (pushNotificationService.isPushEnabled()) {
-        for (const device of devices) {
-          const pushSuccess = await pushNotificationService.sendPushNotification(
-            device.platform,
-            device.fcm_token,
-            device.apns_token,
-            notificationTitle,
-            notificationBody,
-            notificationData
-          );
-          if (pushSuccess) {
-            pushSuccessCount++;
-          }
-        }
+        const pushResults = await Promise.allSettled(
+          devices.map((device: any) =>
+            pushNotificationService.sendPushNotification(
+              device.platform,
+              device.fcm_token,
+              device.apns_token,
+              notificationTitle,
+              notificationBody,
+              notificationData
+            )
+          )
+        );
+        pushSuccessCount = pushResults.filter(
+          (r) => r.status === 'fulfilled' && r.value === true
+        ).length;
         
         if (pushSuccessCount > 0) {
-          console.log(`✓ Push notifications sent to ${pushSuccessCount}/${devices.length} devices`);
+          logger.info(`✓ Push notifications sent to ${pushSuccessCount}/${devices.length} devices`);
         }
       }
       
-      // Also send via WebSocket as fallback/redundancy
-      await websocketService.sendBulkNotifications(
-        deviceIds,
-        notificationTitle,
-        notificationBody,
-        notificationData
-      );
+      // Send WebSocket notifications via Redis pub/sub (or directly as fallback)
+      if (redisPubSubService.isEnabled()) {
+        await redisPubSubService.publish({
+          deviceIds,
+          title: notificationTitle,
+          body: notificationBody,
+          data: notificationData,
+        });
+      } else {
+        await websocketService.sendBulkNotifications(
+          deviceIds,
+          notificationTitle,
+          notificationBody,
+          notificationData
+        );
+      }
       
       // Count WebSocket connected devices
       websocketSuccessCount = deviceIds.filter(id => 
         websocketService.isDeviceConnected(id)
       ).length;
       
-      console.log(`✓ WebSocket notifications sent to ${websocketSuccessCount}/${devices.length} connected devices`);
-      console.log(`📊 Notification summary: Push=${pushSuccessCount}, WebSocket=${websocketSuccessCount}, Total devices=${devices.length}`);
+      logger.info(`✓ WebSocket notifications sent to ${websocketSuccessCount}/${devices.length} connected devices`);
+      logger.info(`📊 Notification summary: Push=${pushSuccessCount}, WebSocket=${websocketSuccessCount}, Total devices=${devices.length}`);
     }
 
     const emergency: Emergency = {
@@ -204,7 +218,7 @@ router.post('/', verifyApiKey, async (req: Request, res: Response) => {
 
     res.status(201).json(emergency);
   } catch (error) {
-    console.error('Error creating emergency:', error);
+    logger.error({ err: error }, 'Error creating emergency');
     res.status(500).json({ error: 'Failed to create emergency' });
   }
 });
@@ -214,12 +228,24 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     // Support query parameter to include inactive emergencies
     const includeInactive = req.query.includeInactive === 'true';
-    
-    const query = includeInactive
-      ? 'SELECT * FROM emergencies ORDER BY created_at DESC'
-      : 'SELECT * FROM emergencies WHERE active = 1 ORDER BY created_at DESC';
+    const emergencyNumberFilter = req.query.emergencyNumber as string | undefined;
 
-    const rows = await dbAll(query, []);
+    let query: string;
+    let params: (string | boolean)[];
+
+    if (emergencyNumberFilter) {
+      query = includeInactive
+        ? 'SELECT * FROM emergencies WHERE emergency_number = ? ORDER BY created_at DESC'
+        : 'SELECT * FROM emergencies WHERE active = 1 AND emergency_number = ? ORDER BY created_at DESC';
+      params = [emergencyNumberFilter];
+    } else {
+      query = includeInactive
+        ? 'SELECT * FROM emergencies ORDER BY created_at DESC'
+        : 'SELECT * FROM emergencies WHERE active = 1 ORDER BY created_at DESC';
+      params = [];
+    }
+
+    const rows = await dbAll(query, params);
 
     const emergencies: Emergency[] = rows.map((row: any) => ({
       id: row.id,
@@ -235,7 +261,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     res.json(emergencies);
   } catch (error) {
-    console.error('Error fetching emergencies:', error);
+    logger.error({ err: error }, 'Error fetching emergencies');
     res.status(500).json({ error: 'Failed to fetch emergencies' });
   }
 });
@@ -265,18 +291,19 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     res.json(emergency);
   } catch (error) {
-    console.error('Error fetching emergency:', error);
+    logger.error({ err: error }, 'Error fetching emergency');
     res.status(500).json({ error: 'Failed to fetch emergency' });
   }
 });
 
 // Submit response to an emergency
-router.post('/:id/responses', async (req: Request, res: Response) => {
+router.post('/:id/responses', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { id: emergencyId } = req.params;
-    const { deviceId, participating }: EmergencyResponseRequest = req.body;
+    const { participating }: { participating: boolean } = req.body;
+    const deviceId = (req as DeviceRequest).device!.id;
 
-    if (!deviceId || participating === undefined) {
+    if (participating === undefined) {
       res.status(400).json({ error: 'Missing required fields' });
       return;
     }
@@ -287,13 +314,6 @@ router.post('/:id/responses', async (req: Request, res: Response) => {
     ]);
     if (!emergency) {
       res.status(404).json({ error: 'Emergency not found' });
-      return;
-    }
-
-    // Check if device exists
-    const device = await dbGet('SELECT * FROM devices WHERE id = ?', [deviceId]);
-    if (!device) {
-      res.status(404).json({ error: 'Device not found' });
       return;
     }
 
@@ -314,8 +334,20 @@ router.post('/:id/responses', async (req: Request, res: Response) => {
       participating,
       respondedAt,
     });
+
+    try {
+      broadcastSseEvent('response', {
+        id: responseId,
+        emergencyId,
+        deviceId,
+        participating,
+        respondedAt,
+      });
+    } catch (sseError) {
+      logger.error({ err: sseError }, 'Error broadcasting SSE response event');
+    }
   } catch (error) {
-    console.error('Error submitting response:', error);
+    logger.error({ err: error }, 'Error submitting response');
     res.status(500).json({ error: 'Failed to submit response' });
   }
 });
@@ -357,7 +389,7 @@ router.get('/:id/participants', verifyApiKey, async (req: Request, res: Response
       participants,
     });
   } catch (error) {
-    console.error('Error fetching participants:', error);
+    logger.error({ err: error }, 'Error fetching participants');
     res.status(500).json({ error: 'Failed to fetch participants' });
   }
 });
@@ -390,7 +422,7 @@ router.get('/:id/responses', verifyApiKey, async (req: Request, res: Response) =
 
     res.json(responses);
   } catch (error) {
-    console.error('Error fetching responses:', error);
+    logger.error({ err: error }, 'Error fetching responses');
     res.status(500).json({ error: 'Failed to fetch responses' });
   }
 });

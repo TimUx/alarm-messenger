@@ -1,13 +1,22 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { dbRun, dbGet, dbAll } from '../services/database';
-import { verifyToken, generateToken, verifyAdmin, AuthRequest } from '../middleware/auth';
+import { generateToken, verifyAdmin, verifySession, generateCsrfToken, AuthRequest } from '../middleware/auth';
+import { addSseClient, removeSseClient } from '../services/sse';
+import logger from '../utils/logger';
 
 const router = Router();
 
+const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: 'Too many login attempts. Please try again later.' },
+});
+
 // Login endpoint
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
 
@@ -34,9 +43,14 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     const token = generateToken(user.id, user.username, user.role || 'admin');
+    const csrfToken = generateCsrfToken();
+
+    req.session.userId = user.id;
+    req.session.csrfToken = csrfToken;
 
     res.json({
       token,
+      csrfToken,
       user: {
         id: user.id,
         username: user.username,
@@ -45,13 +59,26 @@ router.post('/login', async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error during login:', error);
+    logger.error({ err: error }, 'Error during login');
     res.status(500).json({ error: 'Login failed' });
   }
 });
 
+// Logout endpoint - destroy session
+router.post('/logout', (req: Request, res: Response) => {
+  req.session.destroy((err) => {
+    if (err) {
+      logger.error({ err }, 'Error destroying session');
+      res.status(500).json({ error: 'Logout failed' });
+      return;
+    }
+    res.clearCookie('connect.sid');
+    res.json({ message: 'Logged out successfully' });
+  });
+});
+
 // Create admin user (protected - only for admins)
-router.post('/users', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
+router.post('/users', verifySession, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { username, password, fullName, role } = req.body;
 
@@ -95,7 +122,7 @@ router.post('/users', verifyToken, verifyAdmin, async (req: AuthRequest, res: Re
       createdAt,
     });
   } catch (error) {
-    console.error('Error creating admin user:', error);
+    logger.error({ err: error }, 'Error creating admin user');
     res.status(500).json({ error: 'Failed to create admin user' });
   }
 });
@@ -133,9 +160,14 @@ router.post('/init', async (req: Request, res: Response) => {
     );
 
     const token = generateToken(id, username, 'admin');
+    const csrfToken = generateCsrfToken();
+
+    req.session.userId = id;
+    req.session.csrfToken = csrfToken;
 
     res.status(201).json({
       token,
+      csrfToken,
       user: {
         id,
         username,
@@ -143,13 +175,13 @@ router.post('/init', async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error initializing admin:', error);
+    logger.error({ err: error }, 'Error initializing admin');
     res.status(500).json({ error: 'Failed to initialize admin' });
   }
 });
 
 // Get all users (protected - admin only)
-router.get('/users', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
+router.get('/users', verifySession, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const users = await dbAll(
       'SELECT id, username, full_name, role, created_at FROM admin_users ORDER BY created_at DESC',
@@ -166,13 +198,13 @@ router.get('/users', verifyToken, verifyAdmin, async (req: AuthRequest, res: Res
       })),
     });
   } catch (error) {
-    console.error('Error fetching users:', error);
+    logger.error({ err: error }, 'Error fetching users');
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
 
 // Update user (protected - admin only)
-router.put('/users/:id', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
+router.put('/users/:id', verifySession, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { username, fullName, role } = req.body;
@@ -216,13 +248,13 @@ router.put('/users/:id', verifyToken, verifyAdmin, async (req: AuthRequest, res:
 
     res.json({ message: 'User updated successfully' });
   } catch (error) {
-    console.error('Error updating user:', error);
+    logger.error({ err: error }, 'Error updating user');
     res.status(500).json({ error: 'Failed to update user' });
   }
 });
 
 // Delete user (protected - admin only)
-router.delete('/users/:id', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
+router.delete('/users/:id', verifySession, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -243,13 +275,13 @@ router.delete('/users/:id', verifyToken, verifyAdmin, async (req: AuthRequest, r
 
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
-    console.error('Error deleting user:', error);
+    logger.error({ err: error }, 'Error deleting user');
     res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 
 // Change password (protected - any authenticated user)
-router.put('/users/:id/password', verifyToken, async (req: AuthRequest, res: Response) => {
+router.put('/users/:id/password', verifySession, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { currentPassword, newPassword } = req.body;
@@ -291,13 +323,13 @@ router.put('/users/:id/password', verifyToken, async (req: AuthRequest, res: Res
 
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
-    console.error('Error changing password:', error);
+    logger.error({ err: error }, 'Error changing password');
     res.status(500).json({ error: 'Failed to change password' });
   }
 });
 
 // Get current user profile
-router.get('/profile', verifyToken, async (req: AuthRequest, res: Response) => {
+router.get('/profile', verifySession, async (req: AuthRequest, res: Response) => {
   try {
     const user = await dbGet(
       'SELECT id, username, full_name, role, created_at FROM admin_users WHERE id = ?',
@@ -317,13 +349,13 @@ router.get('/profile', verifyToken, async (req: AuthRequest, res: Response) => {
       createdAt: user.created_at,
     });
   } catch (error) {
-    console.error('Error fetching profile:', error);
+    logger.error({ err: error }, 'Error fetching profile');
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
 
 // Update device/responder information
-router.put('/devices/:id', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
+router.put('/devices/:id', verifySession, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const {
@@ -362,13 +394,13 @@ router.put('/devices/:id', verifyToken, verifyAdmin, async (req: AuthRequest, re
 
     res.json({ message: 'Device updated successfully' });
   } catch (error) {
-    console.error('Error updating device:', error);
+    logger.error({ err: error }, 'Error updating device');
     res.status(500).json({ error: 'Failed to update device' });
   }
 });
 
 // Get emergency history with pagination
-router.get('/emergencies', verifyToken, async (req: AuthRequest, res: Response) => {
+router.get('/emergencies', verifySession, async (req: AuthRequest, res: Response) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
@@ -406,13 +438,13 @@ router.get('/emergencies', verifyToken, async (req: AuthRequest, res: Response) 
       },
     });
   } catch (error) {
-    console.error('Error fetching emergencies:', error);
+    logger.error({ err: error }, 'Error fetching emergencies');
     res.status(500).json({ error: 'Failed to fetch emergencies' });
   }
 });
 
 // Get detailed emergency information with all responses
-router.get('/emergencies/:id', verifyToken, async (req: AuthRequest, res: Response) => {
+router.get('/emergencies/:id', verifySession, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -477,8 +509,27 @@ router.get('/emergencies/:id', verifyToken, async (req: AuthRequest, res: Respon
       },
     });
   } catch (error) {
-    console.error('Error fetching emergency details:', error);
+    logger.error({ err: error }, 'Error fetching emergency details');
     res.status(500).json({ error: 'Failed to fetch emergency details' });
+  }
+});
+
+// Server-Sent Events endpoint for real-time updates (protected)
+router.get('/events', verifySession, (req: AuthRequest, res: Response) => {
+  try {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    addSseClient(res);
+
+    req.on('close', () => {
+      removeSseClient(res);
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Error setting up SSE connection');
+    removeSseClient(res);
   }
 });
 

@@ -43,7 +43,8 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
-      - alarm-messenger-server
+      alarm-messenger-server:
+        condition: service_healthy
     networks:
       - alarm-messenger-network
     profiles:
@@ -63,7 +64,8 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
-      - alarm-messenger-server
+      alarm-messenger-server:
+        condition: service_healthy
     networks:
       - alarm-messenger-network
     profiles:

@@ -1,10 +1,9 @@
-const API_BASE = window.location.origin + '/api';
 let availableGroups = [];
 
 // Check authentication on page load
 window.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('authToken');
-    const username = localStorage.getItem('username');
+    const token = sessionStorage.getItem('csrfToken');
+    const username = sessionStorage.getItem('username');
     
     if (!token || !username) {
         window.location.href = 'login.html';
@@ -31,40 +30,11 @@ window.addEventListener('DOMContentLoaded', () => {
     loadGroups();
 });
 
-function logout() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('username');
-    window.location.href = 'login.html';
-}
-
-async function apiRequest(url, options = {}) {
-    const token = localStorage.getItem('authToken');
-    
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
-    
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    return fetch(url, {
-        ...options,
-        headers
-    });
-}
-
 async function loadUserInfo() {
     try {
         const response = await apiRequest(`${API_BASE}/admin/profile`);
         
-        if (response.status === 401) {
-            logout();
-            return;
-        }
-        
-        if (!response.ok) {
+        if (!response || !response.ok) {
             console.error('Failed to load user info');
             return;
         }
@@ -110,24 +80,27 @@ async function loadGroups() {
 
 function displayGroups() {
     const container = document.getElementById('alarm-groups-list');
-    
+    container.textContent = '';
+
     if (availableGroups.length === 0) {
-        container.innerHTML = '<p>Keine Gruppen verfügbar</p>';
+        const p = document.createElement('p');
+        p.textContent = 'Keine Gruppen verfügbar';
+        container.appendChild(p);
         return;
     }
-    
-    container.innerHTML = availableGroups.map(group => `
-        <label>
-            <input type="checkbox" name="group" value="${escapeHtml(group.code)}">
-            ${escapeHtml(group.code)} - ${escapeHtml(group.name)}
-        </label>
-    `).join('');
-}
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    availableGroups.forEach(group => {
+        const label = document.createElement('label');
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'group';
+        checkbox.value = group.code;
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(` ${group.code} - ${group.name}`));
+
+        container.appendChild(label);
+    });
 }
 
 async function handleCreateAlarm(e) {

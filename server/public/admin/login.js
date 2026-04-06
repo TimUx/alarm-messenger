@@ -25,9 +25,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         
         const data = await response.json();
         
-        // Store token and user info
-        localStorage.setItem('authToken', data.token);
-        localStorage.setItem('username', data.user.username);
+        // Store CSRF token and username; session cookie is set as HttpOnly by the server
+        sessionStorage.setItem('csrfToken', data.csrfToken);
+        sessionStorage.setItem('username', data.user.username);
         
         // Redirect to dashboard
         window.location.href = 'index.html';

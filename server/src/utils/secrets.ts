@@ -1,16 +1,24 @@
 /**
- * Utility functions for handling Base64-encoded secrets
- * 
- * This module provides functions to decode Base64-encoded secrets from environment variables.
- * Secrets can be stored in Base64 format to avoid plain text storage in configuration files.
- * 
- * Benefits:
- * - Secrets are not immediately readable in config files
- * - Reduces risk of accidental exposure in logs or screenshots
- * - Maintains compatibility with plain text secrets (automatic fallback)
+ * Utility functions for handling secrets from environment variables and files
+ *
+ * ## Base64 encoding
+ * Secrets can optionally be stored as Base64 in environment variables.
+ * **Important:** Base64 is obfuscation only — it is NOT encryption and provides
+ * no additional security. Anyone with access to the encoded value can trivially
+ * decode it. The sole benefit is reducing accidental plain-text exposure in logs
+ * or screenshots. Secrets must still be protected using proper access controls
+ * (e.g. restricted file permissions, secrets managers, Docker secrets).
+ *
+ * ## Docker / file-based secrets
+ * Use `resolveSecret(envVarName)` to support Docker secrets (or any file-based
+ * secret). If an environment variable named `<NAME>_FILE` is set, the secret is
+ * read from that file path (trailing whitespace stripped). Otherwise the function
+ * falls back to decoding `process.env[envVarName]` as a plain or Base64 value.
  */
 
+import fs from 'fs';
 import crypto from 'crypto';
+import logger from './logger';
 
 /**
  * Checks if a string looks like Base64 encoded
@@ -76,13 +84,43 @@ export function decodeSecret(secret: string | undefined): string | undefined {
       // If decoding fails, treat it as plain text (backward compatibility)
       // Silent fallback for security reasons (avoid leaking implementation details)
       if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️  DEBUG: Failed to decode potential Base64 secret, using as plain text');
+        logger.warn('⚠️  DEBUG: Failed to decode potential Base64 secret, using as plain text');
       }
     }
   }
   
   // Return as-is if not Base64 or decoding failed (backward compatibility)
   return secret;
+}
+
+/**
+ * Resolves a secret by name, supporting Docker / file-based secrets.
+ *
+ * Resolution order:
+ * 1. If `process.env[envVarName + '_FILE']` is set, read the secret from that
+ *    file path (trailing whitespace is stripped). This is the standard Docker
+ *    secrets convention where secrets are mounted as files.
+ * 2. Otherwise, decode `process.env[envVarName]` via `decodeSecret` (supports
+ *    both plain text and Base64-obfuscated values).
+ *
+ * @param envVarName - The base environment variable name (e.g. 'JWT_SECRET')
+ * @returns Resolved secret string, or `undefined` if neither source is set
+ */
+export function resolveSecret(envVarName: string): string | undefined {
+  const fileEnvVar = `${envVarName}_FILE`;
+  const filePath = process.env[fileEnvVar];
+
+  if (filePath) {
+    try {
+      return fs.readFileSync(filePath, 'utf-8').trimEnd();
+    } catch (error) {
+      throw new Error(
+        `Failed to read secret from file specified by ${fileEnvVar} ("${filePath}"): ${(error as NodeJS.ErrnoException).message}`
+      );
+    }
+  }
+
+  return decodeSecret(process.env[envVarName]);
 }
 
 /**

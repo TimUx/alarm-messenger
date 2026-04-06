@@ -1,10 +1,76 @@
 import sqlite3 from 'sqlite3';
-import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs';
+import logger from '../utils/logger';
 
 const dbPath = process.env.DATABASE_PATH || './data/alarm-messenger.db';
 let db: sqlite3.Database;
+
+// ---------------------------------------------------------------------------
+// Versioned migrations
+// Each entry runs exactly once, in order, when the stored schema version is
+// lower than the entry's version number.
+// ---------------------------------------------------------------------------
+const MIGRATIONS: { version: number; description: string; run: () => Promise<void> }[] = [
+  {
+    version: 1,
+    description: 'Add leadership_role column; migrate is_squad_leader',
+    async run() {
+      await dbRun('ALTER TABLE devices ADD COLUMN leadership_role TEXT DEFAULT "none"');
+      await dbRun(`UPDATE devices SET leadership_role = 'groupLeader' WHERE is_squad_leader = 1`);
+    },
+  },
+  {
+    version: 2,
+    description: 'Add groups column to emergencies',
+    async run() {
+      await dbRun('ALTER TABLE emergencies ADD COLUMN groups TEXT');
+    },
+  },
+  {
+    version: 3,
+    description: 'Add first_name and last_name columns; migrate responder_name',
+    async run() {
+      await dbRun('ALTER TABLE devices ADD COLUMN first_name TEXT');
+      await dbRun('ALTER TABLE devices ADD COLUMN last_name TEXT');
+      const devices = await dbAll<{ id: string; responder_name: string | null }>(
+        'SELECT id, responder_name FROM devices WHERE responder_name IS NOT NULL',
+      );
+      for (const device of devices) {
+        if (device.responder_name) {
+          const nameParts = device.responder_name.trim().split(/\s+/);
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          await dbRun('UPDATE devices SET first_name = ?, last_name = ? WHERE id = ?', [firstName, lastName, device.id]);
+        }
+      }
+    },
+  },
+  {
+    version: 4,
+    description: 'Add qr_code_data column to devices',
+    async run() {
+      await dbRun('ALTER TABLE devices ADD COLUMN qr_code_data TEXT');
+    },
+  },
+  {
+    version: 5,
+    description: 'Add role and full_name columns to admin_users',
+    async run() {
+      await dbRun('ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT "operator"');
+      await dbRun('UPDATE admin_users SET role = "admin" WHERE role = "operator"');
+      await dbRun('ALTER TABLE admin_users ADD COLUMN full_name TEXT');
+    },
+  },
+  {
+    version: 6,
+    description: 'Add fcm_token and apns_token columns to devices',
+    async run() {
+      await dbRun('ALTER TABLE devices ADD COLUMN fcm_token TEXT');
+      await dbRun('ALTER TABLE devices ADD COLUMN apns_token TEXT');
+    },
+  },
+];
 
 export async function initializeDatabase(): Promise<void> {
   // Ensure data directory exists
@@ -20,8 +86,19 @@ export async function initializeDatabase(): Promise<void> {
         return;
       }
 
-      // Create tables
+      // Create base tables (all fully-featured from the start so that fresh
+      // installs never need to run the ALTER TABLE migrations above).
       db.serialize(() => {
+        db.run('PRAGMA journal_mode=WAL');
+        db.run('PRAGMA synchronous=NORMAL');
+
+        // Schema migrations tracking table
+        db.run(`
+          CREATE TABLE IF NOT EXISTS schema_migrations (
+            version INTEGER NOT NULL
+          )
+        `);
+
         // Emergencies table
         db.run(`
           CREATE TABLE IF NOT EXISTS emergencies (
@@ -50,7 +127,12 @@ export async function initializeDatabase(): Promise<void> {
             qual_machinist INTEGER DEFAULT 0,
             qual_agt INTEGER DEFAULT 0,
             qual_paramedic INTEGER DEFAULT 0,
-            leadership_role TEXT DEFAULT 'none'
+            leadership_role TEXT DEFAULT 'none',
+            first_name TEXT,
+            last_name TEXT,
+            qr_code_data TEXT,
+            fcm_token TEXT,
+            apns_token TEXT
           )
         `);
 
@@ -88,21 +170,27 @@ export async function initializeDatabase(): Promise<void> {
             UNIQUE(emergency_id, device_id)
           )
         `);
-        
+
+        // Indexes for common query patterns
+        db.run(`CREATE INDEX IF NOT EXISTS idx_emergencies_active ON emergencies(active, created_at)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_devices_device_token ON devices(device_token)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_responses_emergency_id ON responses(emergency_id)`);
+
         // Admin users table
         db.run(`
           CREATE TABLE IF NOT EXISTS admin_users (
             id TEXT PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            role TEXT DEFAULT 'operator',
+            full_name TEXT
           )
         `, async (err) => {
           if (err) {
             reject(err);
           } else {
-            // Run migration to update existing database
-            await migrateDatabase();
+            await runMigrations();
             resolve();
           }
         });
@@ -147,131 +235,44 @@ export const dbAll = <T = any>(sql: string, params: any[] = []): Promise<T[]> =>
 };
 
 /**
- * Database migration function
- * 
- * Performs the following migrations if needed:
- * 1. Adds 'leadership_role' column to devices table (replaces is_squad_leader)
- * 2. Migrates existing is_squad_leader values to leadership_role='groupLeader'
- * 3. Adds 'groups' column to emergencies table for comma-separated group codes
- * 4. Adds 'first_name' and 'last_name' columns to devices table (replaces responder_name)
- * 5. Migrates existing responder_name values by splitting into first and last name
- * 6. Adds 'qr_code_data' column to devices table to store QR code for re-scanning
- * 7. Adds 'role' and 'full_name' columns to admin_users table for user management
- * 
- * Note: Old columns (qual_th_vu, qual_th_bau, is_squad_leader, responder_name) are not dropped
- * to maintain backward compatibility with existing data. They are simply ignored
- * by the application code.
+ * Runs pending versioned migrations sequentially.
+ *
+ * The `schema_migrations` table holds a single row with the current schema
+ * version (0 if the table is empty / freshly created).  Only migrations whose
+ * version number exceeds the stored version are executed, in ascending order.
+ * The stored version is updated after each successful migration so that a
+ * crash mid-way will resume from the right point on the next startup.
  */
-async function migrateDatabase(): Promise<void> {
+async function runMigrations(): Promise<void> {
   try {
-    // Check if migration is needed by checking for old columns
-    const tableInfo = await dbAll("PRAGMA table_info(devices)", []);
-    
-    const hasOldColumns = tableInfo.some((col: any) => 
-      col.name === 'qual_th_vu' || 
-      col.name === 'qual_th_bau' || 
-      col.name === 'is_squad_leader'
-    );
-    
-    const hasNewColumn = tableInfo.some((col: any) => col.name === 'leadership_role');
-    
-    if (hasOldColumns && !hasNewColumn) {
-      console.log('🔄 Running database migration...');
-      
-      // Add new column
-      await dbRun('ALTER TABLE devices ADD COLUMN leadership_role TEXT DEFAULT "none"');
-      
-      // Migrate is_squad_leader to leadership_role (default to groupLeader if was true)
-      await dbRun(`UPDATE devices SET leadership_role = 'groupLeader' WHERE is_squad_leader = 1`);
-      
-      console.log('✓ Database migration completed');
+    // Initialize the version row if the table is empty (brand-new database or
+    // a database that predates this migration system).
+    const row = await dbGet<{ version: number } | undefined>('SELECT version FROM schema_migrations LIMIT 1');
+    let currentVersion = row ? row.version : 0;
+
+    if (!row) {
+      await dbRun('INSERT INTO schema_migrations (version) VALUES (?)', [0]);
     }
-    
-    // Check if emergencies table needs groups column
-    const emergencyTableInfo = await dbAll("PRAGMA table_info(emergencies)", []);
-    const hasGroupsColumn = emergencyTableInfo.some((col: any) => col.name === 'groups');
-    
-    if (!hasGroupsColumn) {
-      console.log('🔄 Adding groups column to emergencies...');
-      await dbRun('ALTER TABLE emergencies ADD COLUMN groups TEXT');
-      console.log('✓ Groups column added');
+
+    const pending = MIGRATIONS.filter((m) => m.version > currentVersion);
+
+    if (pending.length === 0) {
+      return;
     }
-    
-    // Check if devices table needs first_name and last_name columns
-    const hasFirstNameColumn = tableInfo.some((col: any) => col.name === 'first_name');
-    const hasLastNameColumn = tableInfo.some((col: any) => col.name === 'last_name');
-    
-    if (!hasFirstNameColumn || !hasLastNameColumn) {
-      console.log('🔄 Adding first_name and last_name columns to devices...');
-      
-      if (!hasFirstNameColumn) {
-        await dbRun('ALTER TABLE devices ADD COLUMN first_name TEXT');
-      }
-      if (!hasLastNameColumn) {
-        await dbRun('ALTER TABLE devices ADD COLUMN last_name TEXT');
-      }
-      
-      // Migrate existing responder_name values by splitting into first and last name
-      const devices = await dbAll("SELECT id, responder_name FROM devices WHERE responder_name IS NOT NULL", []);
-      for (const device of devices) {
-        if (device.responder_name) {
-          const nameParts = device.responder_name.trim().split(/\s+/);
-          const firstName = nameParts[0] || '';
-          const lastName = nameParts.slice(1).join(' ') || '';
-          await dbRun('UPDATE devices SET first_name = ?, last_name = ? WHERE id = ?', [firstName, lastName, device.id]);
-        }
-      }
-      
-      console.log('✓ first_name and last_name columns added and data migrated');
+
+    logger.info(`🔄 Running ${pending.length} database migration(s)…`);
+
+    for (const migration of pending) {
+      logger.info(`   ↳ v${migration.version}: ${migration.description}`);
+      await migration.run();
+      await dbRun('UPDATE schema_migrations SET version = ?', [migration.version]);
+      currentVersion = migration.version;
     }
-    
-    // Check if devices table needs qr_code_data column
-    const hasQRCodeColumn = tableInfo.some((col: any) => col.name === 'qr_code_data');
-    
-    if (!hasQRCodeColumn) {
-      console.log('🔄 Adding qr_code_data column to devices...');
-      await dbRun('ALTER TABLE devices ADD COLUMN qr_code_data TEXT');
-      console.log('✓ qr_code_data column added');
-    }
-    
-    // Check if admin_users table needs role and full_name columns
-    const adminUsersTableInfo = await dbAll("PRAGMA table_info(admin_users)", []);
-    const hasRoleColumn = adminUsersTableInfo.some((col: any) => col.name === 'role');
-    const hasFullNameColumn = adminUsersTableInfo.some((col: any) => col.name === 'full_name');
-    
-    if (!hasRoleColumn || !hasFullNameColumn) {
-      console.log('🔄 Adding role and full_name columns to admin_users...');
-      
-      if (!hasRoleColumn) {
-        await dbRun('ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT "operator"');
-        // Set existing users to admin role (they were created before roles existed)
-        await dbRun('UPDATE admin_users SET role = "admin" WHERE role IS NULL OR role = "operator"');
-      }
-      if (!hasFullNameColumn) {
-        await dbRun('ALTER TABLE admin_users ADD COLUMN full_name TEXT');
-      }
-      
-      console.log('✓ role and full_name columns added to admin_users');
-    }
-    
-    // Check if devices table needs fcm_token and apns_token columns for push notifications
-    const hasFcmTokenColumn = tableInfo.some((col: any) => col.name === 'fcm_token');
-    const hasApnsTokenColumn = tableInfo.some((col: any) => col.name === 'apns_token');
-    
-    if (!hasFcmTokenColumn || !hasApnsTokenColumn) {
-      console.log('🔄 Adding push notification token columns to devices...');
-      
-      if (!hasFcmTokenColumn) {
-        await dbRun('ALTER TABLE devices ADD COLUMN fcm_token TEXT');
-      }
-      if (!hasApnsTokenColumn) {
-        await dbRun('ALTER TABLE devices ADD COLUMN apns_token TEXT');
-      }
-      
-      console.log('✓ Push notification token columns added to devices');
-    }
+
+    logger.info('✓ Database migrations completed');
   } catch (error) {
-    console.error('⚠️  Database migration warning:', error);
-    // Don't fail if migration has issues, as the table might already be in the correct state
+    logger.error({ err: error }, '⚠️  Database migration warning');
+    // Don't fail startup if a migration has issues (e.g. column already exists
+    // from a partial previous run).
   }
 }

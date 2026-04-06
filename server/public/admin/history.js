@@ -1,4 +1,3 @@
-const API_BASE = window.location.origin + '/api';
 let currentPage = 1;
 let totalPages = 1;
 let allEmergencies = []; // Store all emergencies for client-side filtering/sorting
@@ -15,8 +14,8 @@ let sortBy = 'date-desc';
 
 // Check authentication on page load
 window.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('authToken');
-    const username = localStorage.getItem('username');
+    const token = sessionStorage.getItem('csrfToken');
+    const username = sessionStorage.getItem('username');
     
     if (!token || !username) {
         window.location.href = 'login.html';
@@ -69,54 +68,10 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // Load data
     loadEmergencies();
+    
+    // Subscribe to real-time response events
+    subscribeToEvents();
 });
-
-function logout() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('username');
-    window.location.href = 'login.html';
-}
-
-async function apiRequest(url, options = {}) {
-    const token = localStorage.getItem('authToken');
-    
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
-    
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(url, {
-        ...options,
-        headers
-    });
-    
-    if (response.status === 401) {
-        // Token expired or invalid
-        logout();
-        return;
-    }
-    
-    return response;
-}
-
-async function loadUserInfo() {
-    try {
-        const response = await apiRequest(`${API_BASE}/admin/profile`);
-        
-        if (response && response.ok) {
-            const user = await response.json();
-            const roleText = user.role === 'admin' ? 'Administrator' : 'Operator';
-            const displayName = user.fullName || user.username;
-            document.getElementById('username-display').textContent = `${displayName} (${roleText})`;
-        }
-    } catch (error) {
-        console.error('Error loading user info:', error);
-    }
-}
 
 async function loadEmergencies() {
     try {
@@ -135,8 +90,13 @@ async function loadEmergencies() {
         // Apply filters and sort
         applyFiltersAndSort();
     } catch (error) {
-        document.getElementById('emergencies-list').innerHTML = 
-            `<p class="loading" style="color: #dc3545;">Fehler beim Laden: ${error.message}</p>`;
+        const p = document.createElement('p');
+        p.className = 'loading';
+        p.style.color = '#dc3545';
+        p.textContent = `Fehler beim Laden: ${error.message}`;
+        const list = document.getElementById('emergencies-list');
+        list.textContent = '';
+        list.appendChild(p);
     }
 }
 
@@ -214,28 +174,34 @@ function displayPage(page) {
 
 function displayEmergencies(emergencies) {
     const container = document.getElementById('emergencies-list');
-    
+    container.textContent = '';
+
     if (emergencies.length === 0) {
-        container.innerHTML = '<p class="loading">Keine Einsätze gefunden.</p>';
+        const p = document.createElement('p');
+        p.className = 'loading';
+        p.textContent = 'Keine Einsätze gefunden.';
+        container.appendChild(p);
         return;
     }
-    
-    // Create table
-    let tableHtml = `
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Stichwort</th>
-                    <th>Einsatznummer</th>
-                    <th>Ort</th>
-                    <th>Datum/Zeit</th>
-                    <th>Gruppen</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
+
+    const table = document.createElement('table');
+    table.className = 'data-table';
+
+    const thead = document.createElement('thead');
+    thead.innerHTML = `
+        <tr>
+            <th>Stichwort</th>
+            <th>Einsatznummer</th>
+            <th>Ort</th>
+            <th>Datum/Zeit</th>
+            <th>Gruppen</th>
+            <th>Aktionen</th>
+        </tr>
     `;
-    
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+
     emergencies.forEach(emergency => {
         let emergencyDateTime;
         try {
@@ -243,41 +209,47 @@ function displayEmergencies(emergencies) {
         } catch (e) {
             emergencyDateTime = emergency.emergencyDate;
         }
-        
-        const escapedKeyword = escapeHtml(emergency.emergencyKeyword);
-        const escapedLocation = escapeHtml(emergency.emergencyLocation);
-        const escapedNumber = escapeHtml(emergency.emergencyNumber);
-        const escapedId = escapeHtml(emergency.id);
-        const groupsText = emergency.groups ? escapeHtml(emergency.groups) : '-';
-        
-        tableHtml += `
-            <tr>
-                <td><strong class="emergency-keyword-text">${escapedKeyword}</strong></td>
-                <td>${escapedNumber}</td>
-                <td>${escapedLocation}</td>
-                <td>${emergencyDateTime}</td>
-                <td>${groupsText}</td>
-                <td class="actions-cell">
-                    <button class="btn-icon" title="Details anzeigen" data-action="view-details" data-emergency-id="${escapedId}">📋</button>
-                </td>
-            </tr>
-        `;
+
+        const row = document.createElement('tr');
+
+        const keywordCell = document.createElement('td');
+        const keywordStrong = document.createElement('strong');
+        keywordStrong.className = 'emergency-keyword-text';
+        keywordStrong.textContent = emergency.emergencyKeyword;
+        keywordCell.appendChild(keywordStrong);
+        row.appendChild(keywordCell);
+
+        const numberCell = document.createElement('td');
+        numberCell.textContent = emergency.emergencyNumber;
+        row.appendChild(numberCell);
+
+        const locationCell = document.createElement('td');
+        locationCell.textContent = emergency.emergencyLocation;
+        row.appendChild(locationCell);
+
+        const dateCell = document.createElement('td');
+        dateCell.textContent = emergencyDateTime;
+        row.appendChild(dateCell);
+
+        const groupsCell = document.createElement('td');
+        groupsCell.textContent = emergency.groups || '-';
+        row.appendChild(groupsCell);
+
+        const actionsCell = document.createElement('td');
+        actionsCell.className = 'actions-cell';
+        const detailsBtn = document.createElement('button');
+        detailsBtn.className = 'btn-icon';
+        detailsBtn.title = 'Details anzeigen';
+        detailsBtn.textContent = '📋';
+        detailsBtn.addEventListener('click', () => showEmergencyDetails(emergency.id));
+        actionsCell.appendChild(detailsBtn);
+        row.appendChild(actionsCell);
+
+        tbody.appendChild(row);
     });
-    
-    tableHtml += `
-            </tbody>
-        </table>
-    `;
-    
-    container.innerHTML = tableHtml;
-    
-    // Add event listeners
-    container.querySelectorAll('[data-action="view-details"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const emergencyId = e.target.getAttribute('data-emergency-id');
-            showEmergencyDetails(emergencyId);
-        });
-    });
+
+    table.appendChild(tbody);
+    container.appendChild(table);
 }
 
 function updatePagination(pagination) {
@@ -297,7 +269,12 @@ function updatePagination(pagination) {
 async function showEmergencyDetails(emergencyId) {
     try {
         document.getElementById('details-modal').style.display = 'flex';
-        document.getElementById('emergency-details-content').innerHTML = '<p class="loading">Lade Details...</p>';
+        const detailsContent = document.getElementById('emergency-details-content');
+        detailsContent.textContent = '';
+        const loadingP = document.createElement('p');
+        loadingP.className = 'loading';
+        loadingP.textContent = 'Lade Details...';
+        detailsContent.appendChild(loadingP);
         
         const response = await apiRequest(`${API_BASE}/admin/emergencies/${emergencyId}`);
         
@@ -308,157 +285,219 @@ async function showEmergencyDetails(emergencyId) {
         const data = await response.json();
         displayEmergencyDetails(data);
     } catch (error) {
-        document.getElementById('emergency-details-content').innerHTML = 
-            `<p class="loading" style="color: #dc3545;">Fehler: ${error.message}</p>`;
+        const detailsContent = document.getElementById('emergency-details-content');
+        detailsContent.textContent = '';
+        const p = document.createElement('p');
+        p.className = 'loading';
+        p.style.color = '#dc3545';
+        p.textContent = `Fehler: ${error.message}`;
+        detailsContent.appendChild(p);
     }
 }
 
 function displayEmergencyDetails(data) {
     const { emergency, responses, summary } = data;
-    
+    const container = document.getElementById('emergency-details-content');
+    container.textContent = '';
+
     let emergencyDateTime;
     try {
         emergencyDateTime = new Date(emergency.emergencyDate).toLocaleString('de-DE');
     } catch (e) {
         emergencyDateTime = emergency.emergencyDate;
     }
-    
-    const escapedKeyword = escapeHtml(emergency.emergencyKeyword);
-    const escapedLocation = escapeHtml(emergency.emergencyLocation);
-    const escapedDescription = escapeHtml(emergency.emergencyDescription);
-    const escapedNumber = escapeHtml(emergency.emergencyNumber);
-    
-    // Build responses list
-    const participantsList = responses
-        .filter(r => r.participating)
-        .map(r => {
-            const name = [r.responder.firstName, r.responder.lastName].filter(Boolean).join(' ') || 'Unbekannt';
+
+    const detailsDiv = document.createElement('div');
+    detailsDiv.className = 'emergency-details';
+
+    // Header
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'emergency-details-header';
+    const headerH3 = document.createElement('h3');
+    headerH3.textContent = emergency.emergencyKeyword;
+    const headerDate = document.createElement('p');
+    headerDate.className = 'emergency-details-date';
+    headerDate.textContent = emergencyDateTime;
+    headerDiv.appendChild(headerH3);
+    headerDiv.appendChild(headerDate);
+    detailsDiv.appendChild(headerDiv);
+
+    // Helper: create a detail-item row
+    function makeDetailItem(labelText, valueText) {
+        const item = document.createElement('div');
+        item.className = 'detail-item';
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'detail-label';
+        labelSpan.textContent = labelText;
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'detail-value';
+        valueSpan.textContent = valueText;
+        item.appendChild(labelSpan);
+        item.appendChild(valueSpan);
+        return item;
+    }
+
+    // Helper: create a summary-item
+    function makeSummaryItem(labelText, valueText, extraClass) {
+        const item = document.createElement('div');
+        item.className = extraClass ? `summary-item ${extraClass}` : 'summary-item';
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'summary-label';
+        labelSpan.textContent = labelText;
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'summary-value';
+        valueSpan.textContent = valueText;
+        item.appendChild(labelSpan);
+        item.appendChild(valueSpan);
+        return item;
+    }
+
+    // Emergency info section
+    const infoSection = document.createElement('div');
+    infoSection.className = 'emergency-details-section';
+    const infoH4 = document.createElement('h4');
+    infoH4.textContent = 'Einsatzinformationen';
+    infoSection.appendChild(infoH4);
+    const detailsGrid = document.createElement('div');
+    detailsGrid.className = 'details-grid';
+    detailsGrid.appendChild(makeDetailItem('Einsatznummer:', emergency.emergencyNumber));
+    detailsGrid.appendChild(makeDetailItem('Ort:', emergency.emergencyLocation));
+    detailsGrid.appendChild(makeDetailItem('Beschreibung:', emergency.emergencyDescription));
+    if (emergency.groups) {
+        detailsGrid.appendChild(makeDetailItem('Alarmierte Gruppen:', emergency.groups));
+    }
+    infoSection.appendChild(detailsGrid);
+    detailsDiv.appendChild(infoSection);
+
+    // Response summary section
+    const summarySection = document.createElement('div');
+    summarySection.className = 'emergency-details-section';
+    const summaryH4 = document.createElement('h4');
+    summaryH4.textContent = 'Rückmeldungen';
+    summarySection.appendChild(summaryH4);
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'response-summary';
+    summaryDiv.appendChild(makeSummaryItem('Gesamt:', summary.totalResponses, null));
+    summaryDiv.appendChild(makeSummaryItem('Teilnehmer:', summary.participants, 'summary-item-success'));
+    summaryDiv.appendChild(makeSummaryItem('Absagen:', summary.nonParticipants, 'summary-item-danger'));
+    summarySection.appendChild(summaryDiv);
+    detailsDiv.appendChild(summarySection);
+
+    // Helper: build a responder item element
+    function makeResponderItem(r, showQuals) {
+        const name = [r.responder.firstName, r.responder.lastName].filter(Boolean).join(' ') || 'Unbekannt';
+
+        let respondedTime;
+        try {
+            respondedTime = new Date(r.respondedAt).toLocaleString('de-DE');
+        } catch (e) {
+            respondedTime = r.respondedAt;
+        }
+
+        const item = document.createElement('div');
+        item.className = 'responder-item';
+
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'responder-name';
+        nameDiv.textContent = name;
+        if (r.responder.leadershipRole === 'groupLeader') {
+            const badge = document.createElement('span');
+            badge.className = 'leader-badge-small';
+            badge.textContent = '⭐ Gruppenführer';
+            nameDiv.appendChild(document.createTextNode(' '));
+            nameDiv.appendChild(badge);
+        } else if (r.responder.leadershipRole === 'platoonLeader') {
+            const badge = document.createElement('span');
+            badge.className = 'leader-badge-small';
+            badge.textContent = '⭐⭐ Zugführer';
+            nameDiv.appendChild(document.createTextNode(' '));
+            nameDiv.appendChild(badge);
+        }
+        item.appendChild(nameDiv);
+
+        if (showQuals) {
             const quals = [];
             if (r.responder.qualifications.machinist) quals.push('Maschinist');
             if (r.responder.qualifications.agt) quals.push('AGT');
             if (r.responder.qualifications.paramedic) quals.push('Sanitäter');
-            
-            let leaderBadge = '';
-            if (r.responder.leadershipRole === 'groupLeader') {
-                leaderBadge = ' <span class="leader-badge-small">⭐ Gruppenführer</span>';
-            } else if (r.responder.leadershipRole === 'platoonLeader') {
-                leaderBadge = ' <span class="leader-badge-small">⭐⭐ Zugführer</span>';
+            if (quals.length > 0) {
+                const qualsDiv = document.createElement('div');
+                qualsDiv.className = 'responder-quals';
+                quals.forEach(q => {
+                    const span = document.createElement('span');
+                    span.className = 'qual-badge-small';
+                    span.textContent = q;
+                    qualsDiv.appendChild(span);
+                });
+                item.appendChild(qualsDiv);
             }
-            
-            const qualBadges = quals.length > 0 ? quals.map(q => `<span class="qual-badge-small">${escapeHtml(q)}</span>`).join('') : '';
-            
-            let respondedTime;
-            try {
-                respondedTime = new Date(r.respondedAt).toLocaleString('de-DE');
-            } catch (e) {
-                respondedTime = r.respondedAt;
-            }
-            
-            return `
-                <div class="responder-item">
-                    <div class="responder-name">${escapeHtml(name)}${leaderBadge}</div>
-                    ${qualBadges ? `<div class="responder-quals">${qualBadges}</div>` : ''}
-                    <div class="responder-time">Rückmeldung: ${respondedTime}</div>
-                </div>
-            `;
-        }).join('') || '<p style="color: #999;">Keine Teilnehmer</p>';
-    
-    const nonParticipantsList = responses
-        .filter(r => !r.participating)
-        .map(r => {
-            const name = [r.responder.firstName, r.responder.lastName].filter(Boolean).join(' ') || 'Unbekannt';
-            
-            let respondedTime;
-            try {
-                respondedTime = new Date(r.respondedAt).toLocaleString('de-DE');
-            } catch (e) {
-                respondedTime = r.respondedAt;
-            }
-            
-            return `
-                <div class="responder-item">
-                    <div class="responder-name">${escapeHtml(name)}</div>
-                    <div class="responder-time">Abgesagt: ${respondedTime}</div>
-                </div>
-            `;
-        }).join('') || '<p style="color: #999;">Keine Absagen</p>';
-    
-    const detailsHtml = `
-        <div class="emergency-details">
-            <div class="emergency-details-header">
-                <h3>${escapedKeyword}</h3>
-                <p class="emergency-details-date">${emergencyDateTime}</p>
-            </div>
-            
-            <div class="emergency-details-section">
-                <h4>Einsatzinformationen</h4>
-                <div class="details-grid">
-                    <div class="detail-item">
-                        <span class="detail-label">Einsatznummer:</span>
-                        <span class="detail-value">${escapedNumber}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Ort:</span>
-                        <span class="detail-value">${escapedLocation}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Beschreibung:</span>
-                        <span class="detail-value">${escapedDescription}</span>
-                    </div>
-                    ${emergency.groups ? `
-                        <div class="detail-item">
-                            <span class="detail-label">Alarmierte Gruppen:</span>
-                            <span class="detail-value">${escapeHtml(emergency.groups)}</span>
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-            
-            <div class="emergency-details-section">
-                <h4>Rückmeldungen</h4>
-                <div class="response-summary">
-                    <div class="summary-item">
-                        <span class="summary-label">Gesamt:</span>
-                        <span class="summary-value">${summary.totalResponses}</span>
-                    </div>
-                    <div class="summary-item summary-item-success">
-                        <span class="summary-label">Teilnehmer:</span>
-                        <span class="summary-value">${summary.participants}</span>
-                    </div>
-                    <div class="summary-item summary-item-danger">
-                        <span class="summary-label">Absagen:</span>
-                        <span class="summary-value">${summary.nonParticipants}</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="emergency-details-section">
-                <h4>Teilnehmende Einsatzkräfte (${summary.participants})</h4>
-                <div class="responders-list">
-                    ${participantsList}
-                </div>
-            </div>
-            
-            ${summary.nonParticipants > 0 ? `
-                <div class="emergency-details-section">
-                    <h4>Abgesagte Einsatzkräfte (${summary.nonParticipants})</h4>
-                    <div class="responders-list">
-                        ${nonParticipantsList}
-                    </div>
-                </div>
-            ` : ''}
-        </div>
-    `;
-    
-    document.getElementById('emergency-details-content').innerHTML = detailsHtml;
+        }
+
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'responder-time';
+        timeDiv.textContent = (r.participating ? 'Rückmeldung: ' : 'Abgesagt: ') + respondedTime;
+        item.appendChild(timeDiv);
+
+        return item;
+    }
+
+    // Participants section
+    const participantsSection = document.createElement('div');
+    participantsSection.className = 'emergency-details-section';
+    const participantsH4 = document.createElement('h4');
+    participantsH4.textContent = `Teilnehmende Einsatzkräfte (${summary.participants})`;
+    participantsSection.appendChild(participantsH4);
+    const participantsList = document.createElement('div');
+    participantsList.className = 'responders-list';
+    const participants = responses.filter(r => r.participating);
+    if (participants.length === 0) {
+        const p = document.createElement('p');
+        p.style.color = '#999';
+        p.textContent = 'Keine Teilnehmer';
+        participantsList.appendChild(p);
+    } else {
+        participants.forEach(r => participantsList.appendChild(makeResponderItem(r, true)));
+    }
+    participantsSection.appendChild(participantsList);
+    detailsDiv.appendChild(participantsSection);
+
+    // Non-participants section
+    if (summary.nonParticipants > 0) {
+        const nonParticipantsSection = document.createElement('div');
+        nonParticipantsSection.className = 'emergency-details-section';
+        const nonParticipantsH4 = document.createElement('h4');
+        nonParticipantsH4.textContent = `Abgesagte Einsatzkräfte (${summary.nonParticipants})`;
+        nonParticipantsSection.appendChild(nonParticipantsH4);
+        const nonParticipantsList = document.createElement('div');
+        nonParticipantsList.className = 'responders-list';
+        const nonParticipants = responses.filter(r => !r.participating);
+        if (nonParticipants.length === 0) {
+            const p = document.createElement('p');
+            p.style.color = '#999';
+            p.textContent = 'Keine Absagen';
+            nonParticipantsList.appendChild(p);
+        } else {
+            nonParticipants.forEach(r => nonParticipantsList.appendChild(makeResponderItem(r, false)));
+        }
+        nonParticipantsSection.appendChild(nonParticipantsList);
+        detailsDiv.appendChild(nonParticipantsSection);
+    }
+
+    container.appendChild(detailsDiv);
 }
 
 function closeDetailsModal() {
     document.getElementById('details-modal').style.display = 'none';
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+function subscribeToEvents() {
+    const evtSource = new EventSource(`${API_BASE}/admin/events`, { withCredentials: true });
+    evtSource.addEventListener('response', () => {
+        loadEmergencies();
+    });
+    evtSource.onerror = (e) => {
+        console.warn('SSE connection error; reconnecting in 5 s', e);
+        evtSource.close();
+        setTimeout(subscribeToEvents, 5000);
+    };
 }

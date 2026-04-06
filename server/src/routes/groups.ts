@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { verifyToken, verifyAdmin, AuthRequest } from '../middleware/auth';
 import { Group, CreateGroupRequest, ImportGroupsRequest } from '../models/types';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get('/', verifyToken, async (req: AuthRequest, res: Response) => {
 
     res.json(groups);
   } catch (error) {
-    console.error('Error fetching groups:', error);
+    logger.error({ err: error }, 'Error fetching groups');
     res.status(500).json({ error: 'Failed to fetch groups' });
   }
 });
@@ -47,7 +48,7 @@ router.get('/:code', verifyToken, async (req: AuthRequest, res: Response) => {
 
     res.json(group);
   } catch (error) {
-    console.error('Error fetching group:', error);
+    logger.error({ err: error }, 'Error fetching group');
     res.status(500).json({ error: 'Failed to fetch group' });
   }
 });
@@ -92,7 +93,7 @@ router.post('/', verifyToken, verifyAdmin, async (req: AuthRequest, res: Respons
 
     res.status(201).json(group);
   } catch (error) {
-    console.error('Error creating group:', error);
+    logger.error({ err: error }, 'Error creating group');
     res.status(500).json({ error: 'Failed to create group' });
   }
 });
@@ -121,7 +122,7 @@ router.put('/:code', verifyToken, verifyAdmin, async (req: AuthRequest, res: Res
 
     res.json({ message: 'Group updated successfully' });
   } catch (error) {
-    console.error('Error updating group:', error);
+    logger.error({ err: error }, 'Error updating group');
     res.status(500).json({ error: 'Failed to update group' });
   }
 });
@@ -142,7 +143,7 @@ router.delete('/:code', verifyToken, verifyAdmin, async (req: AuthRequest, res: 
 
     res.json({ message: 'Group deleted successfully' });
   } catch (error) {
-    console.error('Error deleting group:', error);
+    logger.error({ err: error }, 'Error deleting group');
     res.status(500).json({ error: 'Failed to delete group' });
   }
 });
@@ -195,7 +196,7 @@ router.post('/import', verifyToken, verifyAdmin, async (req: AuthRequest, res: R
 
     res.json(results);
   } catch (error) {
-    console.error('Error importing groups:', error);
+    logger.error({ err: error }, 'Error importing groups');
     res.status(500).json({ error: 'Failed to import groups' });
   }
 });
@@ -222,7 +223,7 @@ router.get('/device/:deviceId', verifyToken, async (req: AuthRequest, res: Respo
 
     res.json(groups);
   } catch (error) {
-    console.error('Error fetching device groups:', error);
+    logger.error({ err: error }, 'Error fetching device groups');
     res.status(500).json({ error: 'Failed to fetch device groups' });
   }
 });
@@ -262,7 +263,7 @@ router.put('/device/:deviceId', verifyToken, verifyAdmin, async (req: AuthReques
 
     res.json({ message: 'Device groups updated successfully' });
   } catch (error) {
-    console.error('Error updating device groups:', error);
+    logger.error({ err: error }, 'Error updating device groups');
     res.status(500).json({ error: 'Failed to update device groups' });
   }
 });

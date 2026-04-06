@@ -25,7 +25,7 @@ dependencies:
   shared_preferences: ^2.3.3
   
   # QR Code
-  qr_code_scanner: ^1.0.1
+  mobile_scanner: ^6.0.0
   permission_handler: ^11.3.1
   
   # Audio/Alarm

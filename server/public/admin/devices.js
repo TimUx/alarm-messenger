@@ -1,11 +1,10 @@
-const API_BASE = window.location.origin + '/api';
 let currentDevices = [];
 let currentGroups = []; // Needed for device group assignment
 
 // Check authentication on page load
 window.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('authToken');
-    const username = localStorage.getItem('username');
+    const token = sessionStorage.getItem('csrfToken');
+    const username = sessionStorage.getItem('username');
     
     if (!token || !username) {
         window.location.href = 'login.html';
@@ -43,53 +42,6 @@ window.addEventListener('DOMContentLoaded', () => {
     refreshGroups(); // Load groups for device assignment
 });
 
-function logout() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('username');
-    window.location.href = 'login.html';
-}
-
-async function apiRequest(url, options = {}) {
-    const token = localStorage.getItem('authToken');
-    
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
-    
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(url, {
-        ...options,
-        headers
-    });
-    
-    if (response.status === 401) {
-        // Token expired or invalid
-        logout();
-        return;
-    }
-    
-    return response;
-}
-
-async function loadUserInfo() {
-    try {
-        const response = await apiRequest(`${API_BASE}/admin/profile`);
-        
-        if (response && response.ok) {
-            const user = await response.json();
-            const roleText = user.role === 'admin' ? 'Administrator' : 'Operator';
-            const displayName = user.fullName || user.username;
-            document.getElementById('username-display').textContent = `${displayName} (${roleText})`;
-        }
-    } catch (error) {
-        console.error('Error loading user info:', error);
-    }
-}
-
 async function refreshDevices() {
     try {
         const response = await apiRequest(`${API_BASE}/devices`);
@@ -102,131 +54,168 @@ async function refreshDevices() {
         currentDevices = devices;
         displayDevices(devices);
     } catch (error) {
-        document.getElementById('devices-list').innerHTML = 
-            `<p class="loading" style="color: #dc3545;">Fehler beim Laden: ${error.message}</p>`;
+        const p = document.createElement('p');
+        p.className = 'loading';
+        p.style.color = '#dc3545';
+        p.textContent = `Fehler beim Laden: ${error.message}`;
+        const list = document.getElementById('devices-list');
+        list.textContent = '';
+        list.appendChild(p);
     }
 }
 
 function displayDevices(devices) {
     const container = document.getElementById('devices-list');
-    
+    container.textContent = '';
+
     if (devices.length === 0) {
-        container.innerHTML = '<p class="loading">Keine registrierten Geräte gefunden.</p>';
+        const p = document.createElement('p');
+        p.className = 'loading';
+        p.textContent = 'Keine registrierten Geräte gefunden.';
+        container.appendChild(p);
         return;
     }
-    
-    // Create table
-    let tableHtml = `
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Plattform</th>
-                    <th>Registriert</th>
-                    <th>Ausbildungen</th>
-                    <th>Führungsrolle</th>
-                    <th>Gruppen</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
+
+    const table = document.createElement('table');
+    table.className = 'data-table';
+
+    const thead = document.createElement('thead');
+    thead.innerHTML = `
+        <tr>
+            <th>Name</th>
+            <th>Plattform</th>
+            <th>Registriert</th>
+            <th>Ausbildungen</th>
+            <th>Führungsrolle</th>
+            <th>Gruppen</th>
+            <th>Aktionen</th>
+        </tr>
     `;
-    
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+
     devices.forEach(device => {
         const firstName = device.firstName || '';
         const lastName = device.lastName || '';
         const deviceName = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : 'Nicht zugewiesen';
         const qualifications = device.qualifications || {};
-        
+
         let registeredDate;
         try {
             registeredDate = new Date(device.registeredAt).toLocaleString('de-DE');
         } catch (e) {
             registeredDate = 'Ungültiges Datum';
         }
-        
-        // Qualifications
+
+        const row = document.createElement('tr');
+
+        // Name cell
+        const nameCell = document.createElement('td');
+        const nameStrong = document.createElement('strong');
+        nameStrong.textContent = deviceName;
+        nameCell.appendChild(nameStrong);
+        row.appendChild(nameCell);
+
+        // Platform cell
+        const platformCell = document.createElement('td');
+        const platformSpan = document.createElement('span');
+        platformSpan.className = 'platform-badge';
+        platformSpan.textContent = device.platform;
+        platformCell.appendChild(platformSpan);
+        row.appendChild(platformCell);
+
+        // Date cell
+        const dateCell = document.createElement('td');
+        dateCell.textContent = registeredDate;
+        row.appendChild(dateCell);
+
+        // Qualifications cell
+        const qualCell = document.createElement('td');
         const qualBadges = [];
         if (qualifications.machinist) qualBadges.push('Maschinist');
         if (qualifications.agt) qualBadges.push('AGT');
         if (qualifications.paramedic) qualBadges.push('Sanitäter');
-        const qualText = qualBadges.length > 0 
-            ? qualBadges.map(q => `<span class="qual-badge">${escapeHtml(q)}</span>`).join(' ')
-            : '-';
-        
-        // Leadership role
-        let leaderText = '-';
-        if (device.leadershipRole === 'groupLeader') {
-            leaderText = '<span class="leader-badge-small">⭐ Gruppenführer</span>';
-        } else if (device.leadershipRole === 'platoonLeader') {
-            leaderText = '<span class="leader-badge-small">⭐⭐ Zugführer</span>';
+        if (qualBadges.length > 0) {
+            qualBadges.forEach(q => {
+                const span = document.createElement('span');
+                span.className = 'qual-badge';
+                span.textContent = q;
+                qualCell.appendChild(span);
+                qualCell.appendChild(document.createTextNode(' '));
+            });
+        } else {
+            qualCell.textContent = '-';
         }
-        
-        // Assigned groups
+        row.appendChild(qualCell);
+
+        // Leadership role cell
+        const leaderCell = document.createElement('td');
+        if (device.leadershipRole === 'groupLeader') {
+            const span = document.createElement('span');
+            span.className = 'leader-badge-small';
+            span.textContent = '⭐ Gruppenführer';
+            leaderCell.appendChild(span);
+        } else if (device.leadershipRole === 'platoonLeader') {
+            const span = document.createElement('span');
+            span.className = 'leader-badge-small';
+            span.textContent = '⭐⭐ Zugführer';
+            leaderCell.appendChild(span);
+        } else {
+            leaderCell.textContent = '-';
+        }
+        row.appendChild(leaderCell);
+
+        // Groups cell
+        const groupCell = document.createElement('td');
         const assignedGroups = device.assignedGroups || [];
-        const groupText = assignedGroups.length > 0
-            ? assignedGroups.map(code => {
+        if (assignedGroups.length > 0) {
+            assignedGroups.forEach(code => {
                 const group = currentGroups.find(g => g.code === code);
                 const groupName = group ? group.name : code;
-                return `<span class="group-badge" title="${escapeHtml(groupName)}">${escapeHtml(code)}</span>`;
-            }).join(' ')
-            : '-';
-        
-        const escapedDeviceName = escapeHtml(deviceName);
-        const escapedPlatform = escapeHtml(device.platform);
-        const escapedDeviceId = escapeHtml(device.id);
-        
-        tableHtml += `
-            <tr>
-                <td><strong>${escapedDeviceName}</strong></td>
-                <td><span class="platform-badge">${escapedPlatform}</span></td>
-                <td>${registeredDate}</td>
-                <td>${qualText}</td>
-                <td>${leaderText}</td>
-                <td>${groupText}</td>
-                <td class="actions-cell">
-                    <button class="btn-icon" title="Bearbeiten" data-action="edit" data-device-id="${escapedDeviceId}">✏️</button>
-                    <button class="btn-icon" title="QR-Code" data-action="show-qr" data-device-id="${escapedDeviceId}">📱</button>
-                    <button class="btn-icon" title="Deaktivieren" data-action="deactivate" data-device-id="${escapedDeviceId}">🗑️</button>
-                </td>
-            </tr>
-        `;
-    });
-    
-    tableHtml += `
-            </tbody>
-        </table>
-    `;
-    
-    container.innerHTML = tableHtml;
-    
-    // Add event listeners to device action buttons
-    container.querySelectorAll('[data-action="show-qr"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const deviceId = e.target.getAttribute('data-device-id');
-            showDeviceQRCode(deviceId);
-        });
-    });
-    
-    container.querySelectorAll('[data-action="edit"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const deviceId = e.target.getAttribute('data-device-id');
-            editDevice(deviceId);
-        });
-    });
-    
-    container.querySelectorAll('[data-action="deactivate"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const deviceId = e.target.getAttribute('data-device-id');
-            deactivateDevice(deviceId);
-        });
-    });
-}
+                const span = document.createElement('span');
+                span.className = 'group-badge';
+                span.title = groupName;
+                span.textContent = code;
+                groupCell.appendChild(span);
+                groupCell.appendChild(document.createTextNode(' '));
+            });
+        } else {
+            groupCell.textContent = '-';
+        }
+        row.appendChild(groupCell);
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+        // Actions cell
+        const actionsCell = document.createElement('td');
+        actionsCell.className = 'actions-cell';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn-icon';
+        editBtn.title = 'Bearbeiten';
+        editBtn.textContent = '✏️';
+        editBtn.addEventListener('click', () => editDevice(device.id));
+        actionsCell.appendChild(editBtn);
+
+        const qrBtn = document.createElement('button');
+        qrBtn.className = 'btn-icon';
+        qrBtn.title = 'QR-Code';
+        qrBtn.textContent = '📱';
+        qrBtn.addEventListener('click', () => showDeviceQRCode(device.id));
+        actionsCell.appendChild(qrBtn);
+
+        const deactivateBtn = document.createElement('button');
+        deactivateBtn.className = 'btn-icon';
+        deactivateBtn.title = 'Deaktivieren';
+        deactivateBtn.textContent = '🗑️';
+        deactivateBtn.addEventListener('click', () => deactivateDevice(device.id));
+        actionsCell.appendChild(deactivateBtn);
+
+        row.appendChild(actionsCell);
+        tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    container.appendChild(table);
 }
 
 async function showDeviceQRCode(deviceId) {
@@ -306,25 +295,29 @@ function editDevice(deviceId) {
 
 function loadGroupCheckboxes(assignedGroups) {
     const container = document.getElementById('edit-assigned-groups');
-    
+    container.textContent = '';
+
     if (currentGroups.length === 0) {
-        container.innerHTML = '<p style="color: #999;">Keine Gruppen verfügbar. Bitte zuerst Gruppen anlegen.</p>';
+        const p = document.createElement('p');
+        p.style.color = '#999';
+        p.textContent = 'Keine Gruppen verfügbar. Bitte zuerst Gruppen anlegen.';
+        container.appendChild(p);
         return;
     }
-    
-    const checkboxesHtml = currentGroups.map(group => {
-        const isChecked = assignedGroups.includes(group.code);
-        const escapedCode = escapeHtml(group.code);
-        const escapedName = escapeHtml(group.name);
-        return `
-            <label>
-                <input type="checkbox" name="group_${escapedCode}" value="${escapedCode}" ${isChecked ? 'checked' : ''}>
-                ${escapedCode} - ${escapedName}
-            </label>
-        `;
-    }).join('');
-    
-    container.innerHTML = checkboxesHtml;
+
+    currentGroups.forEach(group => {
+        const label = document.createElement('label');
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = `group_${group.code}`;
+        checkbox.value = group.code;
+        checkbox.checked = assignedGroups.includes(group.code);
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(` ${group.code} - ${group.name}`));
+
+        container.appendChild(label);
+    });
 }
 
 function closeEditModal() {

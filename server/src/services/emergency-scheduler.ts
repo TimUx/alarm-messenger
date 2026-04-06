@@ -1,4 +1,5 @@
 import { dbRun, dbAll } from './database';
+import logger from '../utils/logger';
 
 /**
  * Emergency Scheduler Service
@@ -14,11 +15,11 @@ class EmergencySchedulerService {
    */
   start(): void {
     if (this.intervalId) {
-      console.log('Emergency scheduler already running');
+      logger.info('Emergency scheduler already running');
       return;
     }
 
-    console.log('✓ Starting emergency scheduler (checking every 1 minute)');
+    logger.info('✓ Starting emergency scheduler (checking every 1 minute)');
     
     // Run immediately on start
     this.checkAndDeactivateEmergencies();
@@ -36,7 +37,7 @@ class EmergencySchedulerService {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('Emergency scheduler stopped');
+      logger.info('Emergency scheduler stopped');
     }
   }
 
@@ -57,7 +58,7 @@ class EmergencySchedulerService {
       );
 
       if (oldEmergencies.length > 0) {
-        console.log(`Found ${oldEmergencies.length} emergencies to deactivate:`);
+        logger.info(`Found ${oldEmergencies.length} emergencies to deactivate:`);
         
         // Deactivate each old emergency
         for (const emergency of oldEmergencies) {
@@ -69,13 +70,13 @@ class EmergencySchedulerService {
           const createdAt = new Date(emergency.created_at);
           const age = Math.floor((Date.now() - createdAt.getTime()) / 60000); // Age in minutes
           
-          console.log(
+          logger.info(
             `  ✓ Deactivated: ${emergency.emergency_number} - ${emergency.emergency_keyword} (age: ${age} minutes)`
           );
         }
       }
     } catch (error) {
-      console.error('Error in emergency scheduler:', error);
+      logger.error({ err: error }, 'Error in emergency scheduler');
     }
   }
 
@@ -88,10 +89,10 @@ class EmergencySchedulerService {
         'UPDATE emergencies SET active = 0 WHERE id = ?',
         [emergencyId]
       );
-      console.log(`✓ Manually deactivated emergency: ${emergencyId}`);
+      logger.info(`✓ Manually deactivated emergency: ${emergencyId}`);
       return true;
     } catch (error) {
-      console.error(`Error deactivating emergency ${emergencyId}:`, error);
+      logger.error({ err: error }, `Error deactivating emergency ${emergencyId}`);
       return false;
     }
   }

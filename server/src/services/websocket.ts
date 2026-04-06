@@ -1,5 +1,8 @@
 import { Server as HTTPServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
+import { redisPubSubService } from './redis-pubsub';
+import { dbGet } from './database';
+import logger from '../utils/logger';
 
 interface Client {
   ws: WebSocket;
@@ -15,7 +18,7 @@ class WebSocketService {
     this.wss = new WebSocketServer({ server, path: '/ws' });
 
     this.wss.on('connection', (ws: WebSocket) => {
-      console.log('New WebSocket connection');
+      logger.info('New WebSocket connection');
       let deviceId: string | null = null;
 
       // Send ping every 30 seconds to keep connection alive
@@ -23,7 +26,7 @@ class WebSocketService {
         if (deviceId && this.clients.has(deviceId)) {
           const client = this.clients.get(deviceId);
           if (client && !client.isAlive) {
-            console.log(`Terminating inactive client: ${deviceId}`);
+            logger.info(`Terminating inactive client: ${deviceId}`);
             clearInterval(pingInterval);
             client.ws.terminate();
             this.clients.delete(deviceId);
@@ -45,15 +48,26 @@ class WebSocketService {
         }
       });
 
-      ws.on('message', (message: string) => {
+      ws.on('message', async (message: string) => {
         try {
           const data = JSON.parse(message.toString());
-          
-          if (data.type === 'register' && data.deviceId) {
-            const registeredDeviceId = data.deviceId;
+
+          if (data.type === 'register' && data.deviceToken) {
+            const device = await dbGet(
+              'SELECT id, active FROM devices WHERE device_token = ?',
+              [data.deviceToken]
+            );
+
+            if (!device || device.active !== 1) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Invalid or inactive device token' }));
+              ws.close();
+              return;
+            }
+
+            const registeredDeviceId = device.id;
             deviceId = registeredDeviceId;
-            console.log(`Device registered via WebSocket: ${registeredDeviceId}`);
-            
+            logger.info(`Device registered via WebSocket: ${registeredDeviceId}`);
+
             // Store the client connection
             this.clients.set(registeredDeviceId, {
               ws,
@@ -68,20 +82,20 @@ class WebSocketService {
             }));
           }
         } catch (error) {
-          console.error('Error processing WebSocket message:', error);
+          logger.error({ err: error }, 'Error processing WebSocket message');
         }
       });
 
       ws.on('close', () => {
         if (deviceId) {
-          console.log(`WebSocket connection closed for device: ${deviceId}`);
+          logger.info(`WebSocket connection closed for device: ${deviceId}`);
           this.clients.delete(deviceId);
         }
         clearInterval(pingInterval);
       });
 
       ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
+        logger.error({ err: error }, 'WebSocket error');
         if (deviceId) {
           this.clients.delete(deviceId);
         }
@@ -89,7 +103,12 @@ class WebSocketService {
       });
     });
 
-    console.log('✓ WebSocket server initialized on /ws');
+    logger.info('✓ WebSocket server initialized on /ws');
+
+    // Forward Redis pub/sub emergency messages to locally connected clients
+    redisPubSubService.subscribe((message) => {
+      this.sendBulkNotifications(message.deviceIds, message.title, message.body, message.data);
+    });
   }
 
   async sendNotification(
@@ -101,7 +120,7 @@ class WebSocketService {
     const client = this.clients.get(deviceId);
     
     if (!client || client.ws.readyState !== WebSocket.OPEN) {
-      console.warn(`Device ${deviceId} not connected via WebSocket`);
+      logger.warn(`Device ${deviceId} not connected via WebSocket`);
       return false;
     }
 
@@ -123,10 +142,10 @@ class WebSocketService {
       };
 
       client.ws.send(JSON.stringify(message));
-      console.log(`Notification sent to device ${deviceId}`);
+      logger.info(`Notification sent to device ${deviceId}`);
       return true;
     } catch (error) {
-      console.error(`Error sending notification to ${deviceId}:`, error);
+      logger.error({ err: error }, `Error sending notification to ${deviceId}`);
       return false;
     }
   }

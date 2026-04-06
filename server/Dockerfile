@@ -1,5 +1,5 @@
-# Use Node.js 18 LTS as base image
-FROM node:18-alpine
+# Use Node.js 20 LTS as base image
+FROM node:20-alpine
 
 # Install build dependencies for native modules (sqlite3)
 # Use --update to ensure package index is fresh

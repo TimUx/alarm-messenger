@@ -1,10 +1,9 @@
-const API_BASE = window.location.origin + '/api';
 let currentGroups = [];
 
 // Check authentication on page load
 window.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('authToken');
-    const username = localStorage.getItem('username');
+    const token = sessionStorage.getItem('csrfToken');
+    const username = sessionStorage.getItem('username');
     
     if (!token || !username) {
         window.location.href = 'login.html';
@@ -42,53 +41,6 @@ window.addEventListener('DOMContentLoaded', () => {
     refreshGroups();
 });
 
-function logout() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('username');
-    window.location.href = 'login.html';
-}
-
-async function apiRequest(url, options = {}) {
-    const token = localStorage.getItem('authToken');
-    
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
-    
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(url, {
-        ...options,
-        headers
-    });
-    
-    if (response.status === 401) {
-        // Token expired or invalid
-        logout();
-        return;
-    }
-    
-    return response;
-}
-
-async function loadUserInfo() {
-    try {
-        const response = await apiRequest(`${API_BASE}/admin/profile`);
-        
-        if (response && response.ok) {
-            const user = await response.json();
-            const roleText = user.role === 'admin' ? 'Administrator' : 'Operator';
-            const displayName = user.fullName || user.username;
-            document.getElementById('username-display').textContent = `${displayName} (${roleText})`;
-        }
-    } catch (error) {
-        console.error('Error loading user info:', error);
-    }
-}
-
 // ===== Group Management Functions =====
 
 async function refreshGroups() {
@@ -103,72 +55,88 @@ async function refreshGroups() {
         currentGroups = groups;
         displayGroups(groups);
     } catch (error) {
-        document.getElementById('groups-list').innerHTML = 
-            `<p class="loading" style="color: #dc3545;">Fehler beim Laden: ${error.message}</p>`;
+        const p = document.createElement('p');
+        p.className = 'loading';
+        p.style.color = '#dc3545';
+        p.textContent = `Fehler beim Laden: ${error.message}`;
+        const list = document.getElementById('groups-list');
+        list.textContent = '';
+        list.appendChild(p);
     }
 }
 
 function displayGroups(groups) {
     const container = document.getElementById('groups-list');
-    
+    container.textContent = '';
+
     if (groups.length === 0) {
-        container.innerHTML = '<p class="loading">Keine Gruppen gefunden. Erstellen Sie eine neue Gruppe oder importieren Sie Gruppen aus einer CSV-Datei.</p>';
+        const p = document.createElement('p');
+        p.className = 'loading';
+        p.textContent = 'Keine Gruppen gefunden. Erstellen Sie eine neue Gruppe oder importieren Sie Gruppen aus einer CSV-Datei.';
+        container.appendChild(p);
         return;
     }
-    
-    // Create table
-    let tableHtml = `
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Kürzel</th>
-                    <th>Name</th>
-                    <th>Beschreibung</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
+
+    const table = document.createElement('table');
+    table.className = 'data-table';
+
+    const thead = document.createElement('thead');
+    thead.innerHTML = `
+        <tr>
+            <th>Kürzel</th>
+            <th>Name</th>
+            <th>Beschreibung</th>
+            <th>Aktionen</th>
+        </tr>
     `;
-    
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+
     groups.forEach(group => {
-        const escapedCode = escapeHtml(group.code);
-        const escapedName = escapeHtml(group.name);
-        const escapedDescription = escapeHtml(group.description || '-');
-        
-        tableHtml += `
-            <tr>
-                <td><strong>${escapedCode}</strong></td>
-                <td>${escapedName}</td>
-                <td>${escapedDescription}</td>
-                <td class="actions-cell">
-                    <button class="btn-icon" title="Bearbeiten" data-action="edit-group" data-group-code="${escapedCode}">✏️</button>
-                    <button class="btn-icon" title="Löschen" data-action="delete-group" data-group-code="${escapedCode}">🗑️</button>
-                </td>
-            </tr>
-        `;
+        const row = document.createElement('tr');
+
+        // Code cell
+        const codeCell = document.createElement('td');
+        const codeStrong = document.createElement('strong');
+        codeStrong.textContent = group.code;
+        codeCell.appendChild(codeStrong);
+        row.appendChild(codeCell);
+
+        // Name cell
+        const nameCell = document.createElement('td');
+        nameCell.textContent = group.name;
+        row.appendChild(nameCell);
+
+        // Description cell
+        const descCell = document.createElement('td');
+        descCell.textContent = group.description || '-';
+        row.appendChild(descCell);
+
+        // Actions cell
+        const actionsCell = document.createElement('td');
+        actionsCell.className = 'actions-cell';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn-icon';
+        editBtn.title = 'Bearbeiten';
+        editBtn.textContent = '✏️';
+        editBtn.addEventListener('click', () => editGroup(group.code));
+        actionsCell.appendChild(editBtn);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn-icon';
+        deleteBtn.title = 'Löschen';
+        deleteBtn.textContent = '🗑️';
+        deleteBtn.addEventListener('click', () => deleteGroup(group.code));
+        actionsCell.appendChild(deleteBtn);
+
+        row.appendChild(actionsCell);
+        tbody.appendChild(row);
     });
-    
-    tableHtml += `
-            </tbody>
-        </table>
-    `;
-    
-    container.innerHTML = tableHtml;
-    
-    // Add event listeners
-    container.querySelectorAll('[data-action="edit-group"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const code = e.target.getAttribute('data-group-code');
-            editGroup(code);
-        });
-    });
-    
-    container.querySelectorAll('[data-action="delete-group"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const code = e.target.getAttribute('data-group-code');
-            deleteGroup(code);
-        });
-    });
+
+    table.appendChild(tbody);
+    container.appendChild(table);
 }
 
 function openGroupModal(groupCode = null) {
@@ -339,47 +307,58 @@ async function importGroups() {
 function displayImportResult(result) {
     const resultDiv = document.getElementById('import-result');
     const contentDiv = document.getElementById('import-result-content');
-    
-    let html = `
-        <div class="import-summary">
-            <div class="summary-item summary-item-success">
-                <span class="summary-label">Erstellt:</span>
-                <span class="summary-value">${result.created}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Aktualisiert:</span>
-                <span class="summary-value">${result.updated}</span>
-            </div>
-    `;
-    
-    if (result.errors.length > 0) {
-        html += `
-            <div class="summary-item summary-item-danger">
-                <span class="summary-label">Fehler:</span>
-                <span class="summary-value">${result.errors.length}</span>
-            </div>
-        `;
+    contentDiv.textContent = '';
+
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'import-summary';
+
+    function makeSummaryItem(labelText, value, extraClass) {
+        const item = document.createElement('div');
+        item.className = extraClass ? `summary-item ${extraClass}` : 'summary-item';
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'summary-label';
+        labelSpan.textContent = labelText;
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'summary-value';
+        valueSpan.textContent = value;
+        item.appendChild(labelSpan);
+        item.appendChild(valueSpan);
+        return item;
     }
-    
-    html += '</div>';
-    
+
+    summaryDiv.appendChild(makeSummaryItem('Erstellt:', result.created, 'summary-item-success'));
+    summaryDiv.appendChild(makeSummaryItem('Aktualisiert:', result.updated, null));
+
     if (result.errors.length > 0) {
-        html += '<div class="import-errors"><h4>Fehler:</h4><ul>';
+        summaryDiv.appendChild(makeSummaryItem('Fehler:', result.errors.length, 'summary-item-danger'));
+    }
+
+    contentDiv.appendChild(summaryDiv);
+
+    if (result.errors.length > 0) {
+        const errorsDiv = document.createElement('div');
+        errorsDiv.className = 'import-errors';
+
+        const h4 = document.createElement('h4');
+        h4.textContent = 'Fehler:';
+        errorsDiv.appendChild(h4);
+
+        const ul = document.createElement('ul');
         result.errors.slice(0, 10).forEach(error => {
-            html += `<li>${escapeHtml(error)}</li>`;
+            const li = document.createElement('li');
+            li.textContent = error;
+            ul.appendChild(li);
         });
         if (result.errors.length > 10) {
-            html += `<li>... und ${result.errors.length - 10} weitere Fehler</li>`;
+            const li = document.createElement('li');
+            li.textContent = `... und ${result.errors.length - 10} weitere Fehler`;
+            ul.appendChild(li);
         }
-        html += '</ul></div>';
+        errorsDiv.appendChild(ul);
+        contentDiv.appendChild(errorsDiv);
     }
-    
-    contentDiv.innerHTML = html;
+
     resultDiv.style.display = 'block';
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+
