@@ -5,6 +5,7 @@ import { websocketService } from '../services/websocket';
 import { pushNotificationService } from '../services/push-notification';
 import { redisPubSubService } from '../services/redis-pubsub';
 import { broadcastSseEvent } from '../services/sse';
+import { updateOutboxEntry } from '../services/notification-outbox';
 import { verifyApiKey, verifyDeviceToken, DeviceRequest } from '../middleware/auth';
 import { mapEmergencyRow, mapResponderDetails } from '../mappers';
 import { EmergencyRow, DeviceRow } from '../models/db-types';
@@ -55,21 +56,29 @@ router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: 
     }
 
     // Insert emergency into database
-    await dbRun(
-      `INSERT INTO emergencies (id, emergency_number, emergency_date, emergency_keyword, emergency_description, emergency_location, created_at, active, groups)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        emergencyNumber,
-        emergencyDate,
-        emergencyKeyword,
-        emergencyDescription,
-        emergencyLocation,
-        createdAt,
-        1,
-        sanitizedGroups,
-      ]
-    );
+    try {
+      await dbRun(
+        `INSERT INTO emergencies (id, emergency_number, emergency_date, emergency_keyword, emergency_description, emergency_location, created_at, active, groups)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          emergencyNumber,
+          emergencyDate,
+          emergencyKeyword,
+          emergencyDescription,
+          emergencyLocation,
+          createdAt,
+          1,
+          sanitizedGroups,
+        ]
+      );
+    } catch (dbError: any) {
+      if (dbError?.code === 'SQLITE_CONSTRAINT') {
+        res.status(409).json({ error: 'An active emergency with this number already exists' });
+        return;
+      }
+      throw dbError;
+    }
 
     // Get devices to notify based on groups
     let devices;
@@ -86,14 +95,14 @@ router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: 
         groupCodes
       );
       
-      logger.info(`✓ Found ${devices.length} devices matching groups: ${sanitizedGroups}`);
+      logger.info({ deviceCount: devices.length, groups: sanitizedGroups }, 'Devices matched for groups');
     } else {
       // If no groups specified, notify all active devices
       devices = await dbAll(
         'SELECT id, platform, fcm_token, apns_token FROM devices WHERE active = 1',
         []
       );
-      logger.info(`✓ No groups specified, notifying all ${devices.length} active devices`);
+      logger.info({ deviceCount: devices.length }, 'Notifying all active devices');
     }
 
     // Prepare notification data
@@ -112,22 +121,75 @@ router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: 
     // Send notifications via push services (FCM/APNs) and WebSocket
     const deviceIds = devices.map((device: any) => device.id);
     let pushSuccessCount = 0;
+    let pushFailedCount = 0;
     let websocketSuccessCount = 0;
+    let websocketFailedCount = 0;
+    const startTime = Date.now();
     
     if (deviceIds.length > 0) {
+      // Write pending outbox entries for all devices before dispatch (single bulk INSERT)
+      if (devices.length > 0) {
+        const now = new Date().toISOString();
+        const valuePlaceholders = devices.map(() => '(?, ?, ?, ?, ?, 0, ?, ?)').join(',');
+        const valueParams: any[] = [];
+        for (const device of devices) {
+          let channel: 'fcm' | 'apns' | 'websocket';
+          if (device.platform === 'android' && device.fcm_token) {
+            channel = 'fcm';
+          } else if (device.platform === 'ios' && device.apns_token) {
+            channel = 'apns';
+          } else {
+            channel = 'websocket';
+          }
+          valueParams.push(crypto.randomUUID(), id, device.id, channel, 'pending', now, now);
+        }
+        await dbRun(
+          `INSERT INTO notification_outbox (id, emergency_id, device_id, channel, status, retry_count, created_at, updated_at) VALUES ${valuePlaceholders}`,
+          valueParams,
+        );
+      }
+
       // Try push notifications first (FCM bulk for Android, APNs per-device for iOS)
       if (pushNotificationService.isPushEnabled()) {
         // FCM bulk notifications for Android devices
         const fcmDevices = devices.filter((d: any) => d.platform === 'android' && d.fcm_token);
         const fcmTokens = fcmDevices.map((d: any) => d.fcm_token as string);
         if (fcmTokens.length > 0) {
-          const fcmSuccess = await pushNotificationService.sendBulkFCMNotification(
+          const { successCount, results } = await pushNotificationService.sendBulkFCMNotification(
             fcmTokens,
             notificationTitle,
             notificationBody,
             notificationData
           );
-          pushSuccessCount += fcmSuccess;
+          pushSuccessCount += successCount;
+          pushFailedCount += fcmTokens.length - successCount;
+
+          // Batch-update outbox entries by status (delivered / failed)
+          const tokenToDevice = new Map<string, string>(
+            fcmDevices.map((d: any) => [d.fcm_token as string, d.id as string])
+          );
+          const deliveredIds: string[] = [];
+          const failedEntries: Array<{ deviceId: string; errorCode?: string }> = [];
+          for (const result of results) {
+            const deviceId = tokenToDevice.get(result.token);
+            if (!deviceId) continue;
+            if (result.success) {
+              deliveredIds.push(deviceId);
+            } else {
+              failedEntries.push({ deviceId, errorCode: result.errorCode });
+            }
+          }
+          const nowIso = new Date().toISOString();
+          if (deliveredIds.length > 0) {
+            const ph = deliveredIds.map(() => '?').join(',');
+            await dbRun(
+              `UPDATE notification_outbox SET status = 'delivered', updated_at = ? WHERE emergency_id = ? AND channel = 'fcm' AND device_id IN (${ph})`,
+              [nowIso, id, ...deliveredIds],
+            );
+          }
+          for (const { deviceId, errorCode } of failedEntries) {
+            await updateOutboxEntry(id, deviceId, 'fcm', 'failed', errorCode);
+          }
         }
 
         // APNs per-device for iOS (no bulk API)
@@ -143,13 +205,36 @@ router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: 
               )
             )
           );
-          pushSuccessCount += apnsResults.filter(
-            (r) => r.status === 'fulfilled' && r.value === true
-          ).length;
-        }
 
-        if (pushSuccessCount > 0) {
-          logger.info(`✓ Push notifications sent to ${pushSuccessCount}/${devices.length} devices`);
+          // Batch-update APNs outbox entries
+          const apnsDeliveredIds: string[] = [];
+          const apnsFailedEntries: Array<{ deviceId: string; err?: string }> = [];
+          for (let i = 0; i < apnsResults.length; i++) {
+            const result = apnsResults[i];
+            const device = apnsDevices[i];
+            const success = result.status === 'fulfilled' && result.value === true;
+            if (success) {
+              pushSuccessCount += 1;
+              apnsDeliveredIds.push(device.id);
+            } else {
+              pushFailedCount += 1;
+              apnsFailedEntries.push({
+                deviceId: device.id,
+                err: result.status === 'rejected' ? String(result.reason) : undefined,
+              });
+            }
+          }
+          const nowIsoApns = new Date().toISOString();
+          if (apnsDeliveredIds.length > 0) {
+            const ph = apnsDeliveredIds.map(() => '?').join(',');
+            await dbRun(
+              `UPDATE notification_outbox SET status = 'delivered', updated_at = ? WHERE emergency_id = ? AND channel = 'apns' AND device_id IN (${ph})`,
+              [nowIsoApns, id, ...apnsDeliveredIds],
+            );
+          }
+          for (const { deviceId, err } of apnsFailedEntries) {
+            await updateOutboxEntry(id, deviceId, 'apns', 'failed', err);
+          }
         }
       }
       
@@ -170,13 +255,41 @@ router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: 
         );
       }
       
-      // Count WebSocket connected devices
-      websocketSuccessCount = deviceIds.filter(id => 
-        websocketService.isDeviceConnected(id)
-      ).length;
+      // Batch-update WebSocket outbox entries and count connected devices
+      const wsDevices = devices.filter(
+        (d: any) => !(d.platform === 'android' && d.fcm_token) && !(d.platform === 'ios' && d.apns_token),
+      );
+      if (wsDevices.length > 0) {
+        const wsDeliveredIds = wsDevices
+          .filter((d: any) => websocketService.isDeviceConnected(d.id))
+          .map((d: any) => d.id as string);
+        websocketSuccessCount = wsDeliveredIds.length;
+        websocketFailedCount = wsDevices.length - wsDeliveredIds.length;
+        if (wsDeliveredIds.length > 0) {
+          const ph = wsDeliveredIds.map(() => '?').join(',');
+          const nowIsoWs = new Date().toISOString();
+          await dbRun(
+            `UPDATE notification_outbox SET status = 'delivered', updated_at = ? WHERE emergency_id = ? AND channel = 'websocket' AND device_id IN (${ph})`,
+            [nowIsoWs, id, ...wsDeliveredIds],
+          );
+        }
+      } else {
+        // Count WS connections for devices with push tokens too (informational)
+        websocketSuccessCount = devices.filter((d: any) => websocketService.isDeviceConnected(d.id)).length;
+      }
       
-      logger.info(`✓ WebSocket notifications sent to ${websocketSuccessCount}/${devices.length} connected devices`);
-      logger.info(`📊 Notification summary: Push=${pushSuccessCount}, WebSocket=${websocketSuccessCount}, Total devices=${devices.length}`);
+      logger.info(
+        {
+          emergencyId: id,
+          pushSuccess: pushSuccessCount,
+          pushFailed: pushFailedCount,
+          wsSuccess: websocketSuccessCount,
+          wsFailed: websocketFailedCount,
+          totalDevices: devices.length,
+          durationMs: Date.now() - startTime,
+        },
+        'Notification dispatch complete',
+      );
     }
 
     const emergency: Emergency = {

@@ -81,10 +81,16 @@ app.use(helmet({
 }));
 
 // CORS configuration - restrict in production
+const corsOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+  : (IS_PRODUCTION ? false : 'http://localhost:3000');
+
+if (IS_PRODUCTION && (!process.env.CORS_ORIGINS || process.env.CORS_ORIGINS === '*')) {
+  logger.warn('⚠️  WARNING: CORS_ORIGINS is not restricted in production! Set CORS_ORIGINS to your allowed origins.');
+}
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGINS 
-    ? process.env.CORS_ORIGINS.split(',') 
-    : '*',
+  origin: corsOrigins,
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));

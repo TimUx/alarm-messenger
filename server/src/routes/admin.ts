@@ -66,13 +66,13 @@ router.post('/login', loginRateLimiter, validateBody(LoginSchema), async (req: R
 });
 
 // Logout endpoint - destroy session
-router.post('/logout', (req: Request, res: Response) => {
+router.post('/logout', async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
     const decoded = jwt.decode(token) as { exp?: number } | null;
     const expiresAt = decoded?.exp ? decoded.exp * 1000 : Date.now() + 3600 * 1000;
-    addToBlacklist(token, expiresAt);
+    await addToBlacklist(token, expiresAt);
   }
   req.session.destroy((err) => {
     if (err) {
@@ -502,6 +502,20 @@ router.get('/emergencies/:id', verifySession, async (req: AuthRequest, res: Resp
     const participantsCount = responses.filter(r => r.participating).length;
     const nonParticipantsCount = responses.filter(r => !r.participating).length;
 
+    // Aggregate delivery summary from notification_outbox
+    const outboxSummary = await dbGet<{
+      total: number; delivered: number; failed: number; pending: number;
+    }>(
+      `SELECT
+         COUNT(*) as total,
+         SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered,
+         SUM(CASE WHEN status = 'failed'    THEN 1 ELSE 0 END) as failed,
+         SUM(CASE WHEN status = 'pending'   THEN 1 ELSE 0 END) as pending
+       FROM notification_outbox
+       WHERE emergency_id = ?`,
+      [id],
+    );
+
     res.json({
       emergency: mapEmergencyRow(emergency),
       responses,
@@ -509,6 +523,12 @@ router.get('/emergencies/:id', verifySession, async (req: AuthRequest, res: Resp
         totalResponses: responses.length,
         participants: participantsCount,
         nonParticipants: nonParticipantsCount,
+      },
+      notificationSummary: {
+        total: outboxSummary?.total ?? 0,
+        delivered: outboxSummary?.delivered ?? 0,
+        failed: outboxSummary?.failed ?? 0,
+        pending: outboxSummary?.pending ?? 0,
       },
     });
   } catch (error) {
