@@ -54,3 +54,20 @@ export interface GroupRow {
   description: string | null;
   created_at: string;
 }
+
+export interface NotificationOutboxRow {
+  id: string;
+  emergency_id: string;
+  device_id: string;
+  channel: 'fcm' | 'apns' | 'websocket';
+  status: 'pending' | 'delivered' | 'failed';
+  retry_count: number;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RevokedTokenRow {
+  token_hash: string;
+  expires_at: string;
+}

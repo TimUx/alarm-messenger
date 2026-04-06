@@ -45,7 +45,7 @@ export interface DeviceRequest extends Request {
 }
 
 // Middleware to verify JWT token
-export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const verifyToken = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -55,9 +55,13 @@ export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction)
 
   const token = authHeader.substring(7);
 
-  if (isBlacklisted(token)) {
-    res.status(401).json({ error: 'Token has been revoked' });
-    return;
+  try {
+    if (await isBlacklisted(token)) {
+      res.status(401).json({ error: 'Token has been revoked' });
+      return;
+    }
+  } catch (error) {
+    logger.warn({ err: error }, 'Token blacklist check failed, continuing');
   }
 
   try {

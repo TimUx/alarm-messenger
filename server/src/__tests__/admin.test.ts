@@ -92,6 +92,25 @@ function createSchema(db: sqlite3.Database): Promise<void> {
           participating INTEGER NOT NULL,
           responded_at TEXT NOT NULL
         )
+      `);
+      db.run(`
+        CREATE TABLE IF NOT EXISTS revoked_tokens (
+          token_hash TEXT PRIMARY KEY,
+          expires_at TEXT NOT NULL
+        )
+      `);
+      db.run(`
+        CREATE TABLE IF NOT EXISTS notification_outbox (
+          id TEXT PRIMARY KEY,
+          emergency_id TEXT NOT NULL,
+          device_id TEXT NOT NULL,
+          channel TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
       `, (err: Error | null) => (err ? reject(err) : resolve()));
     });
   });
@@ -174,5 +193,91 @@ describe('GET /api/admin/profile', () => {
       .set('Cookie', cookies);
     expect(profileRes.status).toBe(200);
     expect(profileRes.body.username).toBe('admin');
+  });
+});
+
+describe('GET /api/admin/emergencies/:id – notificationSummary', () => {
+  const app = buildApp();
+  let sessionCookie: string[];
+
+  beforeAll(async () => {
+    const loginRes = await request(app)
+      .post('/api/admin/login')
+      .send({ username: 'admin', password: 'password123' });
+    sessionCookie = (loginRes.headers['set-cookie'] as unknown) as string[];
+  });
+
+  it('returns notificationSummary with all-zero counts when no outbox entries exist', async () => {
+    // Insert a test emergency directly into the in-memory DB
+    const emergencyId = 'test-emergency-summary-001';
+    await new Promise<void>((resolve, reject) => {
+      dbHolder.db!.run(
+        `INSERT INTO emergencies (id, emergency_number, emergency_date, emergency_keyword,
+          emergency_description, emergency_location, created_at, active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [emergencyId, 'E-SUM-001', new Date().toISOString(), 'TEST', 'desc', 'loc',
+         new Date().toISOString(), 1],
+        (err: Error | null) => (err ? reject(err) : resolve()),
+      );
+    });
+
+    const res = await request(app)
+      .get(`/api/admin/emergencies/${emergencyId}`)
+      .set('Cookie', sessionCookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('notificationSummary');
+    expect(res.body.notificationSummary).toEqual({
+      total: 0,
+      delivered: 0,
+      failed: 0,
+      pending: 0,
+    });
+  });
+
+  it('returns aggregated notificationSummary when outbox entries exist', async () => {
+    const emergencyId = 'test-emergency-summary-002';
+    const deviceId = 'test-device-summary-001';
+
+    await new Promise<void>((resolve, reject) => {
+      dbHolder.db!.run(
+        `INSERT INTO emergencies (id, emergency_number, emergency_date, emergency_keyword,
+          emergency_description, emergency_location, created_at, active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [emergencyId, 'E-SUM-002', new Date().toISOString(), 'TEST2', 'desc', 'loc',
+         new Date().toISOString(), 1],
+        (err: Error | null) => (err ? reject(err) : resolve()),
+      );
+    });
+
+    // Insert outbox entries: 1 delivered, 1 failed, 1 pending
+    const entries = [
+      ['outbox-1', emergencyId, deviceId, 'fcm', 'delivered'],
+      ['outbox-2', emergencyId, deviceId, 'apns', 'failed'],
+      ['outbox-3', emergencyId, deviceId, 'websocket', 'pending'],
+    ];
+    const now = new Date().toISOString();
+    for (const [id, eid, did, ch, st] of entries) {
+      await new Promise<void>((resolve, reject) => {
+        dbHolder.db!.run(
+          `INSERT INTO notification_outbox (id, emergency_id, device_id, channel, status, retry_count, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+          [id, eid, did, ch, st, now, now],
+          (err: Error | null) => (err ? reject(err) : resolve()),
+        );
+      });
+    }
+
+    const res = await request(app)
+      .get(`/api/admin/emergencies/${emergencyId}`)
+      .set('Cookie', sessionCookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body.notificationSummary).toEqual({
+      total: 3,
+      delivered: 1,
+      failed: 1,
+      pending: 1,
+    });
   });
 });

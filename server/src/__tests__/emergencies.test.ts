@@ -20,6 +20,7 @@ jest.mock('../services/push-notification', () => ({
   pushNotificationService: {
     isPushEnabled: jest.fn().mockReturnValue(false),
     sendPushNotification: jest.fn().mockResolvedValue(false),
+    sendBulkFCMNotification: jest.fn().mockResolvedValue({ successCount: 0, results: [] }),
   },
 }));
 
@@ -74,6 +75,10 @@ function createSchema(db: sqlite3.Database): Promise<void> {
         )
       `);
       db.run(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_emergencies_active_number
+        ON emergencies(emergency_number) WHERE active = 1
+      `);
+      db.run(`
         CREATE TABLE IF NOT EXISTS devices (
           id TEXT PRIMARY KEY,
           device_token TEXT UNIQUE NOT NULL,
@@ -83,6 +88,19 @@ function createSchema(db: sqlite3.Database): Promise<void> {
           active INTEGER DEFAULT 1,
           fcm_token TEXT,
           apns_token TEXT
+        )
+      `);
+      db.run(`
+        CREATE TABLE IF NOT EXISTS notification_outbox (
+          id TEXT PRIMARY KEY,
+          emergency_id TEXT NOT NULL,
+          device_id TEXT NOT NULL,
+          channel TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
         )
       `);
       db.run(
@@ -153,5 +171,30 @@ describe('POST /api/emergencies', () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('error');
+  });
+
+  it('returns 409 when creating a duplicate active emergency with the same number', async () => {
+    const duplicateBody = {
+      emergencyNumber: 'E-DUP-001',
+      emergencyDate: new Date().toISOString(),
+      emergencyKeyword: 'FEUER',
+      emergencyDescription: 'First alarm',
+      emergencyLocation: 'Test Street 1',
+    };
+
+    // First creation should succeed
+    const first = await request(app)
+      .post('/api/emergencies')
+      .set('x-api-key', TEST_API_KEY)
+      .send(duplicateBody);
+    expect(first.status).toBe(201);
+
+    // Second creation with same emergencyNumber while first is still active should be rejected
+    const second = await request(app)
+      .post('/api/emergencies')
+      .set('x-api-key', TEST_API_KEY)
+      .send({ ...duplicateBody, emergencyDescription: 'Second alarm' });
+    expect(second.status).toBe(409);
+    expect(second.body).toHaveProperty('error');
   });
 });

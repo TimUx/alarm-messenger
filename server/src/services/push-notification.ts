@@ -26,6 +26,7 @@ import { Provider, Notification } from '@parse/node-apn';
 import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger';
+import { dbRun } from './database';
 
 export interface PushNotificationData {
   emergencyId: string;
@@ -35,6 +36,55 @@ export interface PushNotificationData {
   emergencyDescription: string;
   emergencyLocation: string;
   groups?: string;
+}
+
+export interface FCMTokenResult {
+  token: string;
+  success: boolean;
+  errorCode?: string;
+}
+
+/**
+ * Retry a function with exponential backoff.
+ * Only retries on transient error codes (network/server errors).
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  isTransient: (err: any) => boolean,
+  maxAttempts = 3,
+  baseDelayMs = 500,
+): Promise<T> {
+  let lastError: any;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxAttempts && isTransient(error)) {
+        const delay = baseDelayMs * Math.pow(2, attempt - 1);
+        logger.warn({ err: error, attempt, nextDelayMs: delay }, 'Push notification transient error, retrying');
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
+function isFcmTransient(error: any): boolean {
+  const code: string = error?.errorInfo?.code || error?.code || '';
+  return (
+    code.includes('internal-error') ||
+    code.includes('server-unavailable') ||
+    code === 'messaging/internal-error' ||
+    code === 'messaging/server-unavailable'
+  );
+}
+
+function isApnsTransient(error: any): boolean {
+  const msg: string = (error?.message || '').toLowerCase();
+  return msg.includes('econnreset') || msg.includes('etimedout') || msg.includes('socket');
 }
 
 class PushNotificationService {
@@ -166,11 +216,11 @@ class PushNotificationService {
         token: fcmToken,
       };
 
-      await admin.messaging().send(message);
-      logger.info(`✓ FCM notification sent to token: ${fcmToken.substring(0, 20)}...`);
+      await retryWithBackoff(() => admin.messaging().send(message), isFcmTransient);
+      logger.info({ token: fcmToken.substring(0, 20) }, 'FCM notification sent');
       return true;
     } catch (error: any) {
-      logger.error(`❌ Failed to send FCM notification: ${error.message}`);
+      logger.error({ err: error, token: fcmToken.substring(0, 20) }, 'Failed to send FCM notification');
       return false;
     }
   }
@@ -223,18 +273,29 @@ class PushNotificationService {
       // Set priority to immediate
       notification.priority = 10;
 
-      const result = await this.apnsProvider.send(notification, apnsToken);
+      const provider = this.apnsProvider;
+      const result = await retryWithBackoff(
+        () => provider.send(notification, apnsToken),
+        isApnsTransient,
+      );
       
       if (result.failed && result.failed.length > 0) {
         const failure = result.failed[0];
-        logger.error(`❌ Failed to send APNs notification: ${failure.response?.reason || 'Unknown error'}`);
+        const reason = failure.response?.reason;
+        logger.error({ token: apnsToken.substring(0, 20), reason }, 'Failed to send APNs notification');
+
+        // Prune invalid/unregistered APNs tokens
+        if (reason === 'BadDeviceToken' || reason === 'Unregistered') {
+          await dbRun('UPDATE devices SET apns_token = NULL WHERE apns_token = ?', [apnsToken]);
+          logger.info({ token: apnsToken.substring(0, 20) }, 'Pruned stale APNs token');
+        }
         return false;
       }
 
-      logger.info(`✓ APNs notification sent to token: ${apnsToken.substring(0, 20)}...`);
+      logger.info({ token: apnsToken.substring(0, 20) }, 'APNs notification sent');
       return true;
     } catch (error: any) {
-      logger.error(`❌ Failed to send APNs notification: ${error.message}`);
+      logger.error({ err: error, token: apnsToken.substring(0, 20) }, 'Failed to send APNs notification');
       return false;
     }
   }
@@ -270,13 +331,14 @@ class PushNotificationService {
     title: string,
     body: string,
     data: PushNotificationData
-  ): Promise<number> {
+  ): Promise<{ successCount: number; results: FCMTokenResult[] }> {
     if (!this.fcmEnabled || tokens.length === 0) {
-      return 0;
+      return { successCount: 0, results: [] };
     }
 
     const BATCH_SIZE = 500;
     let successCount = 0;
+    const allResults: FCMTokenResult[] = [];
 
     for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
       const batch = tokens.slice(i, i + BATCH_SIZE);
@@ -304,18 +366,46 @@ class PushNotificationService {
             },
           },
         };
-        const result = await admin.messaging().sendEachForMulticast(message);
+        const result = await retryWithBackoff(
+          () => admin.messaging().sendEachForMulticast(message),
+          isFcmTransient,
+        );
         successCount += result.successCount;
+
+        // Process per-token results: collect results and prune stale tokens
+        for (let j = 0; j < result.responses.length; j++) {
+          const resp = result.responses[j];
+          const token = batch[j];
+          const errorCode = resp.error?.code;
+          allResults.push({ token, success: resp.success, errorCode });
+
+          if (!resp.success) {
+            if (
+              errorCode === 'messaging/registration-token-not-registered' ||
+              errorCode === 'messaging/invalid-registration-token'
+            ) {
+              await dbRun('UPDATE devices SET fcm_token = NULL WHERE fcm_token = ?', [token]);
+              logger.info({ token: token.substring(0, 20) }, 'Pruned stale FCM token');
+            } else {
+              logger.warn({ token: token.substring(0, 20), errorCode }, 'FCM token delivery failed');
+            }
+          }
+        }
+
         if (result.failureCount > 0) {
-          logger.warn(`FCM bulk: ${result.failureCount} failures in batch`);
+          logger.warn({ failureCount: result.failureCount, batchSize: batch.length }, 'FCM bulk batch had failures');
         }
       } catch (error: any) {
-        logger.error(`❌ Failed to send FCM bulk notification batch: ${error.message}`);
+        logger.error({ err: error }, 'Failed to send FCM bulk notification batch');
+        // Mark all tokens in this batch as failed
+        for (const token of batch) {
+          allResults.push({ token, success: false, errorCode: error?.code });
+        }
       }
     }
 
-    logger.info(`✓ FCM bulk notifications: ${successCount}/${tokens.length} successful`);
-    return successCount;
+    logger.info({ successCount, total: tokens.length }, 'FCM bulk notifications complete');
+    return { successCount, results: allResults };
   }
 
   /**

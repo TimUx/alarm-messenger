@@ -77,6 +77,57 @@ const MIGRATIONS: { version: number; description: string; run: () => Promise<voi
       await dbRun('ALTER TABLE devices ADD COLUMN registration_expires_at TEXT');
     },
   },
+  {
+    version: 8,
+    description: 'Add partial unique index to prevent duplicate active emergencies with the same number',
+    async run() {
+      await dbRun(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_emergencies_active_number
+        ON emergencies(emergency_number) WHERE active = 1
+      `);
+    },
+  },
+  {
+    version: 9,
+    description: 'Add notification_outbox table for per-device delivery tracking',
+    async run() {
+      await dbRun(`
+        CREATE TABLE IF NOT EXISTS notification_outbox (
+          id TEXT PRIMARY KEY,
+          emergency_id TEXT NOT NULL,
+          device_id TEXT NOT NULL,
+          channel TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (emergency_id) REFERENCES emergencies(id),
+          FOREIGN KEY (device_id) REFERENCES devices(id)
+        )
+      `);
+      await dbRun(`
+        CREATE INDEX IF NOT EXISTS idx_outbox_status
+        ON notification_outbox(status, created_at)
+      `);
+    },
+  },
+  {
+    version: 10,
+    description: 'Add revoked_tokens table for persistent JWT blacklist',
+    async run() {
+      await dbRun(`
+        CREATE TABLE IF NOT EXISTS revoked_tokens (
+          token_hash TEXT PRIMARY KEY,
+          expires_at TEXT NOT NULL
+        )
+      `);
+      await dbRun(`
+        CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires
+        ON revoked_tokens(expires_at)
+      `);
+    },
+  },
 ];
 
 export async function initializeDatabase(): Promise<void> {
@@ -194,6 +245,39 @@ export async function initializeDatabase(): Promise<void> {
             role TEXT DEFAULT 'operator',
             full_name TEXT
           )
+        `);
+
+        // Revoked tokens table (persistent JWT blacklist)
+        db.run(`
+          CREATE TABLE IF NOT EXISTS revoked_tokens (
+            token_hash TEXT PRIMARY KEY,
+            expires_at TEXT NOT NULL
+          )
+        `);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires ON revoked_tokens(expires_at)`);
+
+        // Notification outbox table (per-device delivery tracking)
+        db.run(`
+          CREATE TABLE IF NOT EXISTS notification_outbox (
+            id TEXT PRIMARY KEY,
+            emergency_id TEXT NOT NULL,
+            device_id TEXT NOT NULL,
+            channel TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            retry_count INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (emergency_id) REFERENCES emergencies(id),
+            FOREIGN KEY (device_id) REFERENCES devices(id)
+          )
+        `);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_outbox_status ON notification_outbox(status, created_at)`);
+
+        // Partial unique index to prevent duplicate active emergencies
+        db.run(`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_emergencies_active_number
+          ON emergencies(emergency_number) WHERE active = 1
         `, async (err) => {
           if (err) {
             reject(err);
