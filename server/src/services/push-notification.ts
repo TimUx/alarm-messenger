@@ -372,7 +372,8 @@ class PushNotificationService {
         );
         successCount += result.successCount;
 
-        // Process per-token results: collect results and prune stale tokens
+        // Collect invalid tokens for a single batch DB update
+        const staleTokens: string[] = [];
         for (let j = 0; j < result.responses.length; j++) {
           const resp = result.responses[j];
           const token = batch[j];
@@ -384,12 +385,18 @@ class PushNotificationService {
               errorCode === 'messaging/registration-token-not-registered' ||
               errorCode === 'messaging/invalid-registration-token'
             ) {
-              await dbRun('UPDATE devices SET fcm_token = NULL WHERE fcm_token = ?', [token]);
-              logger.info({ token: token.substring(0, 20) }, 'Pruned stale FCM token');
+              staleTokens.push(token);
             } else {
               logger.warn({ token: token.substring(0, 20), errorCode }, 'FCM token delivery failed');
             }
           }
+        }
+
+        // Batch-clear all stale FCM tokens in a single IN query
+        if (staleTokens.length > 0) {
+          const placeholders = staleTokens.map(() => '?').join(',');
+          await dbRun(`UPDATE devices SET fcm_token = NULL WHERE fcm_token IN (${placeholders})`, staleTokens);
+          logger.info({ count: staleTokens.length }, 'Pruned stale FCM tokens');
         }
 
         if (result.failureCount > 0) {

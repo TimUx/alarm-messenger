@@ -278,12 +278,11 @@ export async function initializeDatabase(): Promise<void> {
         db.run(`
           CREATE UNIQUE INDEX IF NOT EXISTS idx_emergencies_active_number
           ON emergencies(emergency_number) WHERE active = 1
-        `, async (err) => {
+        `, (err) => {
           if (err) {
             reject(err);
           } else {
-            await runMigrations();
-            resolve();
+            runMigrations().then(resolve).catch(reject);
           }
         });
       });
