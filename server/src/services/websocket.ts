@@ -23,7 +23,7 @@ class WebSocketService {
       // Authenticate via JWT provided as ?token= query parameter
       let deviceId: string | null = null;
       try {
-        const token = new URL(req.url ?? '', 'http://localhost').searchParams.get('token');
+        const token = new URL(req.url || '?', 'http://localhost').searchParams.get('token');
         if (!token) throw new Error('No token');
         const payload = jwt.verify(token, JWT_SECRET) as { deviceId?: string };
         if (!payload.deviceId) throw new Error('Missing deviceId in token');

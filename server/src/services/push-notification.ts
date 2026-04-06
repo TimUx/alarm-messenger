@@ -117,7 +117,7 @@ class PushNotificationService {
       // Validate the path stays within the allowed config directory to prevent path traversal
       const resolvedPath = path.resolve(serviceAccountPath);
       const allowedDir = path.resolve('/app/config');
-      if (!resolvedPath.startsWith(allowedDir + path.sep) && resolvedPath !== allowedDir) {
+      if (!resolvedPath.startsWith(allowedDir + path.sep)) {
         logger.error('[FATAL] FCM_SERVICE_ACCOUNT_PATH is outside allowed directory (/app/config). Exiting.');
         process.exit(1);
       }
