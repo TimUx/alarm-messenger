@@ -60,7 +60,9 @@ class AppState extends ChangeNotifier {
     }
     _isInitializing = false;
     notifyListeners();
-  } {
+  }
+
+  void _checkForActiveEmergency() {
     // Find the most recent active emergency
     final activeEmergencies = _emergencies.where((e) => e.active).toList();
     if (activeEmergencies.isEmpty) {

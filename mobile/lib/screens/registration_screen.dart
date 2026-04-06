@@ -30,6 +30,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       _isProcessing = true;
     });
 
+    final appState = Provider.of<AppState>(context, listen: false);
+
     try {
       await _controller.stop();
     } catch (_) {
@@ -65,7 +67,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       final platform = Platform.isAndroid ? 'android' : 'ios';
       final deviceToken = registrationToken; // Use the token from QR code
 
-      final appState = Provider.of<AppState>(context, listen: false);
       await appState.register(
         serverUrl: serverUrl,
         registrationToken: registrationToken,
