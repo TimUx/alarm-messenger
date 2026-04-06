@@ -17,6 +17,7 @@ import { websocketService } from './services/websocket';
 import { emergencyScheduler } from './services/emergency-scheduler';
 import { redisPubSubService } from './services/redis-pubsub';
 import { decodeSecret } from './utils/secrets';
+import { errorHandler } from './middleware/errorHandler';
 import logger from './utils/logger';
 
 dotenv.config();
@@ -29,6 +30,13 @@ if (SESSION_SECRET === 'change-this-session-secret-in-production') {
   logger.error(message);
   if (IS_PRODUCTION) {
     throw new Error('SESSION_SECRET must be set to a secure value in production environments');
+  }
+}
+
+if (IS_PRODUCTION) {
+  const serverUrl = process.env.SERVER_URL || '';
+  if (!serverUrl || serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1') || serverUrl.includes('0.0.0.0') || serverUrl.includes('[::]')) {
+    logger.warn('⚠️  WARNING: SERVER_URL is set to localhost in production. Make sure this is intentional and you are using a reverse proxy.');
   }
 }
 
@@ -124,6 +132,9 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/info', infoRoutes);
+
+// Global error handler
+app.use(errorHandler);
 
 // Health check
 app.get('/health', (req, res) => {

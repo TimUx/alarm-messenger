@@ -119,12 +119,12 @@ class AppState extends ChangeNotifier {
   void _initializeWebSocket() {
     if (_isRegistered) {
       final serverUrl = StorageService.getServerUrl();
-      final deviceId = StorageService.getDeviceId();
-      if (serverUrl != null && deviceId != null) {
-        WebSocketService.connect(serverUrl, deviceId);
+      final deviceToken = StorageService.getDeviceToken();
+      if (serverUrl != null && deviceToken != null) {
+        WebSocketService().connect(serverUrl, deviceToken);
         
         // Listen for incoming emergencies
-        WebSocketService.messageStream?.listen((notification) {
+        WebSocketService().messageStream?.listen((notification) {
           handleEmergencyNotification(notification);
         });
       }
@@ -155,11 +155,11 @@ class AppState extends ChangeNotifier {
 
       _isRegistered = true;
       
-      // Connect WebSocket
-      WebSocketService.connect(serverUrl, device.id);
+      // Connect WebSocket using deviceToken
+      WebSocketService().connect(serverUrl, deviceToken);
       
       // Listen for incoming emergencies
-      WebSocketService.messageStream?.listen((notification) {
+      WebSocketService().messageStream?.listen((notification) {
         handleEmergencyNotification(notification);
       });
     } finally {
@@ -257,7 +257,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> logout() async {
     await StorageService.clear();
-    WebSocketService.disconnect();
+    WebSocketService().disconnect();
     _isRegistered = false;
     _currentEmergency = null;
     _showAlarmDialog = false;
@@ -269,7 +269,7 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
-    WebSocketService.disconnect();
+    WebSocketService().disconnect();
     AlarmService.dispose();
     super.dispose();
   }

@@ -1,17 +1,29 @@
 import { Router, Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import QRCode from 'qrcode';
+import rateLimit from 'express-rate-limit';
 import { dbRun, dbGet, dbAll } from '../services/database';
-import { verifyToken, verifyAdmin, AuthRequest, verifyDeviceToken } from '../middleware/auth';
+import { verifyToken, verifyAdmin, verifySession, AuthRequest, verifyDeviceToken } from '../middleware/auth';
 import { Device } from '../models/types';
+import { DeviceRow } from '../models/db-types';
+import { mapDeviceRow, mapGroupRow } from '../mappers';
+import { GroupRow } from '../models/db-types';
+import { validateBody } from '../middleware/validate';
+import { DeviceRegistrationSchema } from '../validation/schemas';
 import logger from '../utils/logger';
 
 const router = Router();
 
+const registrationRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: 'Too many registration attempts. Please try again later.' },
+});
+
 // Generate a registration QR code
-router.post('/registration-token', async (req: Request, res: Response) => {
+router.post('/registration-token', registrationRateLimiter, async (req: Request, res: Response) => {
   try {
-    const deviceToken = uuidv4();
+    const deviceToken = crypto.randomUUID();
     
     // Generate QR code data URL
     const registrationData = {
@@ -23,13 +35,14 @@ router.post('/registration-token', async (req: Request, res: Response) => {
     
     // Store the device token with QR code in database (not yet registered)
     // This allows later retrieval of the QR code
-    const id = uuidv4();
+    const id = crypto.randomUUID();
     const registeredAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
     
     await dbRun(
       `INSERT INTO devices (
-        id, device_token, registration_token, platform, registered_at, active, qr_code_data
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        id, device_token, registration_token, platform, registered_at, active, qr_code_data, registration_expires_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         deviceToken,
@@ -38,6 +51,7 @@ router.post('/registration-token', async (req: Request, res: Response) => {
         registeredAt,
         0, // Not active until registered
         qrCodeDataUrl,
+        expiresAt,
       ]
     );
     
@@ -53,7 +67,7 @@ router.post('/registration-token', async (req: Request, res: Response) => {
 });
 
 // Register a device
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', registrationRateLimiter, validateBody(DeviceRegistrationSchema), async (req: Request, res: Response) => {
   try {
     const {
       deviceToken,
@@ -63,20 +77,9 @@ router.post('/register', async (req: Request, res: Response) => {
       lastName,
       qualifications,
       leadershipRole,
-      qrCodeData, // QR code data to store
       fcmToken, // Optional FCM token for Android
       apnsToken, // Optional APNs token for iOS
     } = req.body;
-
-    if (!deviceToken || !registrationToken || !platform) {
-      res.status(400).json({ error: 'Missing required fields' });
-      return;
-    }
-
-    if (platform !== 'ios' && platform !== 'android') {
-      res.status(400).json({ error: 'Invalid platform. Must be ios or android' });
-      return;
-    }
 
     // Check if device token already exists
     const existing = await dbGet(
@@ -84,93 +87,71 @@ router.post('/register', async (req: Request, res: Response) => {
       [deviceToken]
     );
 
-    if (existing) {
-      // Update existing device
-      await dbRun(
-        `UPDATE devices SET 
-          registration_token = ?, 
-          platform = ?, 
-          active = 1,
-          first_name = ?,
-          last_name = ?,
-          qual_machinist = ?,
-          qual_agt = ?,
-          qual_paramedic = ?,
-          leadership_role = ?,
-          qr_code_data = ?,
-          fcm_token = ?,
-          apns_token = ?
-        WHERE device_token = ?`,
-        [
-          registrationToken, 
-          platform, 
-          firstName || null,
-          lastName || null,
-          qualifications?.machinist ? 1 : 0,
-          qualifications?.agt ? 1 : 0,
-          qualifications?.paramedic ? 1 : 0,
-          leadershipRole || 'none',
-          qrCodeData || existing.qr_code_data || null, // Keep existing QR if not provided
-          fcmToken || null,
-          apnsToken || null,
-          deviceToken
-        ]
-      );
-
-      const device: Device = {
-        id: existing.id,
-        deviceToken,
-        registrationToken,
-        platform,
-        registeredAt: existing.registered_at,
-        active: true,
-        firstName,
-        lastName,
-        qualifications,
-        leadershipRole: leadershipRole || 'none',
-      };
-
-      res.json(device);
-    } else {
-      // Create new device
-      const id = uuidv4();
-      const registeredAt = new Date().toISOString();
-
-      await dbRun(
-        `INSERT INTO devices (
-          id, device_token, registration_token, platform, registered_at, active,
-          first_name, last_name, qual_machinist, qual_agt, qual_paramedic, 
-          leadership_role, qr_code_data, fcm_token, apns_token
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          id, deviceToken, registrationToken, platform, registeredAt, 1,
-          firstName || null,
-          lastName || null,
-          qualifications?.machinist ? 1 : 0,
-          qualifications?.agt ? 1 : 0,
-          qualifications?.paramedic ? 1 : 0,
-          leadershipRole || 'none',
-          qrCodeData || null,
-          fcmToken || null,
-          apnsToken || null,
-        ]
-      );
-
-      const device: Device = {
-        id,
-        deviceToken,
-        registrationToken,
-        platform,
-        registeredAt,
-        active: true,
-        firstName,
-        lastName,
-        qualifications,
-        leadershipRole: leadershipRole || 'none',
-      };
-
-      res.status(201).json(device);
+    // Only allow updating a pre-registered (not-yet-active) device
+    if (!existing) {
+      logger.warn({ deviceToken: deviceToken.substring(0, 20) }, 'Registration attempt with unknown device token');
+      res.status(403).json({ error: 'Invalid or expired registration token' });
+      return;
     }
+
+    if (existing.active === 1) {
+      logger.warn({ deviceId: existing.id }, 'Registration attempt for already active device');
+      res.status(403).json({ error: 'Invalid or expired registration token' });
+      return;
+    }
+
+    if (existing.registration_expires_at && new Date(existing.registration_expires_at) < new Date()) {
+      logger.warn({ deviceId: existing.id }, 'Registration attempt with expired token');
+      res.status(403).json({ error: 'Invalid or expired registration token' });
+      return;
+    }
+
+    // Update existing device
+    await dbRun(
+      `UPDATE devices SET 
+        registration_token = ?, 
+        platform = ?, 
+        active = 1,
+        first_name = ?,
+        last_name = ?,
+        qual_machinist = ?,
+        qual_agt = ?,
+        qual_paramedic = ?,
+        leadership_role = ?,
+        qr_code_data = ?,
+        fcm_token = ?,
+        apns_token = ?
+      WHERE device_token = ?`,
+      [
+        registrationToken, 
+        platform, 
+        firstName || null,
+        lastName || null,
+        qualifications?.machinist ? 1 : 0,
+        qualifications?.agt ? 1 : 0,
+        qualifications?.paramedic ? 1 : 0,
+        leadershipRole || 'none',
+        existing.qr_code_data || null,
+        fcmToken || null,
+        apnsToken || null,
+        deviceToken
+      ]
+    );
+
+    const device: Device = {
+      id: existing.id,
+      deviceToken,
+      registrationToken,
+      platform,
+      registeredAt: existing.registered_at,
+      active: true,
+      firstName,
+      lastName,
+      qualifications,
+      leadershipRole: leadershipRole || 'none',
+    };
+
+    res.json(device);
   } catch (error) {
     logger.error({ err: error }, 'Error registering device');
     res.status(500).json({ error: 'Failed to register device' });
@@ -250,30 +231,14 @@ router.post('/update-push-token', verifyDeviceToken, async (req: Request, res: R
 });
 
 // Get all registered devices
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', verifySession, async (req: Request, res: Response) => {
   try {
-    const rows = await dbAll(
+    const rows = await dbAll<DeviceRow>(
       `SELECT d.*, GROUP_CONCAT(dg.group_code) as group_codes FROM devices d LEFT JOIN device_groups dg ON d.id = dg.device_id WHERE d.active = 1 GROUP BY d.id ORDER BY d.registered_at DESC`,
       []
     );
 
-    const devices: Device[] = rows.map((row: any) => ({
-      id: row.id,
-      deviceToken: row.device_token,
-      registrationToken: row.registration_token,
-      platform: row.platform,
-      registeredAt: row.registered_at,
-      active: row.active === 1,
-      firstName: row.first_name,
-      lastName: row.last_name,
-      qualifications: {
-        machinist: row.qual_machinist === 1,
-        agt: row.qual_agt === 1,
-        paramedic: row.qual_paramedic === 1,
-      },
-      leadershipRole: row.leadership_role || 'none',
-      assignedGroups: row.group_codes ? row.group_codes.split(',') : [],
-    }));
+    const devices = rows.map((row) => mapDeviceRow(row));
 
     res.json(devices);
   } catch (error) {
@@ -286,7 +251,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:id', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const row = await dbGet('SELECT * FROM devices WHERE id = ?', [id]);
+    const row = await dbGet<DeviceRow>('SELECT * FROM devices WHERE id = ?', [id]);
 
     if (!row) {
       res.status(404).json({ error: 'Device not found' });
@@ -298,27 +263,9 @@ router.get('/:id', verifyDeviceToken, async (req: Request, res: Response) => {
       'SELECT group_code FROM device_groups WHERE device_id = ?',
       [id]
     );
-    const assignedGroups = groupRows.map((g: any) => g.group_code);
+    const rowWithGroups: DeviceRow = { ...row, group_codes: groupRows.map((g: any) => g.group_code).join(',') || null };
 
-    const device: Device = {
-      id: row.id,
-      deviceToken: row.device_token,
-      registrationToken: row.registration_token,
-      platform: row.platform,
-      registeredAt: row.registered_at,
-      active: row.active === 1,
-      firstName: row.first_name,
-      lastName: row.last_name,
-      qualifications: {
-        machinist: row.qual_machinist === 1,
-        agt: row.qual_agt === 1,
-        paramedic: row.qual_paramedic === 1,
-      },
-      leadershipRole: row.leadership_role || 'none',
-      assignedGroups,
-    };
-
-    res.json(device);
+    res.json(mapDeviceRow(rowWithGroups, true));
   } catch (error) {
     logger.error({ err: error }, 'Error fetching device');
     res.status(500).json({ error: 'Failed to fetch device' });
@@ -326,10 +273,10 @@ router.get('/:id', verifyDeviceToken, async (req: Request, res: Response) => {
 });
 
 // Get device details with full group information
-router.get('/:id/details', async (req: Request, res: Response) => {
+router.get('/:id/details', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const row = await dbGet('SELECT * FROM devices WHERE id = ?', [id]);
+    const row = await dbGet<DeviceRow>('SELECT * FROM devices WHERE id = ?', [id]);
 
     if (!row) {
       res.status(404).json({ error: 'Device not found' });
@@ -337,7 +284,7 @@ router.get('/:id/details', async (req: Request, res: Response) => {
     }
 
     // Get assigned groups with full details
-    const groupRows = await dbAll(
+    const groupRows = await dbAll<GroupRow>(
       `SELECT g.code, g.name, g.description, g.created_at 
        FROM groups g
        INNER JOIN device_groups dg ON g.code = dg.group_code
@@ -345,30 +292,9 @@ router.get('/:id/details', async (req: Request, res: Response) => {
       [id]
     );
 
-    const device: Device = {
-      id: row.id,
-      deviceToken: row.device_token,
-      registrationToken: row.registration_token,
-      platform: row.platform,
-      registeredAt: row.registered_at,
-      active: row.active === 1,
-      firstName: row.first_name,
-      lastName: row.last_name,
-      qualifications: {
-        machinist: row.qual_machinist === 1,
-        agt: row.qual_agt === 1,
-        paramedic: row.qual_paramedic === 1,
-      },
-      leadershipRole: row.leadership_role || 'none',
-      assignedGroups: groupRows.map((g: any) => g.code),
-    };
-
-    const assignedGroups = groupRows.map((g: any) => ({
-      code: g.code,
-      name: g.name,
-      description: g.description,
-      createdAt: g.created_at,
-    }));
+    const rowWithGroups: DeviceRow = { ...row, group_codes: groupRows.map((g) => g.code).join(',') || null };
+    const device = mapDeviceRow(rowWithGroups, true);
+    const assignedGroups = groupRows.map(mapGroupRow);
 
     res.json({
       device,

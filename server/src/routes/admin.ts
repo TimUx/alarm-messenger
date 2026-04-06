@@ -1,9 +1,15 @@
 import { Router, Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { generateToken, verifyAdmin, verifySession, generateCsrfToken, AuthRequest } from '../middleware/auth';
+import { addToBlacklist } from '../services/token-blacklist';
+import { mapEmergencyRow, mapResponderDetails } from '../mappers';
+import { EmergencyRow, DeviceRow } from '../models/db-types';
+import { validateBody } from '../middleware/validate';
+import { LoginSchema } from '../validation/schemas';
 import { addSseClient, removeSseClient } from '../services/sse';
 import logger from '../utils/logger';
 
@@ -16,14 +22,9 @@ const loginRateLimiter = rateLimit({
 });
 
 // Login endpoint
-router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
+router.post('/login', loginRateLimiter, validateBody(LoginSchema), async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
-
-    if (!username || !password) {
-      res.status(400).json({ error: 'Username and password are required' });
-      return;
-    }
 
     const user = await dbGet(
       'SELECT id, username, password_hash, role, full_name FROM admin_users WHERE username = ?',
@@ -66,6 +67,13 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
 
 // Logout endpoint - destroy session
 router.post('/logout', (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    const decoded = jwt.decode(token) as { exp?: number } | null;
+    const expiresAt = decoded?.exp ? decoded.exp * 1000 : Date.now() + 3600 * 1000;
+    addToBlacklist(token, expiresAt);
+  }
   req.session.destroy((err) => {
     if (err) {
       logger.error({ err }, 'Error destroying session');
@@ -104,7 +112,7 @@ router.post('/users', verifySession, verifyAdmin, async (req: AuthRequest, res: 
       return;
     }
 
-    const id = uuidv4();
+    const id = crypto.randomUUID();
     const passwordHash = await bcrypt.hash(password, 10);
     const createdAt = new Date().toISOString();
     const userRole = role || 'operator';
@@ -150,7 +158,7 @@ router.post('/init', async (req: Request, res: Response) => {
       return;
     }
 
-    const id = uuidv4();
+    const id = crypto.randomUUID();
     const passwordHash = await bcrypt.hash(password, 10);
     const createdAt = new Date().toISOString();
 
@@ -416,17 +424,7 @@ router.get('/emergencies', verifySession, async (req: AuthRequest, res: Response
       [limit, offset]
     );
 
-    const emergencies = rows.map((row: any) => ({
-      id: row.id,
-      emergencyNumber: row.emergency_number,
-      emergencyDate: row.emergency_date,
-      emergencyKeyword: row.emergency_keyword,
-      emergencyDescription: row.emergency_description,
-      emergencyLocation: row.emergency_location,
-      createdAt: row.created_at,
-      active: row.active === 1,
-      groups: row.groups,
-    }));
+    const emergencies = rows.map((row: EmergencyRow) => mapEmergencyRow(row));
 
     res.json({
       emergencies,
@@ -449,7 +447,7 @@ router.get('/emergencies/:id', verifySession, async (req: AuthRequest, res: Resp
     const { id } = req.params;
 
     // Get emergency details
-    const emergency = await dbGet('SELECT * FROM emergencies WHERE id = ?', [id]);
+    const emergency = await dbGet<EmergencyRow>('SELECT * FROM emergencies WHERE id = ?', [id]);
     
     if (!emergency) {
       res.status(404).json({ error: 'Emergency not found' });
@@ -467,22 +465,13 @@ router.get('/emergencies/:id', verifySession, async (req: AuthRequest, res: Resp
       [id]
     );
 
-    const responses = responseRows.map((row: any) => ({
+    const responses = responseRows.map((row: DeviceRow & any) => ({
       id: row.id,
       deviceId: row.device_id,
       platform: row.platform,
       participating: row.participating === 1,
       respondedAt: row.responded_at,
-      responder: {
-        firstName: row.first_name,
-        lastName: row.last_name,
-        qualifications: {
-          machinist: row.qual_machinist === 1,
-          agt: row.qual_agt === 1,
-          paramedic: row.qual_paramedic === 1,
-        },
-        leadershipRole: row.leadership_role || 'none',
-      },
+      responder: mapResponderDetails(row as DeviceRow),
     }));
 
     // Count participants
@@ -490,17 +479,7 @@ router.get('/emergencies/:id', verifySession, async (req: AuthRequest, res: Resp
     const nonParticipantsCount = responses.filter(r => !r.participating).length;
 
     res.json({
-      emergency: {
-        id: emergency.id,
-        emergencyNumber: emergency.emergency_number,
-        emergencyDate: emergency.emergency_date,
-        emergencyKeyword: emergency.emergency_keyword,
-        emergencyDescription: emergency.emergency_description,
-        emergencyLocation: emergency.emergency_location,
-        createdAt: emergency.created_at,
-        active: emergency.active === 1,
-        groups: emergency.groups,
-      },
+      emergency: mapEmergencyRow(emergency),
       responses,
       summary: {
         totalResponses: responses.length,

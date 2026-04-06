@@ -52,7 +52,7 @@ class _AlarmMessengerAppState extends State<AlarmMessengerApp> with WidgetsBindi
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       // When app comes to foreground, ensure WebSocket is connected
-      WebSocketService.ensureConnected();
+      WebSocketService().ensureConnected();
     }
   }
 

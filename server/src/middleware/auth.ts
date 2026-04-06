@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import 'express-session';
 import { decodeSecret, resolveSecret } from '../utils/secrets';
 import { dbGet } from '../services/database';
+import { isBlacklisted } from '../services/token-blacklist';
 import logger from '../utils/logger';
 
 declare module 'express-session' {
@@ -54,6 +55,11 @@ export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction)
 
   const token = authHeader.substring(7);
 
+  if (isBlacklisted(token)) {
+    res.status(401).json({ error: 'Token has been revoked' });
+    return;
+  }
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; username: string; role: string };
     req.userId = decoded.userId;
@@ -82,7 +88,7 @@ export const generateToken = (userId: string, username: string, role: string = '
   return jwt.sign(
     { userId, username, role },
     JWT_SECRET,
-    { expiresIn: '24h' }
+    { expiresIn: '1h' }
   );
 };
 
