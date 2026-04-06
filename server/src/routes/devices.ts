@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import QRCode from 'qrcode';
 import rateLimit from 'express-rate-limit';
 import { dbRun, dbGet, dbAll } from '../services/database';
-import { verifyToken, verifyAdmin, verifySession, AuthRequest, verifyDeviceToken } from '../middleware/auth';
+import { verifyToken, verifyAdmin, verifySession, AuthRequest, verifyDeviceToken, generateDeviceToken } from '../middleware/auth';
 import { Device } from '../models/types';
 import { DeviceRow } from '../models/db-types';
 import { mapDeviceRow, mapGroupRow } from '../mappers';
@@ -148,7 +148,10 @@ router.post('/register', registrationRateLimiter, validateBody(DeviceRegistratio
       leadershipRole: leadershipRole || 'none',
     };
 
-    res.json(device);
+    // Issue a WebSocket JWT so the device can authenticate the /ws connection
+    const wsToken = generateDeviceToken(existing.id);
+
+    res.json({ ...device, wsToken });
   } catch (error) {
     logger.error({ err: error }, 'Error registering device');
     res.status(500).json({ error: 'Failed to register device' });

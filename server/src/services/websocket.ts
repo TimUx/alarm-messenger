@@ -1,7 +1,9 @@
 import { Server as HTTPServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
+import jwt from 'jsonwebtoken';
 import { redisPubSubService } from './redis-pubsub';
 import { dbGet } from './database';
+import { JWT_SECRET } from '../middleware/auth';
 import logger from '../utils/logger';
 
 interface Client {
@@ -17,9 +19,38 @@ class WebSocketService {
   initialize(server: HTTPServer): void {
     this.wss = new WebSocketServer({ server, path: '/ws' });
 
-    this.wss.on('connection', (ws: WebSocket) => {
-      logger.info('New WebSocket connection');
+    this.wss.on('connection', async (ws: WebSocket, req) => {
+      // Authenticate via JWT provided as ?token= query parameter
       let deviceId: string | null = null;
+      try {
+        const token = new URL(req.url || '?', 'http://localhost').searchParams.get('token');
+        if (!token) throw new Error('No token');
+        const payload = jwt.verify(token, JWT_SECRET) as { deviceId?: string };
+        if (!payload.deviceId) throw new Error('Missing deviceId in token');
+        deviceId = payload.deviceId;
+      } catch {
+        ws.close(4001, 'Unauthorized');
+        return;
+      }
+
+      // Verify the device is active in the database
+      try {
+        const device = await dbGet('SELECT id, active FROM devices WHERE id = ?', [deviceId]);
+        if (!device || device.active !== 1) {
+          ws.close(4001, 'Unauthorized');
+          return;
+        }
+      } catch (error) {
+        logger.error({ err: error }, 'Error verifying device during WebSocket upgrade');
+        ws.close(1011, 'Internal error');
+        return;
+      }
+
+      logger.info(`New WebSocket connection for device: ${deviceId}`);
+
+      // Register the authenticated device immediately
+      this.clients.set(deviceId, { ws, deviceId, isAlive: true });
+      ws.send(JSON.stringify({ type: 'registered', deviceId }));
 
       // Send ping every 30 seconds to keep connection alive
       const pingInterval = setInterval(() => {
@@ -51,36 +82,7 @@ class WebSocketService {
       ws.on('message', async (message: string) => {
         try {
           const data = JSON.parse(message.toString());
-
-          if (data.type === 'register' && data.deviceToken) {
-            const device = await dbGet(
-              'SELECT id, active FROM devices WHERE device_token = ?',
-              [data.deviceToken]
-            );
-
-            if (!device || device.active !== 1) {
-              ws.send(JSON.stringify({ type: 'error', message: 'Invalid or inactive device token' }));
-              ws.close();
-              return;
-            }
-
-            const registeredDeviceId = device.id;
-            deviceId = registeredDeviceId;
-            logger.info(`Device registered via WebSocket: ${registeredDeviceId}`);
-
-            // Store the client connection
-            this.clients.set(registeredDeviceId, {
-              ws,
-              deviceId: registeredDeviceId,
-              isAlive: true,
-            });
-
-            // Send confirmation
-            ws.send(JSON.stringify({
-              type: 'registered',
-              deviceId: registeredDeviceId,
-            }));
-          }
+          logger.debug({ type: data.type, deviceId }, 'WebSocket message received');
         } catch (error) {
           logger.error({ err: error }, 'Error processing WebSocket message');
         }
