@@ -182,7 +182,12 @@ startServer();
 
 async function shutdown(signal: string): Promise<void> {
   logger.info(`Received ${signal}, starting graceful shutdown...`);
+  const hardKillTimer = setTimeout(() => {
+    logger.error('Hard kill timeout - forcing exit');
+    process.exit(1);
+  }, 10000);
   server.close(async () => {
+    clearTimeout(hardKillTimer);
     try {
       emergencyScheduler.stop();
       await redisPubSubService.disconnect();
@@ -194,10 +199,6 @@ async function shutdown(signal: string): Promise<void> {
       process.exit(1);
     }
   });
-  setTimeout(() => {
-    logger.error('Hard kill timeout - forcing exit');
-    process.exit(1);
-  }, 10000);
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
