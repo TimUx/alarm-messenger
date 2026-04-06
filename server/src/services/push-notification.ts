@@ -114,12 +114,20 @@ class PushNotificationService {
         return;
       }
 
-      if (!fs.existsSync(serviceAccountPath)) {
-        logger.warn(`⚠️  FCM service account file not found: ${serviceAccountPath}`);
+      // Validate the path stays within the allowed config directory to prevent path traversal
+      const resolvedPath = path.resolve(serviceAccountPath);
+      const allowedDir = path.resolve('/app/config');
+      if (!resolvedPath.startsWith(allowedDir + path.sep) && resolvedPath !== allowedDir) {
+        logger.error('[FATAL] FCM_SERVICE_ACCOUNT_PATH is outside allowed directory (/app/config). Exiting.');
+        process.exit(1);
+      }
+
+      if (!fs.existsSync(resolvedPath)) {
+        logger.warn(`⚠️  FCM service account file not found: ${resolvedPath}`);
         return;
       }
 
-      const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+      const serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
 
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),

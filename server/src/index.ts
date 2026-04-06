@@ -81,19 +81,23 @@ app.use(helmet({
 }));
 
 // CORS configuration - restrict in production
-const corsOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-  : (IS_PRODUCTION ? false : 'http://localhost:3000');
+const corsOriginsEnv = process.env.CORS_ORIGINS || '*';
 
-if (IS_PRODUCTION && (!process.env.CORS_ORIGINS || process.env.CORS_ORIGINS === '*')) {
-  logger.warn('⚠️  WARNING: CORS_ORIGINS is not restricted in production! Set CORS_ORIGINS to your allowed origins.');
+if (corsOriginsEnv === '*') {
+  logger.warn('[SECURITY] CORS_ORIGINS is set to * — all origins are allowed. Restrict this in production.');
 }
 
 const corsOptions = {
-  origin: corsOrigins,
+  origin: corsOriginsEnv === '*' ? '*' : corsOriginsEnv.split(',').map(o => o.trim()),
+  credentials: corsOriginsEnv !== '*',
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
+
+// Health check — registered before any auth middleware so the container health check always succeeds
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Rate limiting
 const limiter = rateLimit({
@@ -146,11 +150,6 @@ app.use('/api/info', infoRoutes);
 
 // Global error handler
 app.use(errorHandler);
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 // Initialize database and WebSocket
 let server: http.Server;

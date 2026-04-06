@@ -14,7 +14,7 @@ declare module 'express-session' {
   }
 }
 
-const JWT_SECRET = resolveSecret('JWT_SECRET') || 'change-this-secret-in-production';
+export const JWT_SECRET = resolveSecret('JWT_SECRET') || 'change-this-secret-in-production';
 const VALID_API_KEY = decodeSecret(process.env.API_SECRET_KEY) || 'change-me-in-production';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
@@ -24,6 +24,13 @@ if (JWT_SECRET === 'change-this-secret-in-production') {
   if (IS_PRODUCTION) {
     throw new Error('JWT_SECRET must be set to a secure value in production environments');
   }
+} else if (JWT_SECRET.length < 32) {
+  const message = '⚠️  WARNING: JWT_SECRET is too short (minimum 32 characters). Set a longer JWT_SECRET in your .env file!';
+  logger.error(message);
+  if (IS_PRODUCTION) {
+    logger.error('[FATAL] JWT_SECRET is missing or too short (minimum 32 characters). Exiting.');
+    process.exit(1);
+  }
 }
 
 if (VALID_API_KEY === 'change-me-in-production') {
@@ -31,6 +38,13 @@ if (VALID_API_KEY === 'change-me-in-production') {
   logger.error(message);
   if (IS_PRODUCTION) {
     throw new Error('API_SECRET_KEY must be set to a secure value in production environments');
+  }
+} else if (VALID_API_KEY.length < 32) {
+  const message = '⚠️  WARNING: API_SECRET_KEY is too short (minimum 32 characters). Set a longer API_SECRET_KEY in your .env file!';
+  logger.error(message);
+  if (IS_PRODUCTION) {
+    logger.error('[FATAL] API_SECRET_KEY is missing or too short (minimum 32 characters). Exiting.');
+    process.exit(1);
   }
 }
 
@@ -75,11 +89,17 @@ export const verifyToken = async (req: AuthRequest, res: Response, next: NextFun
   }
 };
 
+function safeCompare(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 // Middleware to verify API key for emergency creation
 export const verifyApiKey = (req: Request, res: Response, next: NextFunction) => {
-  const apiKey = req.headers['x-api-key'] as string;
+  const apiKey = (req.headers['x-api-key'] as string) || '';
 
-  if (!apiKey || apiKey !== VALID_API_KEY) {
+  if (!safeCompare(apiKey, VALID_API_KEY)) {
     res.status(401).json({ error: 'Invalid or missing API key' });
     return;
   }
@@ -87,12 +107,21 @@ export const verifyApiKey = (req: Request, res: Response, next: NextFunction) =>
   next();
 };
 
-// Generate JWT token
+// Generate JWT token for admin users
 export const generateToken = (userId: string, username: string, role: string = 'admin'): string => {
   return jwt.sign(
     { userId, username, role },
     JWT_SECRET,
     { expiresIn: '1h' }
+  );
+};
+
+// Generate JWT token for device WebSocket authentication
+export const generateDeviceToken = (deviceId: string): string => {
+  return jwt.sign(
+    { deviceId },
+    JWT_SECRET,
+    { expiresIn: '24h' }
   );
 };
 

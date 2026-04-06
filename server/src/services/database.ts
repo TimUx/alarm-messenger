@@ -132,10 +132,7 @@ const MIGRATIONS: { version: number; description: string; run: () => Promise<voi
 
 export async function initializeDatabase(): Promise<void> {
   // Ensure data directory exists
-  const dataDir = path.dirname(dbPath);
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
   return new Promise((resolve, reject) => {
     db = new sqlite3.Database(dbPath, (err) => {
