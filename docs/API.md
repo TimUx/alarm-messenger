@@ -19,6 +19,7 @@
   - [Alle Geräte abrufen](#alle-geräte-abrufen)
   - [Gerät nach ID abrufen](#gerät-nach-id-abrufen)
   - [Geräte-Details mit Gruppen abrufen](#geräte-details-mit-gruppen-abrufen)
+  - [Push-Token aktualisieren](#push-token-aktualisieren)
   - [Gerät deaktivieren](#gerät-deaktivieren)
 - [Server-Informationen](#server-informationen)
   - [Server-Info abrufen](#server-info-abrufen)
@@ -98,9 +99,14 @@ X-API-Key: ihr-geheimer-api-key
   "emergencyDate": "2024-12-07T19:00:00Z",
   "emergencyKeyword": "BRAND 3",
   "emergencyDescription": "Wohnungsbrand im 2. OG, Menschenrettung",
-  "emergencyLocation": "Hauptstraße 123, 12345 Stadt"
+  "emergencyLocation": "Hauptstraße 123, 12345 Stadt",
+  "groups": "WIL26,SWA11"
 }
 ```
+
+**Parameter:**
+- `emergencyNumber`, `emergencyDate`, `emergencyKeyword`, `emergencyDescription`, `emergencyLocation` – Pflichtfelder
+- `groups` – Optional: Kommagetrennte Liste von Gruppen-Codes. Wenn angegeben, werden nur Geräte der genannten Gruppen benachrichtigt. Ohne dieses Feld werden alle aktiven Geräte benachrichtigt.
 
 **Antwort:** `201 Created`
 ```json
@@ -112,38 +118,65 @@ X-API-Key: ihr-geheimer-api-key
   "emergencyDescription": "Wohnungsbrand im 2. OG, Menschenrettung",
   "emergencyLocation": "Hauptstraße 123, 12345 Stadt",
   "createdAt": "2024-12-07T19:00:00.000Z",
-  "active": true
+  "active": true,
+  "groups": "WIL26,SWA11"
 }
 ```
 
 **Fehlerantworten:**
-- `400 Bad Request` - Erforderliche Felder fehlen
+- `400 Bad Request` - Erforderliche Felder fehlen oder ungültige Zeichen im `groups`-Parameter
 - `401 Unauthorized` - API-Key fehlt oder ist ungültig
+- `409 Conflict` - Ein aktiver Einsatz mit dieser Nummer existiert bereits
 - `500 Internal Server Error` - Serverfehler oder API-Key nicht konfiguriert (Produktionsmodus)
 
 ---
 
 ### Alle Einsätze abrufen
 
-Ruft alle Einsätze sortiert nach Erstellungsdatum ab (neueste zuerst).
+Ruft alle Einsätze sortiert nach Erstellungsdatum ab (neueste zuerst). Standardmäßig werden nur aktive Einsätze zurückgegeben.
 
 **Endpunkt:** `GET /api/emergencies`
 
+🔒 **Authentifizierung erforderlich:** Device-Token über `X-Device-Token` Header
+
+**Request Header:**
+```
+X-Device-Token: ihr-geräte-token
+```
+
+**Query-Parameter (optional):**
+- `page` – Seite (Standard: 1)
+- `limit` – Einträge pro Seite (Standard: 50, max. 200)
+- `includeInactive=true` – Auch abgeschlossene Einsätze einschließen
+- `emergencyNumber` – Einsätze nach Einsatznummer filtern
+
 **Antwort:** `200 OK`
 ```json
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "emergencyNumber": "2024-001",
-    "emergencyDate": "2024-12-07T19:00:00Z",
-    "emergencyKeyword": "BRAND 3",
-    "emergencyDescription": "Wohnungsbrand im 2. OG",
-    "emergencyLocation": "Hauptstraße 123, 12345 Stadt",
-    "createdAt": "2024-12-07T19:00:00.000Z",
-    "active": true
+{
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "emergencyNumber": "2024-001",
+      "emergencyDate": "2024-12-07T19:00:00Z",
+      "emergencyKeyword": "BRAND 3",
+      "emergencyDescription": "Wohnungsbrand im 2. OG",
+      "emergencyLocation": "Hauptstraße 123, 12345 Stadt",
+      "createdAt": "2024-12-07T19:00:00.000Z",
+      "active": true,
+      "groups": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 1,
+    "totalPages": 1
   }
-]
+}
 ```
+
+**Fehlerantworten:**
+- `401 Unauthorized` - Device-Token fehlt oder ist ungültig
 
 ---
 
@@ -152,6 +185,13 @@ Ruft alle Einsätze sortiert nach Erstellungsdatum ab (neueste zuerst).
 Ruft einen spezifischen Einsatz ab.
 
 **Endpunkt:** `GET /api/emergencies/:id`
+
+🔒 **Authentifizierung erforderlich:** Device-Token über `X-Device-Token` Header
+
+**Request Header:**
+```
+X-Device-Token: ihr-geräte-token
+```
 
 **Antwort:** `200 OK`
 ```json
@@ -163,11 +203,13 @@ Ruft einen spezifischen Einsatz ab.
   "emergencyDescription": "Wohnungsbrand im 2. OG",
   "emergencyLocation": "Hauptstraße 123, 12345 Stadt",
   "createdAt": "2024-12-07T19:00:00.000Z",
-  "active": true
+  "active": true,
+  "groups": null
 }
 ```
 
 **Fehlerantworten:**
+- `401 Unauthorized` - Device-Token fehlt oder ist ungültig
 - `404 Not Found` - Einsatz nicht gefunden
 
 ---
@@ -178,10 +220,17 @@ Sendet die Rückmeldung eines Geräts (Teilnahme oder Ablehnung) zu einem Einsat
 
 **Endpunkt:** `POST /api/emergencies/:id/responses`
 
+🔒 **Authentifizierung erforderlich:** Device-Token über `X-Device-Token` Header
+
+**Request Header:**
+```
+Content-Type: application/json
+X-Device-Token: ihr-geräte-token
+```
+
 **Request Body:**
 ```json
 {
-  "deviceId": "device-uuid",
   "participating": true
 }
 ```
@@ -199,7 +248,8 @@ Sendet die Rückmeldung eines Geräts (Teilnahme oder Ablehnung) zu einem Einsat
 
 **Fehlerantworten:**
 - `400 Bad Request` - Erforderliche Felder fehlen
-- `404 Not Found` - Einsatz oder Gerät nicht gefunden
+- `401 Unauthorized` - Device-Token fehlt oder ist ungültig
+- `404 Not Found` - Einsatz nicht gefunden
 
 ---
 
@@ -350,7 +400,7 @@ Generiert einen QR-Code für die Geräteregistrierung.
 
 ### Gerät registrieren
 
-Registriert ein mobiles Gerät beim Server.
+Registriert ein mobiles Gerät beim Server. Der `deviceToken` muss zuvor über den Endpunkt `POST /api/devices/registration-token` generiert worden sein.
 
 **Endpunkt:** `POST /api/devices/register`
 
@@ -359,16 +409,31 @@ Registriert ein mobiles Gerät beim Server.
 {
   "deviceToken": "generated-uuid",
   "registrationToken": "device-unique-identifier",
-  "platform": "android"
+  "platform": "android",
+  "firstName": "Max",
+  "lastName": "Mustermann",
+  "qualifications": {
+    "machinist": true,
+    "agt": false,
+    "paramedic": false
+  },
+  "leadershipRole": "none",
+  "fcmToken": "firebase-cloud-messaging-token",
+  "apnsToken": "apple-push-notification-token"
 }
 ```
 
 **Parameter:**
-- `deviceToken` - Token vom QR-Code
-- `registrationToken` - Eindeutige Geräte-ID für WebSocket-Verbindung
-- `platform` - Entweder "ios" oder "android"
+- `deviceToken` – Token vom QR-Code (Pflichtfeld)
+- `registrationToken` – Eindeutige Geräte-ID für WebSocket-Verbindung (Pflichtfeld)
+- `platform` – Entweder `"ios"` oder `"android"` (Pflichtfeld)
+- `firstName`, `lastName` – Optionaler Name der Einsatzkraft
+- `qualifications` – Optionale Qualifikationen (`machinist`, `agt`, `paramedic`)
+- `leadershipRole` – Optionale Führungsrolle: `"none"`, `"groupLeader"`, `"commandLeader"`
+- `fcmToken` – Optionaler Firebase Cloud Messaging Token (Android Push-Benachrichtigungen)
+- `apnsToken` – Optionaler Apple Push Notification Service Token (iOS Push-Benachrichtigungen)
 
-**Antwort:** `201 Created` (oder `200 OK` bei Aktualisierung eines existierenden)
+**Antwort:** `200 OK`
 ```json
 {
   "id": "device-uuid",
@@ -376,12 +441,21 @@ Registriert ein mobiles Gerät beim Server.
   "registrationToken": "device-unique-identifier",
   "platform": "android",
   "registeredAt": "2024-12-07T19:00:00.000Z",
-  "active": true
+  "active": true,
+  "firstName": "Max",
+  "lastName": "Mustermann",
+  "qualifications": {
+    "machinist": true,
+    "agt": false,
+    "paramedic": false
+  },
+  "leadershipRole": "none"
 }
 ```
 
 **Fehlerantworten:**
 - `400 Bad Request` - Erforderliche Felder fehlen oder ungültige Plattform
+- `403 Forbidden` - Ungültiger, abgelaufener oder bereits aktiver Token
 
 ---
 
@@ -483,6 +557,47 @@ Ruft ein spezifisches Gerät mit vollständigen Gruppeninformationen ab.
 ```
 
 **Fehlerantworten:**
+- `404 Not Found` - Gerät nicht gefunden
+
+---
+
+### Push-Token aktualisieren
+
+Aktualisiert den FCM- oder APNs-Push-Token eines registrierten Geräts (z. B. nach App-Update oder Token-Rotation).
+
+**Endpunkt:** `POST /api/devices/update-push-token`
+
+🔒 **Authentifizierung erforderlich:** Device-Token über `X-Device-Token` Header
+
+**Request Header:**
+```
+Content-Type: application/json
+X-Device-Token: ihr-geräte-token
+```
+
+**Request Body:**
+```json
+{
+  "deviceToken": "generated-uuid",
+  "fcmToken": "neuer-firebase-token"
+}
+```
+
+**Parameter:**
+- `deviceToken` – Device-Token (Pflichtfeld)
+- `fcmToken` – Neuer FCM-Token (Android; optional, wenn `apnsToken` angegeben)
+- `apnsToken` – Neuer APNs-Token (iOS; optional, wenn `fcmToken` angegeben)
+
+**Antwort:** `200 OK`
+```json
+{
+  "message": "Push token updated successfully"
+}
+```
+
+**Fehlerantworten:**
+- `400 Bad Request` - `deviceToken` fehlt oder weder `fcmToken` noch `apnsToken` angegeben
+- `401 Unauthorized` - `X-Device-Token` Header fehlt oder ungültig
 - `404 Not Found` - Gerät nicht gefunden
 
 ---

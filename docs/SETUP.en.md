@@ -7,8 +7,9 @@
   - [Step 1: Install Dependencies](#step-1-install-dependencies)
   - [Step 2: Configure Environment Variables](#step-2-configure-environment-variables)
   - [Step 3: Build Application](#step-3-build-application)
-  - [Step 4: Create Admin User](#step-4-create-admin-user)
-  - [Step 5: Start Server](#step-5-start-server)
+  - [Step 4: Start Server](#step-4-start-server)
+  - [Step 5: Create Admin User](#step-5-create-admin-user)
+  - [Step 6: Verify Installation](#step-6-verify-installation)
 - [Production Deployment](#production-deployment)
   - [Systemd Service](#systemd-service)
   - [PM2 Process Manager](#pm2-process-manager)
@@ -82,9 +83,24 @@ npm start
 
 The server will start on the port specified in `.env` (default: 3000).
 
-**Note:** The system uses WebSocket for push notifications. Firebase is no longer required!
+**Note:** The system uses WebSocket for push notifications. FCM (Firebase) and APNs are optionally configurable but not required.
 
-## Step 5: Verify Installation
+## Step 5: Create Admin User
+
+On first start there are no admin users yet. Create the first administrator using the init endpoint:
+
+```bash
+curl -X POST http://localhost:3000/api/admin/init \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "your-secure-password"
+  }'
+```
+
+This endpoint can only be called when **no** admin users exist yet. Afterwards, the admin can create additional users via `POST /api/admin/users`.
+
+## Step 6: Verify Installation
 
 Test the health endpoint:
 
@@ -115,6 +131,7 @@ The SQLite database is automatically created at first run in the `data` director
 - `emergency_location` (TEXT)
 - `created_at` (TEXT)
 - `active` (INTEGER)
+- `groups` (TEXT, optional – comma-separated group codes)
 
 **devices**
 - `id` (TEXT, PRIMARY KEY)
@@ -123,6 +140,16 @@ The SQLite database is automatically created at first run in the `data` director
 - `platform` (TEXT)
 - `registered_at` (TEXT)
 - `active` (INTEGER)
+- `first_name` (TEXT)
+- `last_name` (TEXT)
+- `qual_machinist` (INTEGER)
+- `qual_agt` (INTEGER)
+- `qual_paramedic` (INTEGER)
+- `leadership_role` (TEXT)
+- `fcm_token` (TEXT)
+- `apns_token` (TEXT)
+- `qr_code_data` (TEXT)
+- `registration_expires_at` (TEXT)
 
 **responses**
 - `id` (TEXT, PRIMARY KEY)
@@ -130,6 +157,40 @@ The SQLite database is automatically created at first run in the `data` director
 - `device_id` (TEXT, FOREIGN KEY)
 - `participating` (INTEGER)
 - `responded_at` (TEXT)
+
+**admin_users**
+- `id` (TEXT, PRIMARY KEY)
+- `username` (TEXT, UNIQUE)
+- `password_hash` (TEXT)
+- `full_name` (TEXT)
+- `role` (TEXT – `"admin"` or `"operator"`)
+- `created_at` (TEXT)
+
+**groups**
+- `code` (TEXT, PRIMARY KEY)
+- `name` (TEXT)
+- `description` (TEXT)
+- `created_at` (TEXT)
+
+**device_groups**
+- `device_id` (TEXT, FOREIGN KEY)
+- `group_code` (TEXT, FOREIGN KEY)
+- `assigned_at` (TEXT)
+
+**notification_outbox** (per-device notification delivery tracking)
+- `id` (TEXT, PRIMARY KEY)
+- `emergency_id` (TEXT, FOREIGN KEY)
+- `device_id` (TEXT, FOREIGN KEY)
+- `channel` (TEXT – `"fcm"`, `"apns"` or `"websocket"`)
+- `status` (TEXT – `"pending"`, `"delivered"` or `"failed"`)
+- `retry_count` (INTEGER)
+- `last_error` (TEXT)
+- `created_at` (TEXT)
+- `updated_at` (TEXT)
+
+**revoked_tokens** (JWT blacklist)
+- `token_hash` (TEXT, PRIMARY KEY)
+- `expires_at` (TEXT)
 
 ### Backup Database
 

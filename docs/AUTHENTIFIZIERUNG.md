@@ -76,15 +76,16 @@ const response = await fetch('http://alarm-messenger-server:3000/api/emergencies
 });
 ```
 
-### 2. JWT-Token-Authentifizierung (für Admin-Interface)
+### 2. Session + CSRF-Authentifizierung (für Admin-Interface)
 
 **Verwendungszweck:** Admin-Benutzer, die auf das Web-Interface zugreifen möchten.
 
 **Implementierung:**
-- Verwendet JWT (JSON Web Tokens) mit Bearer-Schema
-- Token wird über den HTTP-Header `Authorization: Bearer <token>` übermittelt
-- JWT-Secret wird in der Umgebungsvariable `JWT_SECRET` konfiguriert
-- Token-Gültigkeit: 24 Stunden
+- Login-Endpunkt setzt ein HttpOnly Session-Cookie (`connect.sid`)
+- Login-Antwort enthält zusätzlich ein JWT-Token und einen CSRF-Token
+- Zustandsverändernde Anfragen (POST/PUT/DELETE) erfordern den `X-CSRF-Token` Header
+- Session-Gültigkeit wird serverseitig verwaltet
+- JWT-Gültigkeit: 1 Stunde
 - Passwörter werden mit bcrypt gehasht gespeichert
 
 **Konfiguration:**
@@ -96,9 +97,18 @@ JWT_SECRET=ihr-jwt-geheimnis-hier
 
 ⚠️ **Sicherheitshinweis:** Verwenden Sie ein starkes, zufälliges JWT-Secret im Produktivbetrieb!
 
-**Geschützte Endpunkte:**
-- `POST /api/admin/users` - Zusätzliche Admin-Benutzer erstellen
-- `PUT /api/admin/devices/:id` - Geräteinformationen aktualisieren
+**Geschützte Endpunkte (Session-basiert):**
+- `POST /api/admin/users` - Zusätzliche Admin-Benutzer erstellen (Admin-Rolle erforderlich)
+- `PUT /api/admin/users/:id` - Admin-Benutzer aktualisieren (Admin-Rolle erforderlich)
+- `DELETE /api/admin/users/:id` - Admin-Benutzer löschen (Admin-Rolle erforderlich)
+- `PUT /api/admin/users/:id/password` - Passwort ändern
+- `GET /api/admin/users` - Alle Benutzer abrufen (Admin-Rolle erforderlich)
+- `GET /api/admin/profile` - Eigenes Profil abrufen
+- `PUT /api/admin/devices/:id` - Geräteinformationen aktualisieren (Admin-Rolle erforderlich)
+- `PATCH /api/admin/emergencies/:id` - Einsatz manuell beenden
+- `GET /api/admin/emergencies` - Einsatzhistorie abrufen
+- `GET /api/admin/emergencies/:id` - Einsatz-Details abrufen
+- `GET /api/admin/events` - Server-Sent Events (SSE) für Echtzeit-Updates
 
 **Login-Ablauf:**
 
@@ -126,38 +136,59 @@ Antwort:
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "userId": "uuid",
-  "username": "admin"
+  "csrfToken": "random-csrf-token-hex",
+  "user": {
+    "id": "uuid",
+    "username": "admin",
+    "role": "admin",
+    "fullName": null
+  }
 }
 ```
 
-3. **Token für geschützte Anfragen verwenden:**
+3. **Session-Cookie und CSRF-Token für geschützte Anfragen verwenden:**
 ```bash
+# Session-Cookie wird automatisch beim Login gesetzt
+# Für zustandsverändernde Anfragen (POST/PUT/DELETE) muss der CSRF-Token als Header mitgesendet werden:
 curl -X PUT http://localhost:3000/api/admin/devices/device-id \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "X-CSRF-Token: <csrfToken-aus-Login-Antwort>" \
+  -b "connect.sid=<session-cookie>" \
   -d '{
-    "responderName": "Max Mustermann",
+    "firstName": "Max",
+    "lastName": "Mustermann",
     "qualifications": {
       "machinist": true,
-      "agt": true
-    }
+      "agt": true,
+      "paramedic": false
+    },
+    "leadershipRole": "groupLeader"
   }'
 ```
 
 ## Mobile App Authentifizierung
 
-**Wichtig:** Die Mobile App selbst benötigt **keine Authentifizierung** für ihre Funktionen:
+Die Mobile App verwendet **Device-Token-Authentifizierung** für ihre Funktionen:
 
-- **Geräteregistrierung** (`POST /api/devices/register`) - Keine Authentifizierung erforderlich
-- **Einsätze abrufen** (`GET /api/emergencies`) - Keine Authentifizierung erforderlich
-- **Rückmeldung absenden** (`POST /api/emergencies/:id/responses`) - Keine Authentifizierung erforderlich
+- **Geräteregistrierung** (`POST /api/devices/register`) - Kein Token erforderlich (Token wird aus dem QR-Code verwendet)
+- **Einsätze abrufen** (`GET /api/emergencies`) - `X-Device-Token` Header erforderlich
+- **Einsatz nach ID abrufen** (`GET /api/emergencies/:id`) - `X-Device-Token` Header erforderlich
+- **Rückmeldung absenden** (`POST /api/emergencies/:id/responses`) - `X-Device-Token` Header erforderlich
 
-**Grund:** Die Geräte authentifizieren sich durch:
-1. Das deviceToken, das beim Scannen des QR-Codes erhalten wird
-2. Die registrationToken (WebSocket-Verbindungs-ID)
+**Implementierung:**
 
-Diese Tokens ermöglichen die Identifikation des Geräts ohne zusätzliche Authentifizierung.
+Die Mobile App sendet den `deviceToken` (erhalten beim QR-Code-Scan und der Registrierung) als HTTP-Header:
+```
+X-Device-Token: <deviceToken>
+```
+
+Der Server prüft, ob der Token in der Datenbank existiert und das Gerät aktiv ist. Das Gerät wird so automatisch identifiziert, ohne zusätzliche Anmeldedaten.
+
+**Warum Device-Token-Authentifizierung?**
+- Geräte werden durch den Registrierungsprozess (QR-Code) autorisiert
+- DeviceToken dient als eindeutige Identifikation
+- Vereinfacht die Mobile-App-Architektur
+- Rückmeldungen werden automatisch dem richtigen Gerät zugeordnet
 
 ## Sicherheitsmodell
 
@@ -192,17 +223,13 @@ Das System erkennt automatisch, ob ein Secret Base64-kodiert ist und dekodiert e
    - Geeignet für Server-zu-Server-Kommunikation
    - Kann einfach rotiert werden, ohne alle Benutzer zu beeinflussen
 
-2. **JWT für Admin-Interface:**
+2. **Session + CSRF für Admin-Interface:**
    - Ermöglicht benutzerspezifische Authentifizierung
-   - Token haben eine begrenzte Gültigkeit (24 Stunden)
+   - HttpOnly-Session-Cookie verhindert JavaScript-Zugriff auf Anmeldedaten
+   - CSRF-Schutz für zustandsverändernde Anfragen
+   - JWT mit begrenzter Gültigkeit (1 Stunde) für zustandslose Verifizierung
    - Unterstützt mehrere Admin-Benutzer mit individuellen Credentials
    - Standard-Methode für Web-Interfaces
-
-3. **Keine Authentifizierung für Mobile App:**
-   - Geräte werden durch den Registrierungsprozess (QR-Code) autorisiert
-   - DeviceToken dient als Identifikation
-   - Vereinfacht die Mobile-App-Architektur
-   - Ausreichend für das Sicherheitsmodell (Geräte müssen physisch registriert werden)
 
 ### Sicherheits-Best-Practices
 
@@ -249,7 +276,25 @@ HTTP 500 Internal Server Error
 }
 ```
 
-### JWT-Authentifizierung
+### Device-Token-Authentifizierung
+
+**Fehlender Device-Token:**
+```json
+HTTP 401 Unauthorized
+{
+  "error": "Missing X-Device-Token header"
+}
+```
+
+**Ungültiger oder inaktiver Device-Token:**
+```json
+HTTP 401 Unauthorized
+{
+  "error": "Invalid or inactive device token"
+}
+```
+
+### JWT- / Session-Authentifizierung
 
 **Fehlender Token:**
 ```json
@@ -275,17 +320,8 @@ Die Authentifizierungs-Middleware ist in `server/src/middleware/auth.ts` impleme
 ```typescript
 export const verifyApiKey = (req: Request, res: Response, next: NextFunction) => {
   const apiKey = req.headers['x-api-key'] as string;
-  const validApiKey = process.env.API_SECRET_KEY || 'change-me-in-production';
 
-  if (validApiKey === 'change-me-in-production') {
-    // Warnung ausgeben und in Produktivumgebung ablehnen
-    if (IS_PRODUCTION) {
-      res.status(500).json({ error: 'Server configuration error: API_SECRET_KEY not properly configured' });
-      return;
-    }
-  }
-
-  if (!apiKey || apiKey !== validApiKey) {
+  if (!apiKey || apiKey !== VALID_API_KEY) {
     res.status(401).json({ error: 'Invalid or missing API key' });
     return;
   }
@@ -294,26 +330,58 @@ export const verifyApiKey = (req: Request, res: Response, next: NextFunction) =>
 };
 ```
 
-### verifyToken Middleware
+### verifySession Middleware (Admin-Interface)
 ```typescript
-export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'No token provided' });
+export const verifySession = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  const userId = req.session.userId;
+
+  if (!userId) {
+    res.status(401).json({ error: 'Not authenticated' });
     return;
   }
 
-  const token = authHeader.substring(7);
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; username: string };
-    req.userId = decoded.userId;
-    req.username = decoded.username;
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid or expired token' });
+  // CSRF-Schutz für zustandsverändernde Anfragen
+  const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+  if (!SAFE_METHODS.has(req.method.toUpperCase())) {
+    const csrfToken = req.headers['x-csrf-token'] as string | undefined;
+    if (!csrfToken || csrfToken !== req.session.csrfToken) {
+      res.status(403).json({ error: 'Invalid CSRF token' });
+      return;
+    }
   }
+
+  const user = await dbGet('SELECT id, username, role FROM admin_users WHERE id = ?', [userId]);
+  if (!user) {
+    res.status(401).json({ error: 'Session invalid' });
+    return;
+  }
+
+  req.userId = user.id;
+  req.username = user.username;
+  req.userRole = user.role || 'admin';
+  next();
+};
+```
+
+### verifyDeviceToken Middleware
+```typescript
+export const verifyDeviceToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const deviceToken = req.headers['x-device-token'] as string | undefined;
+
+  if (!deviceToken) {
+    res.status(401).json({ error: 'Missing X-Device-Token header' });
+    return;
+  }
+
+  const device = await dbGet('SELECT id, active FROM devices WHERE device_token = ?', [deviceToken]);
+
+  if (!device || device.active !== 1) {
+    res.status(401).json({ error: 'Invalid or inactive device token' });
+    return;
+  }
+
+  (req as DeviceRequest).device = { id: device.id };
+  next();
 };
 ```
 
@@ -390,10 +458,10 @@ curl -X POST https://ihre-domain.de/api/emergencies \
 ## Zusammenfassung
 
 - ✅ **Authentifizierung ist bereits implementiert** für kritische Endpunkte
-- ✅ **API-Key-Authentifizierung** schützt die Einsatzerstellung
-- ✅ **JWT-Authentifizierung** schützt das Admin-Interface
-- ✅ **Mobile App** benötigt keine zusätzliche Authentifizierung (Geräte-basierte Autorisierung)
+- ✅ **API-Key-Authentifizierung** schützt die Einsatzerstellung und Rückmeldungs-Abfragen
+- ✅ **Session + CSRF-Authentifizierung** schützt das Admin-Interface
+- ✅ **Device-Token-Authentifizierung** schützt die Mobile-App-Endpunkte (X-Device-Token Header)
 - ⚠️ **Konfiguration erforderlich** vor dem Produktivbetrieb
 - 🔒 **HTTPS zwingend erforderlich** im Produktivbetrieb
 
-Die API-Dokumentation wird aktualisiert, um diese Authentifizierungsanforderungen korrekt zu reflektieren.
+Die API-Dokumentation reflektiert diese Authentifizierungsanforderungen korrekt.
