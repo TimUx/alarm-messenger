@@ -1,5 +1,6 @@
 # Flutter-related
 .DS_Store
+.metadata
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -7,6 +8,10 @@
 .pub-cache/
 .pub/
 build/
+
+# Accidental Node artifacts (should never live inside the Flutter app tree)
+node_modules/
+package-lock.json
 
 # IntelliJ/Android Studio
 .idea/
@@ -34,6 +39,7 @@ android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 # iOS
 ios/Pods/
 ios/.symlinks/
+ios/Flutter/ephemeral/
 ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 ios/Flutter/Generated.xcconfig
