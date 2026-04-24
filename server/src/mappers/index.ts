@@ -32,7 +32,7 @@ export function mapDeviceRow(
 ): Omit<Device, 'deviceToken' | 'registrationToken'> & { deviceToken?: string; registrationToken?: string } {
   const device: Omit<Device, 'deviceToken' | 'registrationToken'> & { deviceToken?: string; registrationToken?: string } = {
     id: row.id,
-    platform: row.platform as 'ios' | 'android',
+    platform: row.platform as 'ios' | 'android' | 'linux',
     registeredAt: row.registered_at,
     active: row.active === 1,
     firstName: row.first_name ?? undefined,

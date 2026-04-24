@@ -32,6 +32,7 @@ jest.mock('qrcode', () => ({
 }));
 
 import deviceRoutes from '../routes/devices';
+import registrationPublicRouter from '../routes/registration-public';
 
 function buildApp(): Application {
   const app = express();
@@ -46,6 +47,7 @@ function buildApp(): Application {
     req.session.csrfToken = 'test-csrf-token';
     res.json({ ok: true });
   });
+  app.use(registrationPublicRouter);
   app.use('/api/devices', deviceRoutes);
   return app;
 }
@@ -97,6 +99,7 @@ function createSchema(db: sqlite3.Database): Promise<void> {
 beforeAll(async () => {
   process.env.API_SECRET_KEY = 'test-api-key';
   process.env.JWT_SECRET = 'test-jwt-secret';
+  process.env.SERVER_URL = 'http://localhost:3000';
   dbHolder.db = new sqlite3.Database(':memory:');
   await createSchema(dbHolder.db);
   await new Promise<void>((resolve, reject) => {
@@ -130,6 +133,102 @@ describe('POST /api/devices/registration-token', () => {
     expect(res.status).toBe(200);
     expect(typeof res.body.deviceToken).toBe('string');
     expect(typeof res.body.qrCode).toBe('string');
+    expect(typeof res.body.registrationLink).toBe('string');
+    expect(res.body.registrationLink).toContain('/register?token=');
+  });
+});
+
+describe('POST /api/devices/registration-token/email', () => {
+  const app = buildApp();
+
+  it('returns 200 with device payload and email status', async () => {
+    const agent = request.agent(app);
+    await agent.post('/test/login-admin').send({});
+    const res = await agent
+      .post('/api/devices/registration-token/email')
+      .set('X-CSRF-Token', 'test-csrf-token')
+      .send({ email: 'firefighter@example.com' });
+    expect(res.status).toBe(200);
+    expect(res.body.email).toBeDefined();
+    expect(res.body.email.sent).toBe(false);
+    expect(res.body.registrationLink).toContain('/register?token=');
+  });
+
+  it('returns 400 for invalid email', async () => {
+    const agent = request.agent(app);
+    await agent.post('/test/login-admin').send({});
+    const res = await agent
+      .post('/api/devices/registration-token/email')
+      .set('X-CSRF-Token', 'test-csrf-token')
+      .send({ email: 'not-an-email' });
+    expect(res.status).toBe(400);
+  });
+
+  it('reuses existing pending device when deviceToken is provided', async () => {
+    const agent = request.agent(app);
+    await agent.post('/test/login-admin').send({});
+    const gen = await agent
+      .post('/api/devices/registration-token')
+      .set('X-CSRF-Token', 'test-csrf-token')
+      .send({});
+    expect(gen.status).toBe(200);
+    const dt = gen.body.deviceToken as string;
+
+    const res = await agent
+      .post('/api/devices/registration-token/email')
+      .set('X-CSRF-Token', 'test-csrf-token')
+      .send({ email: 'reuse@example.com', deviceToken: dt });
+    expect(res.status).toBe(200);
+    expect(res.body.deviceToken).toBe(dt);
+    expect(res.body.email.sent).toBe(false);
+  });
+
+  it('returns 404 when reusing unknown device token', async () => {
+    const agent = request.agent(app);
+    await agent.post('/test/login-admin').send({});
+    const res = await agent
+      .post('/api/devices/registration-token/email')
+      .set('X-CSRF-Token', 'test-csrf-token')
+      .send({ email: 'x@example.com', deviceToken: '00000000-0000-4000-8000-000000000000' });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('GET /api/registration/resolve', () => {
+  const app = buildApp();
+
+  it('returns 400 without token', async () => {
+    const res = await request(app).get('/api/registration/resolve');
+    expect(res.status).toBe(400);
+  });
+
+  it('returns registration data for a valid invite JWT', async () => {
+    const agent = request.agent(app);
+    await agent.post('/test/login-admin').send({});
+    const tokenRes = await agent
+      .post('/api/devices/registration-token')
+      .set('X-CSRF-Token', 'test-csrf-token')
+      .send({});
+    expect(tokenRes.status).toBe(200);
+    const link: string = tokenRes.body.registrationLink;
+    const u = new URL(link);
+    const inviteJwt = u.searchParams.get('token');
+    expect(inviteJwt).toBeTruthy();
+
+    const res = await request(app).get('/api/registration/resolve').query({ token: inviteJwt });
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBe(tokenRes.body.deviceToken);
+    expect(res.body.serverUrl).toBe('http://localhost:3000');
+  });
+});
+
+describe('GET /register', () => {
+  const app = buildApp();
+
+  it('returns HTML help without token', async () => {
+    const res = await request(app).get('/register');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('Einladungs-Link');
   });
 });
 
@@ -174,6 +273,27 @@ describe('POST /api/devices/register', () => {
         platform: 'android',
         firstName: 'Max',
         lastName: 'Mustermann',
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.active).toBe(true);
+  });
+
+  it('allows registration with platform linux', async () => {
+    const agent = request.agent(app);
+    await agent.post('/test/login-admin').send({});
+    const tokenRes = await agent
+      .post('/api/devices/registration-token')
+      .set('X-CSRF-Token', 'test-csrf-token')
+      .send({});
+    expect(tokenRes.status).toBe(200);
+    const { deviceToken } = tokenRes.body;
+
+    const res = await request(app)
+      .post('/api/devices/register')
+      .send({
+        deviceToken,
+        registrationToken: 'reg-linux-desktop',
+        platform: 'linux',
       });
     expect(res.status).toBe(200);
     expect(res.body.active).toBe(true);

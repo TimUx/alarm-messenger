@@ -14,7 +14,7 @@ export interface Device {
   id: string;
   deviceToken: string;
   registrationToken: string;
-  platform: 'ios' | 'android';
+  platform: 'ios' | 'android' | 'linux';
   registeredAt: string;
   active: boolean;
   // Responder information
@@ -48,7 +48,7 @@ export interface CreateEmergencyRequest {
 
 export interface DeviceRegistrationRequest {
   registrationToken: string;
-  platform: 'ios' | 'android';
+  platform: 'ios' | 'android' | 'linux';
   firstName?: string;
   lastName?: string;
   qualifications?: {
