@@ -22,6 +22,7 @@ Auf Linux kannst du in diesem Projekt:
 Was **nicht nativ** auf Linux geht:
 
 - iOS App lokal bauen/signen/deployen (Xcode-only, macOS erforderlich)
+- QR-Registrierung per Kamera wie auf dem Smartphone: unter Linux-Desktop **manuell** den QR-Inhalt einfügen (siehe Abschnitt 4.2)
 
 ---
 
@@ -129,7 +130,7 @@ Linux-Desktop-Target ist im Projekt bereits angelegt (`mobile/linux/`).
 
 ```bash
 cd mobile
-flutter test
+make test
 flutter test integration_test
 # oder mit Emulator-Autostart + Boot-Wait:
 ./scripts/dev-mobile.sh
@@ -143,9 +144,13 @@ Hinweis: `integration_test` braucht ein lauffaehiges Zielgeraet (Android Emulato
 
 ```bash
 cd mobile
-flutter run -d linux
-flutter build linux
+make run-linux
+make build-linux
 ```
+
+**Geräteregistrierung (QR):** Der Linux-Desktop-Build nutzt keine Kamera-Scanner-Integration wie Android/iOS. Im Registrierungsbildschirm den **QR-Inhalt manuell einfügen** (gleicher JSON- oder `serverUrl|token`-Inhalt wie im QR-Code), z. B. aus der Admin-Antwort kopieren.
+
+**E-Mail-Einladung:** Versand aus dem Admin-Dashboard setzt SMTP-Variablen auf dem Server voraus (`SMTP_HOST`, `SMTP_FROM`, … in `server/.env.example`). Ohne SMTP bleiben `registrationLink` und JSON trotzdem nutzbar.
 
 Output:
 
