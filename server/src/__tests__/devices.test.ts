@@ -5,6 +5,8 @@ import session from 'express-session';
 
 const dbHolder: { db: sqlite3.Database | null } = { db: null };
 
+jest.mock('express-rate-limit', () => () => (_req: unknown, _res: unknown, next: () => void) => next());
+
 jest.mock('../services/database', () => ({
   dbRun: (sql: string, params: any[] = []): Promise<void> =>
     new Promise((resolve, reject) =>
@@ -39,6 +41,11 @@ function buildApp(): Application {
     resave: false,
     saveUninitialized: false,
   }));
+  app.post('/test/login-admin', (req, res) => {
+    req.session.userId = 'admin-1';
+    req.session.csrfToken = 'test-csrf-token';
+    res.json({ ok: true });
+  });
   app.use('/api/devices', deviceRoutes);
   return app;
 }
@@ -92,6 +99,13 @@ beforeAll(async () => {
   process.env.JWT_SECRET = 'test-jwt-secret';
   dbHolder.db = new sqlite3.Database(':memory:');
   await createSchema(dbHolder.db);
+  await new Promise<void>((resolve, reject) => {
+    dbHolder.db!.run(
+      'INSERT INTO admin_users (id, username, password_hash, created_at, role, full_name) VALUES (?, ?, ?, ?, ?, ?)',
+      ['admin-1', 'admin', 'hash', new Date().toISOString(), 'admin', 'Admin User'],
+      (err: Error | null) => (err ? reject(err) : resolve()),
+    );
+  });
 });
 
 afterAll(() => {
@@ -101,8 +115,18 @@ afterAll(() => {
 describe('POST /api/devices/registration-token', () => {
   const app = buildApp();
 
-  it('returns 200 with a device token and QR code', async () => {
+  it('returns 401 without session', async () => {
     const res = await request(app).post('/api/devices/registration-token').send({});
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 200 with a device token and QR code for admin session', async () => {
+    const agent = request.agent(app);
+    await agent.post('/test/login-admin').send({});
+    const res = await agent
+      .post('/api/devices/registration-token')
+      .set('X-CSRF-Token', 'test-csrf-token')
+      .send({});
     expect(res.status).toBe(200);
     expect(typeof res.body.deviceToken).toBe('string');
     expect(typeof res.body.qrCode).toBe('string');
@@ -131,8 +155,13 @@ describe('POST /api/devices/register', () => {
   });
 
   it('allows registration with a valid pre-registered token', async () => {
+    const agent = request.agent(app);
+    await agent.post('/test/login-admin').send({});
     // First create a registration token
-    const tokenRes = await request(app).post('/api/devices/registration-token').send({});
+    const tokenRes = await agent
+      .post('/api/devices/registration-token')
+      .set('X-CSRF-Token', 'test-csrf-token')
+      .send({});
     expect(tokenRes.status).toBe(200);
     const { deviceToken } = tokenRes.body;
 
@@ -151,7 +180,12 @@ describe('POST /api/devices/register', () => {
   });
 
   it('returns 403 for already active device', async () => {
-    const tokenRes = await request(app).post('/api/devices/registration-token').send({});
+    const agent = request.agent(app);
+    await agent.post('/test/login-admin').send({});
+    const tokenRes = await agent
+      .post('/api/devices/registration-token')
+      .set('X-CSRF-Token', 'test-csrf-token')
+      .send({});
     const { deviceToken } = tokenRes.body;
 
     // First registration
@@ -163,6 +197,72 @@ describe('POST /api/devices/register', () => {
     const res = await request(app)
       .post('/api/devices/register')
       .send({ deviceToken, registrationToken: 'reg-2', platform: 'android' });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('POST /api/devices/update-push-token', () => {
+  const app = buildApp();
+
+  async function createRegisteredDevice(registrationToken: string) {
+    const agent = request.agent(app);
+    await agent.post('/test/login-admin').send({});
+    const tokenRes = await agent
+      .post('/api/devices/registration-token')
+      .set('X-CSRF-Token', 'test-csrf-token')
+      .send({});
+    const { deviceToken } = tokenRes.body;
+    await request(app).post('/api/devices/register').send({
+      deviceToken,
+      registrationToken,
+      platform: 'android',
+    });
+    return { deviceToken };
+  }
+
+  it('returns 403 if authenticated device tries to update another device token', async () => {
+    const deviceA = await createRegisteredDevice('reg-a');
+    const deviceB = await createRegisteredDevice('reg-b');
+
+    const res = await request(app)
+      .post('/api/devices/update-push-token')
+      .set('X-Device-Token', deviceA.deviceToken)
+      .send({
+        deviceToken: deviceB.deviceToken,
+        fcmToken: 'new-token',
+      });
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('device self-access restrictions', () => {
+  const app = buildApp();
+
+  async function createRegisteredDevice(registrationToken: string) {
+    const agent = request.agent(app);
+    await agent.post('/test/login-admin').send({});
+    const tokenRes = await agent
+      .post('/api/devices/registration-token')
+      .set('X-CSRF-Token', 'test-csrf-token')
+      .send({});
+    const { deviceToken } = tokenRes.body;
+    const registerRes = await request(app).post('/api/devices/register').send({
+      deviceToken,
+      registrationToken,
+      platform: 'android',
+    });
+    return { deviceToken, deviceId: registerRes.body.id };
+  }
+
+  it('blocks access to another device details', async () => {
+    const deviceA = await createRegisteredDevice('reg-access-a');
+    const deviceB = await createRegisteredDevice('reg-access-b');
+
+    const res = await request(app)
+      .get(`/api/devices/${deviceB.deviceId}/details`)
+      .set('X-Device-Token', deviceA.deviceToken);
+
     expect(res.status).toBe(403);
   });
 });
