@@ -384,6 +384,8 @@ Generiert einen QR-Code für die Geräteregistrierung.
 
 **Endpunkt:** `POST /api/devices/registration-token`
 
+🔒 **Authentifizierung erforderlich:** Admin-Session (`connect.sid`) + CSRF-Header `X-CSRF-Token`
+
 **Antwort:** `200 OK`
 ```json
 {
@@ -465,18 +467,26 @@ Ruft alle registrierten und aktiven Geräte ab.
 
 **Endpunkt:** `GET /api/devices`
 
+🔒 **Authentifizierung erforderlich:** Admin-Session (`connect.sid`)
+
 **Antwort:** `200 OK`
 ```json
-[
-  {
-    "id": "device-uuid",
-    "deviceToken": "generated-uuid",
-    "registrationToken": "device-unique-identifier",
-    "platform": "android",
-    "registeredAt": "2024-12-07T19:00:00.000Z",
-    "active": true
+{
+  "data": [
+    {
+      "id": "device-uuid",
+      "platform": "android",
+      "registeredAt": "2024-12-07T19:00:00.000Z",
+      "active": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 1,
+    "totalPages": 1
   }
-]
+}
 ```
 
 ---
@@ -486,6 +496,10 @@ Ruft alle registrierten und aktiven Geräte ab.
 Ruft ein spezifisches Gerät ab.
 
 **Endpunkt:** `GET /api/devices/:id`
+
+🔒 **Authentifizierung erforderlich:** Device-Token über `X-Device-Token` Header
+
+**Wichtig:** Ein Gerät darf nur seine **eigene** ID abfragen.
 
 **Antwort:** `200 OK`
 ```json
@@ -509,6 +523,7 @@ Ruft ein spezifisches Gerät ab.
 ```
 
 **Fehlerantworten:**
+- `403 Forbidden` - Zugriff auf fremdes Gerät nicht erlaubt
 - `404 Not Found` - Gerät nicht gefunden
 
 ---
@@ -518,6 +533,10 @@ Ruft ein spezifisches Gerät ab.
 Ruft ein spezifisches Gerät mit vollständigen Gruppeninformationen ab.
 
 **Endpunkt:** `GET /api/devices/:id/details`
+
+🔒 **Authentifizierung erforderlich:** Device-Token über `X-Device-Token` Header
+
+**Wichtig:** Ein Gerät darf nur seine **eigenen** Details abrufen.
 
 **Antwort:** `200 OK`
 ```json
@@ -557,6 +576,7 @@ Ruft ein spezifisches Gerät mit vollständigen Gruppeninformationen ab.
 ```
 
 **Fehlerantworten:**
+- `403 Forbidden` - Zugriff auf fremdes Gerät nicht erlaubt
 - `404 Not Found` - Gerät nicht gefunden
 
 ---
@@ -588,6 +608,8 @@ X-Device-Token: ihr-geräte-token
 - `fcmToken` – Neuer FCM-Token (Android; optional, wenn `apnsToken` angegeben)
 - `apnsToken` – Neuer APNs-Token (iOS; optional, wenn `fcmToken` angegeben)
 
+**Wichtig:** Der `deviceToken` muss zum übergebenen `X-Device-Token` gehören. Geräte dürfen nur ihre eigenen Push-Tokens aktualisieren.
+
 **Antwort:** `200 OK`
 ```json
 {
@@ -598,6 +620,7 @@ X-Device-Token: ihr-geräte-token
 **Fehlerantworten:**
 - `400 Bad Request` - `deviceToken` fehlt oder weder `fcmToken` noch `apnsToken` angegeben
 - `401 Unauthorized` - `X-Device-Token` Header fehlt oder ungültig
+- `403 Forbidden` - `deviceToken` gehört zu einem anderen Gerät
 - `404 Not Found` - Gerät nicht gefunden
 
 ---
@@ -652,6 +675,38 @@ ORGANIZATION_NAME=Feuerwehr Musterstadt
 ```
 
 Falls nicht gesetzt, wird "Alarm Messenger" als Standard verwendet.
+
+---
+
+### Dispatch-Metriken abrufen
+
+Ruft Laufzeitmetriken für Benachrichtigungs-Dispatch und Outbox-Status ab.
+
+**Endpunkt:** `GET /api/info/dispatch-metrics`
+
+🔒 **Authentifizierung erforderlich:** Admin-Session (`connect.sid`)
+
+**Antwort:** `200 OK`
+```json
+{
+  "dispatch": {
+    "total": 42,
+    "averageDurationMs": 187,
+    "lastDispatchAt": "2026-04-24T12:34:56.000Z"
+  },
+  "delivery": {
+    "pushSuccess": 120,
+    "pushFailed": 3,
+    "websocketSuccess": 87,
+    "websocketFailed": 14
+  },
+  "outbox": {
+    "pending": 0,
+    "delivered": 203,
+    "failed": 17
+  }
+}
+```
 
 ---
 

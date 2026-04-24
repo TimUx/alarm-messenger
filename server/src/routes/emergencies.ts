@@ -1,24 +1,35 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { dbRun, dbGet, dbAll } from '../services/database';
-import { websocketService } from '../services/websocket';
-import { pushNotificationService } from '../services/push-notification';
-import { redisPubSubService } from '../services/redis-pubsub';
 import { broadcastSseEvent } from '../services/sse';
-import { updateOutboxEntry } from '../services/notification-outbox';
 import { verifyApiKey, verifyApiKeyOrDeviceToken, verifyDeviceToken, DeviceRequest } from '../middleware/auth';
-import { mapEmergencyRow, mapResponderDetails } from '../mappers';
-import { EmergencyRow, DeviceRow } from '../models/db-types';
+import { mapEmergencyRow } from '../mappers';
+import { EmergencyRow } from '../models/db-types';
 import {
   Emergency,
   CreateEmergencyRequest,
-  EmergencyResponseRequest,
 } from '../models/types';
 import { validateBody } from '../middleware/validate';
 import { CreateEmergencySchema } from '../validation/schemas';
 import logger from '../utils/logger';
+import { findDevicesForEmergency, dispatchEmergencyNotifications } from '../services/emergency-dispatch';
+import {
+  sanitizeGroupsInput,
+  parseListPagination,
+  buildEmergencyListQueries,
+  EmergencyResponseJoinRow,
+  mapParticipants,
+  mapResponses,
+} from './emergencies/helpers';
 
 const router = Router();
+
+function isSqliteConstraintError(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as { code?: string }).code === 'SQLITE_CONSTRAINT';
+}
 
 // Create a new emergency and trigger push notifications (protected with API key)
 router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: Request, res: Response) => {
@@ -35,24 +46,19 @@ router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: 
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
-    // Validate and sanitize groups parameter
-    let sanitizedGroups = null;
-    if (groups) {
-      // Remove whitespace and validate format (only alphanumeric, comma, and dash allowed)
-      const cleanedGroups = groups.trim().toUpperCase();
-      if (!/^[A-Z0-9,-]+$/.test(cleanedGroups)) {
+    let sanitizedGroups: string | null;
+    try {
+      sanitizedGroups = sanitizeGroupsInput(groups);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'INVALID_GROUPS_FORMAT') {
         res.status(400).json({ error: 'Groups parameter contains invalid characters. Only letters, numbers, commas, and dashes are allowed.' });
         return;
       }
-      
-      // Limit number of groups to prevent DoS
-      const groupArray = cleanedGroups.split(',').filter(g => g.trim());
-      if (groupArray.length > 50) {
+      if (error instanceof Error && error.message === 'TOO_MANY_GROUPS') {
         res.status(400).json({ error: 'Too many groups specified. Maximum 50 groups allowed.' });
         return;
       }
-      
-      sanitizedGroups = groupArray.join(',');
+      throw error;
     }
 
     // Insert emergency into database
@@ -72,38 +78,15 @@ router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: 
           sanitizedGroups,
         ]
       );
-    } catch (dbError: any) {
-      if (dbError?.code === 'SQLITE_CONSTRAINT') {
+    } catch (dbError: unknown) {
+      if (isSqliteConstraintError(dbError)) {
         res.status(409).json({ error: 'An active emergency with this number already exists' });
         return;
       }
       throw dbError;
     }
 
-    // Get devices to notify based on groups
-    let devices;
-    if (sanitizedGroups) {
-      // If groups are specified, only notify devices assigned to those groups
-      const groupCodes = sanitizedGroups.split(',').map(g => g.trim());
-      const placeholders = groupCodes.map(() => '?').join(',');
-      
-      devices = await dbAll(
-        `SELECT DISTINCT d.id, d.platform, d.fcm_token, d.apns_token 
-         FROM devices d
-         INNER JOIN device_groups dg ON d.id = dg.device_id
-         WHERE d.active = 1 AND dg.group_code IN (${placeholders})`,
-        groupCodes
-      );
-      
-      logger.info({ deviceCount: devices.length, groups: sanitizedGroups }, 'Devices matched for groups');
-    } else {
-      // If no groups specified, notify all active devices
-      devices = await dbAll(
-        'SELECT id, platform, fcm_token, apns_token FROM devices WHERE active = 1',
-        []
-      );
-      logger.info({ deviceCount: devices.length }, 'Notifying all active devices');
-    }
+    const devices = await findDevicesForEmergency(sanitizedGroups);
 
     // Prepare notification data
     const notificationTitle = `EINSATZ: ${emergencyKeyword}`;
@@ -118,179 +101,7 @@ router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: 
       groups: sanitizedGroups || '',
     };
 
-    // Send notifications via push services (FCM/APNs) and WebSocket
-    const deviceIds = devices.map((device: any) => device.id);
-    let pushSuccessCount = 0;
-    let pushFailedCount = 0;
-    let websocketSuccessCount = 0;
-    let websocketFailedCount = 0;
-    const startTime = Date.now();
-    
-    if (deviceIds.length > 0) {
-      // Write pending outbox entries for all devices before dispatch (single bulk INSERT)
-      if (devices.length > 0) {
-        const now = new Date().toISOString();
-        const valuePlaceholders = devices.map(() => '(?, ?, ?, ?, ?, 0, ?, ?)').join(',');
-        const valueParams: any[] = [];
-        for (const device of devices) {
-          let channel: 'fcm' | 'apns' | 'websocket';
-          if (device.platform === 'android' && device.fcm_token) {
-            channel = 'fcm';
-          } else if (device.platform === 'ios' && device.apns_token) {
-            channel = 'apns';
-          } else {
-            channel = 'websocket';
-          }
-          valueParams.push(crypto.randomUUID(), id, device.id, channel, 'pending', now, now);
-        }
-        await dbRun(
-          `INSERT INTO notification_outbox (id, emergency_id, device_id, channel, status, retry_count, created_at, updated_at) VALUES ${valuePlaceholders}`,
-          valueParams,
-        );
-      }
-
-      // Try push notifications first (FCM bulk for Android, APNs per-device for iOS)
-      if (pushNotificationService.isPushEnabled()) {
-        // FCM bulk notifications for Android devices
-        const fcmDevices = devices.filter((d: any) => d.platform === 'android' && d.fcm_token);
-        const fcmTokens = fcmDevices.map((d: any) => d.fcm_token as string);
-        if (fcmTokens.length > 0) {
-          const { successCount, results } = await pushNotificationService.sendBulkFCMNotification(
-            fcmTokens,
-            notificationTitle,
-            notificationBody,
-            notificationData
-          );
-          pushSuccessCount += successCount;
-          pushFailedCount += fcmTokens.length - successCount;
-
-          // Batch-update outbox entries by status (delivered / failed)
-          const tokenToDevice = new Map<string, string>(
-            fcmDevices.map((d: any) => [d.fcm_token as string, d.id as string])
-          );
-          const deliveredIds: string[] = [];
-          const failedEntries: Array<{ deviceId: string; errorCode?: string }> = [];
-          for (const result of results) {
-            const deviceId = tokenToDevice.get(result.token);
-            if (!deviceId) continue;
-            if (result.success) {
-              deliveredIds.push(deviceId);
-            } else {
-              failedEntries.push({ deviceId, errorCode: result.errorCode });
-            }
-          }
-          const nowIso = new Date().toISOString();
-          if (deliveredIds.length > 0) {
-            const ph = deliveredIds.map(() => '?').join(',');
-            await dbRun(
-              `UPDATE notification_outbox SET status = 'delivered', updated_at = ? WHERE emergency_id = ? AND channel = 'fcm' AND device_id IN (${ph})`,
-              [nowIso, id, ...deliveredIds],
-            );
-          }
-          for (const { deviceId, errorCode } of failedEntries) {
-            await updateOutboxEntry(id, deviceId, 'fcm', 'failed', errorCode);
-          }
-        }
-
-        // APNs per-device for iOS (no bulk API)
-        const apnsDevices = devices.filter((d: any) => d.platform === 'ios' && d.apns_token);
-        if (apnsDevices.length > 0) {
-          const apnsResults = await Promise.allSettled(
-            apnsDevices.map((device: any) =>
-              pushNotificationService.sendAPNsNotification(
-                device.apns_token,
-                notificationTitle,
-                notificationBody,
-                notificationData
-              )
-            )
-          );
-
-          // Batch-update APNs outbox entries
-          const apnsDeliveredIds: string[] = [];
-          const apnsFailedEntries: Array<{ deviceId: string; err?: string }> = [];
-          for (let i = 0; i < apnsResults.length; i++) {
-            const result = apnsResults[i];
-            const device = apnsDevices[i];
-            const success = result.status === 'fulfilled' && result.value === true;
-            if (success) {
-              pushSuccessCount += 1;
-              apnsDeliveredIds.push(device.id);
-            } else {
-              pushFailedCount += 1;
-              apnsFailedEntries.push({
-                deviceId: device.id,
-                err: result.status === 'rejected' ? String(result.reason) : undefined,
-              });
-            }
-          }
-          const nowIsoApns = new Date().toISOString();
-          if (apnsDeliveredIds.length > 0) {
-            const ph = apnsDeliveredIds.map(() => '?').join(',');
-            await dbRun(
-              `UPDATE notification_outbox SET status = 'delivered', updated_at = ? WHERE emergency_id = ? AND channel = 'apns' AND device_id IN (${ph})`,
-              [nowIsoApns, id, ...apnsDeliveredIds],
-            );
-          }
-          for (const { deviceId, err } of apnsFailedEntries) {
-            await updateOutboxEntry(id, deviceId, 'apns', 'failed', err);
-          }
-        }
-      }
-      
-      // Send WebSocket notifications via Redis pub/sub (or directly as fallback)
-      if (redisPubSubService.isEnabled()) {
-        await redisPubSubService.publish({
-          deviceIds,
-          title: notificationTitle,
-          body: notificationBody,
-          data: notificationData,
-        });
-      } else {
-        await websocketService.sendBulkNotifications(
-          deviceIds,
-          notificationTitle,
-          notificationBody,
-          notificationData
-        );
-      }
-      
-      // Batch-update WebSocket outbox entries and count connected devices
-      const wsDevices = devices.filter(
-        (d: any) => !(d.platform === 'android' && d.fcm_token) && !(d.platform === 'ios' && d.apns_token),
-      );
-      if (wsDevices.length > 0) {
-        const wsDeliveredIds = wsDevices
-          .filter((d: any) => websocketService.isDeviceConnected(d.id))
-          .map((d: any) => d.id as string);
-        websocketSuccessCount = wsDeliveredIds.length;
-        websocketFailedCount = wsDevices.length - wsDeliveredIds.length;
-        if (wsDeliveredIds.length > 0) {
-          const ph = wsDeliveredIds.map(() => '?').join(',');
-          const nowIsoWs = new Date().toISOString();
-          await dbRun(
-            `UPDATE notification_outbox SET status = 'delivered', updated_at = ? WHERE emergency_id = ? AND channel = 'websocket' AND device_id IN (${ph})`,
-            [nowIsoWs, id, ...wsDeliveredIds],
-          );
-        }
-      } else {
-        // Count WS connections for devices with push tokens too (informational)
-        websocketSuccessCount = devices.filter((d: any) => websocketService.isDeviceConnected(d.id)).length;
-      }
-      
-      logger.info(
-        {
-          emergencyId: id,
-          pushSuccess: pushSuccessCount,
-          pushFailed: pushFailedCount,
-          wsSuccess: websocketSuccessCount,
-          wsFailed: websocketFailedCount,
-          totalDevices: devices.length,
-          durationMs: Date.now() - startTime,
-        },
-        'Notification dispatch complete',
-      );
-    }
+    await dispatchEmergencyNotifications(id, devices, notificationTitle, notificationBody, notificationData);
 
     const emergency: Emergency = {
       id,
@@ -315,38 +126,20 @@ router.post('/', verifyApiKey, validateBody(CreateEmergencySchema), async (req: 
 // Accepts X-Device-Token (mobile app) or X-Api-Key (server-to-server, e.g. alarm-monitor)
 router.get('/', verifyApiKeyOrDeviceToken, async (req: Request, res: Response) => {
   try {
-    const includeInactive = req.query.includeInactive === 'true';
     const emergencyNumberFilter = req.query.emergencyNumber as string | undefined;
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
-    const offset = (page - 1) * limit;
-
-    let countQuery: string;
-    let dataQuery: string;
-    let params: (string | number)[];
-    let countParams: (string | number)[];
-
-    if (emergencyNumberFilter) {
-      if (includeInactive) {
-        countQuery = 'SELECT COUNT(*) as total FROM emergencies WHERE emergency_number = ?';
-        dataQuery = 'SELECT * FROM emergencies WHERE emergency_number = ? ORDER BY created_at DESC LIMIT ? OFFSET ?';
-      } else {
-        countQuery = 'SELECT COUNT(*) as total FROM emergencies WHERE active = 1 AND emergency_number = ?';
-        dataQuery = 'SELECT * FROM emergencies WHERE active = 1 AND emergency_number = ? ORDER BY created_at DESC LIMIT ? OFFSET ?';
-      }
-      countParams = [emergencyNumberFilter];
-      params = [emergencyNumberFilter, limit, offset];
-    } else {
-      if (includeInactive) {
-        countQuery = 'SELECT COUNT(*) as total FROM emergencies';
-        dataQuery = 'SELECT * FROM emergencies ORDER BY created_at DESC LIMIT ? OFFSET ?';
-      } else {
-        countQuery = 'SELECT COUNT(*) as total FROM emergencies WHERE active = 1';
-        dataQuery = 'SELECT * FROM emergencies WHERE active = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?';
-      }
-      countParams = [];
-      params = [limit, offset];
-    }
+    const includeInactiveParam = req.query.includeInactive as string | undefined;
+    // Compatibility: alarm-monitor resolves by emergencyNumber and should still
+    // find the emergency after automatic/manual deactivation.
+    const includeInactive = includeInactiveParam === 'true'
+      || (includeInactiveParam === undefined && Boolean(emergencyNumberFilter));
+    const { page, limit, offset } = parseListPagination(
+      req.query.page as string | undefined,
+      req.query.limit as string | undefined,
+    );
+    const { countQuery, dataQuery, countParams } = buildEmergencyListQueries(includeInactive, emergencyNumberFilter);
+    const params = emergencyNumberFilter
+      ? [emergencyNumberFilter, limit, offset]
+      : [limit, offset];
 
     const countResult = await dbGet(countQuery, countParams);
     const total = countResult?.total || 0;
@@ -457,7 +250,7 @@ router.get('/:id/participants', verifyApiKey, async (req: Request, res: Response
       return;
     }
 
-    const rows = await dbAll(
+    const rows = await dbAll<EmergencyResponseJoinRow>(
       `SELECT r.*, d.id as device_id, d.platform, d.first_name, d.last_name,
               d.qual_machinist, d.qual_agt, d.qual_paramedic, d.leadership_role
        FROM responses r
@@ -467,14 +260,7 @@ router.get('/:id/participants', verifyApiKey, async (req: Request, res: Response
       [id]
     );
 
-    const participants = rows.map((row: DeviceRow & any) => ({
-      id: row.id,
-      deviceId: row.device_id,
-      platform: row.platform,
-      respondedAt: row.responded_at,
-      // Responder details from devices table
-      responder: mapResponderDetails(row as DeviceRow),
-    }));
+    const participants = mapParticipants(rows);
 
     res.json({
       emergencyId: id,
@@ -492,7 +278,7 @@ router.get('/:id/responses', verifyApiKey, async (req: Request, res: Response) =
   try {
     const { id } = req.params;
 
-    const rows = await dbAll(
+    const rows = await dbAll<EmergencyResponseJoinRow>(
       `SELECT r.*, d.platform, d.first_name, d.last_name,
               d.qual_machinist, d.qual_agt, d.qual_paramedic, d.leadership_role
        FROM responses r
@@ -502,16 +288,7 @@ router.get('/:id/responses', verifyApiKey, async (req: Request, res: Response) =
       [id]
     );
 
-    const responses = rows.map((row: DeviceRow & any) => ({
-      id: row.id,
-      emergencyId: row.emergency_id,
-      deviceId: row.device_id,
-      platform: row.platform,
-      participating: row.participating === 1,
-      respondedAt: row.responded_at,
-      // Responder details from devices table
-      responder: mapResponderDetails(row as DeviceRow),
-    }));
+    const responses = mapResponses(rows);
 
     res.json(responses);
   } catch (error) {

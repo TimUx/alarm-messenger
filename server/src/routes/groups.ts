@@ -2,11 +2,15 @@ import { Router, Request, Response } from 'express';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { verifyToken, verifyAdmin, AuthRequest } from '../middleware/auth';
 import { Group, CreateGroupRequest, ImportGroupsRequest } from '../models/types';
-import { GroupRow } from '../models/db-types';
+import { GroupRow, DeviceRow } from '../models/db-types';
 import { mapGroupRow } from '../mappers';
 import logger from '../utils/logger';
 
 const router = Router();
+
+interface UpdateDeviceGroupsBody {
+  groupCodes: string[];
+}
 
 // Get all groups
 router.get('/', verifyToken, async (req: AuthRequest, res: Response) => {
@@ -61,7 +65,7 @@ router.post('/', verifyToken, verifyAdmin, async (req: AuthRequest, res: Respons
     }
 
     // Check if group already exists
-    const existing = await dbGet('SELECT * FROM groups WHERE code = ?', [upperCode]);
+    const existing = await dbGet<GroupRow>('SELECT * FROM groups WHERE code = ?', [upperCode]);
     if (existing) {
       res.status(409).json({ error: 'Group with this code already exists' });
       return;
@@ -99,7 +103,7 @@ router.put('/:code', verifyToken, verifyAdmin, async (req: AuthRequest, res: Res
       return;
     }
 
-    const existing = await dbGet('SELECT * FROM groups WHERE code = ?', [code]);
+    const existing = await dbGet<GroupRow>('SELECT * FROM groups WHERE code = ?', [code]);
     if (!existing) {
       res.status(404).json({ error: 'Group not found' });
       return;
@@ -122,7 +126,7 @@ router.delete('/:code', verifyToken, verifyAdmin, async (req: AuthRequest, res: 
   try {
     const { code } = req.params;
 
-    const existing = await dbGet('SELECT * FROM groups WHERE code = ?', [code]);
+    const existing = await dbGet<GroupRow>('SELECT * FROM groups WHERE code = ?', [code]);
     if (!existing) {
       res.status(404).json({ error: 'Group not found' });
       return;
@@ -162,7 +166,7 @@ router.post('/import', verifyToken, verifyAdmin, async (req: AuthRequest, res: R
       }
 
       try {
-        const existing = await dbGet('SELECT * FROM groups WHERE code = ?', [group.code.toUpperCase()]);
+        const existing = await dbGet<GroupRow>('SELECT * FROM groups WHERE code = ?', [group.code.toUpperCase()]);
         
         if (existing) {
           // Update existing group
@@ -179,8 +183,9 @@ router.post('/import', verifyToken, verifyAdmin, async (req: AuthRequest, res: R
           );
           results.created++;
         }
-      } catch (error) {
-        results.errors.push(`Error processing group ${group.code}: ${error}`);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        results.errors.push(`Error processing group ${group.code}: ${message}`);
       }
     }
 
@@ -217,7 +222,7 @@ router.get('/device/:deviceId', verifyToken, async (req: AuthRequest, res: Respo
 router.put('/device/:deviceId', verifyToken, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { deviceId } = req.params;
-    const { groupCodes } = req.body;
+    const { groupCodes } = req.body as UpdateDeviceGroupsBody;
 
     if (!Array.isArray(groupCodes)) {
       res.status(400).json({ error: 'groupCodes must be an array' });
@@ -225,7 +230,7 @@ router.put('/device/:deviceId', verifyToken, verifyAdmin, async (req: AuthReques
     }
 
     // Verify device exists
-    const device = await dbGet('SELECT * FROM devices WHERE id = ?', [deviceId]);
+    const device = await dbGet<DeviceRow>('SELECT * FROM devices WHERE id = ?', [deviceId]);
     if (!device) {
       res.status(404).json({ error: 'Device not found' });
       return;
@@ -237,7 +242,7 @@ router.put('/device/:deviceId', verifyToken, verifyAdmin, async (req: AuthReques
     // Add new group assignments
     for (const code of groupCodes) {
       // Verify group exists
-      const group = await dbGet('SELECT * FROM groups WHERE code = ?', [code]);
+      const group = await dbGet<GroupRow>('SELECT * FROM groups WHERE code = ?', [code]);
       if (group) {
         await dbRun(
           'INSERT INTO device_groups (device_id, group_code) VALUES (?, ?)',

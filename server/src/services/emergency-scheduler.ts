@@ -1,5 +1,6 @@
 import { dbRun, dbAll } from './database';
 import logger from '../utils/logger';
+import { EmergencyRow } from '../models/db-types';
 
 /**
  * Emergency Scheduler Service
@@ -9,6 +10,13 @@ class EmergencySchedulerService {
   private intervalId: NodeJS.Timeout | null = null;
   private readonly CHECK_INTERVAL = 60000; // Check every minute
   private readonly EMERGENCY_ACTIVE_DURATION = 3600000; // 1 hour in milliseconds
+
+  private async deactivateEmergencyRow(emergency: Pick<EmergencyRow, 'id' | 'emergency_number' | 'emergency_keyword' | 'created_at'>): Promise<void> {
+    await dbRun('UPDATE emergencies SET active = 0 WHERE id = ?', [emergency.id]);
+    const createdAt = new Date(emergency.created_at);
+    const age = Math.floor((Date.now() - createdAt.getTime()) / 60000); // Age in minutes
+    logger.info(`  ✓ Deactivated: ${emergency.emergency_number} - ${emergency.emergency_keyword} (age: ${age} minutes)`);
+  }
 
   /**
    * Start the scheduler to automatically deactivate old emergencies
@@ -22,11 +30,11 @@ class EmergencySchedulerService {
     logger.info('✓ Starting emergency scheduler (checking every 1 minute)');
     
     // Run immediately on start
-    this.checkAndDeactivateEmergencies();
+    void this.checkAndDeactivateEmergencies();
 
     // Then run periodically
     this.intervalId = setInterval(() => {
-      this.checkAndDeactivateEmergencies();
+      void this.checkAndDeactivateEmergencies();
     }, this.CHECK_INTERVAL);
   }
 
@@ -50,7 +58,7 @@ class EmergencySchedulerService {
       const oneHourAgo = new Date(Date.now() - this.EMERGENCY_ACTIVE_DURATION).toISOString();
 
       // Find all active emergencies created more than 1 hour ago
-      const oldEmergencies = await dbAll(
+      const oldEmergencies = await dbAll<Pick<EmergencyRow, 'id' | 'emergency_number' | 'emergency_keyword' | 'created_at'>>(
         `SELECT id, emergency_number, emergency_keyword, created_at 
          FROM emergencies 
          WHERE active = 1 AND created_at < ?`,
@@ -62,20 +70,10 @@ class EmergencySchedulerService {
         
         // Deactivate each old emergency
         for (const emergency of oldEmergencies) {
-          await dbRun(
-            'UPDATE emergencies SET active = 0 WHERE id = ?',
-            [emergency.id]
-          );
-          
-          const createdAt = new Date(emergency.created_at);
-          const age = Math.floor((Date.now() - createdAt.getTime()) / 60000); // Age in minutes
-          
-          logger.info(
-            `  ✓ Deactivated: ${emergency.emergency_number} - ${emergency.emergency_keyword} (age: ${age} minutes)`
-          );
+          await this.deactivateEmergencyRow(emergency);
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error({ err: error }, 'Error in emergency scheduler');
     }
   }
@@ -91,7 +89,7 @@ class EmergencySchedulerService {
       );
       logger.info(`✓ Manually deactivated emergency: ${emergencyId}`);
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error({ err: error }, `Error deactivating emergency ${emergencyId}`);
       return false;
     }

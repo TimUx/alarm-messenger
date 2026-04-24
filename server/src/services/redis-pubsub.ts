@@ -23,6 +23,25 @@ class RedisPubSubService {
   private subscriber: Redis | null = null;
   private enabled = false;
 
+  private isEmergencyMessage(value: unknown): value is EmergencyMessage {
+    if (typeof value !== 'object' || value === null) {
+      return false;
+    }
+    const msg = value as Partial<EmergencyMessage>;
+    return Array.isArray(msg.deviceIds)
+      && typeof msg.title === 'string'
+      && typeof msg.body === 'string'
+      && typeof msg.data === 'object'
+      && msg.data !== null
+      && typeof msg.data.emergencyId === 'string'
+      && typeof msg.data.emergencyNumber === 'string'
+      && typeof msg.data.emergencyDate === 'string'
+      && typeof msg.data.emergencyKeyword === 'string'
+      && typeof msg.data.emergencyDescription === 'string'
+      && typeof msg.data.emergencyLocation === 'string'
+      && typeof msg.data.groups === 'string';
+  }
+
   connect(): void {
     const redisUrl = process.env.REDIS_URL;
     if (!redisUrl) {
@@ -43,7 +62,7 @@ class RedisPubSubService {
       });
 
       logger.info('✓ Redis pub/sub connected');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error({ err: error }, 'Failed to connect to Redis');
     }
   }
@@ -54,7 +73,7 @@ class RedisPubSubService {
     }
     try {
       await this.publisher.publish(EMERGENCY_CHANNEL, JSON.stringify(message));
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error({ err: error }, 'Error publishing to Redis');
     }
   }
@@ -73,9 +92,14 @@ class RedisPubSubService {
         return;
       }
       try {
-        const message: EmergencyMessage = JSON.parse(payload);
+        const parsed: unknown = JSON.parse(payload);
+        if (!this.isEmergencyMessage(parsed)) {
+          logger.warn('Ignoring invalid Redis emergency message payload');
+          return;
+        }
+        const message: EmergencyMessage = parsed;
         handler(message);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error({ err: error }, 'Error parsing Redis emergency message');
       }
     });
@@ -100,7 +124,7 @@ class RedisPubSubService {
       }
       this.enabled = false;
       logger.info('Redis pub/sub disconnected');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error({ err: error }, 'Error disconnecting Redis');
     }
   }

@@ -6,14 +6,27 @@ import rateLimit from 'express-rate-limit';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { generateToken, verifyAdmin, verifySession, generateCsrfToken, AuthRequest } from '../middleware/auth';
 import { addToBlacklist } from '../services/token-blacklist';
-import { mapEmergencyRow, mapResponderDetails } from '../mappers';
-import { EmergencyRow, DeviceRow } from '../models/db-types';
+import { mapEmergencyRow } from '../mappers';
+import { EmergencyRow, AdminUserRow, DeviceRow } from '../models/db-types';
 import { validateBody } from '../middleware/validate';
 import { LoginSchema } from '../validation/schemas';
 import { addSseClient, removeSseClient } from '../services/sse';
 import logger from '../utils/logger';
+import {
+  AdminEmergencyResponseJoinRow,
+  isValidAdminRole,
+  mapAdminUser,
+  parsePagination,
+  mapEmergencyResponses,
+  buildEmergencySummary,
+  withNotificationSummaryDefaults,
+} from './admin/helpers';
 
 const router = Router();
+
+interface CountRow {
+  count: number;
+}
 
 const loginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -26,7 +39,7 @@ router.post('/login', loginRateLimiter, validateBody(LoginSchema), async (req: R
   try {
     const { username, password } = req.body;
 
-    const user = await dbGet(
+    const user = await dbGet<Pick<AdminUserRow, 'id' | 'username' | 'password_hash' | 'role' | 'full_name'>>(
       'SELECT id, username, password_hash, role, full_name FROM admin_users WHERE username = ?',
       [username]
     );
@@ -96,13 +109,13 @@ router.post('/users', verifySession, verifyAdmin, async (req: AuthRequest, res: 
     }
 
     // Validate role
-    if (role && role !== 'admin' && role !== 'operator') {
+    if (role && !isValidAdminRole(role)) {
       res.status(400).json({ error: 'Invalid role. Must be "admin" or "operator"' });
       return;
     }
 
     // Check if user already exists
-    const existing = await dbGet(
+    const existing = await dbGet<AdminUserRow>(
       'SELECT * FROM admin_users WHERE username = ?',
       [username]
     );
@@ -146,7 +159,7 @@ router.post('/init', async (req: Request, res: Response) => {
     }
 
     // Check if any admin users exist
-    const existingUsers = await dbAll('SELECT COUNT(*) as count FROM admin_users', []);
+    const existingUsers = await dbAll<CountRow>('SELECT COUNT(*) as count FROM admin_users', []);
     
     if (!existingUsers || existingUsers.length === 0) {
       res.status(500).json({ error: 'Database query failed' });
@@ -191,19 +204,13 @@ router.post('/init', async (req: Request, res: Response) => {
 // Get all users (protected - admin only)
 router.get('/users', verifySession, verifyAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const users = await dbAll(
+    const users = await dbAll<AdminUserRow>(
       'SELECT id, username, full_name, role, created_at FROM admin_users ORDER BY created_at DESC',
       []
     );
 
     res.json({
-      users: users.map((user: any) => ({
-        id: user.id,
-        username: user.username,
-        fullName: user.full_name,
-        role: user.role || 'admin',
-        createdAt: user.created_at,
-      })),
+      users: users.map(mapAdminUser),
     });
   } catch (error) {
     logger.error({ err: error }, 'Error fetching users');
@@ -224,12 +231,12 @@ router.put('/users/:id', verifySession, verifyAdmin, async (req: AuthRequest, re
     }
 
     // Validate role
-    if (role && role !== 'admin' && role !== 'operator') {
+    if (role && !isValidAdminRole(role)) {
       res.status(400).json({ error: 'Invalid role. Must be "admin" or "operator"' });
       return;
     }
 
-    const user = await dbGet('SELECT * FROM admin_users WHERE id = ?', [id]);
+    const user = await dbGet<AdminUserRow>('SELECT * FROM admin_users WHERE id = ?', [id]);
     
     if (!user) {
       res.status(404).json({ error: 'User not found' });
@@ -238,7 +245,7 @@ router.put('/users/:id', verifySession, verifyAdmin, async (req: AuthRequest, re
 
     // Check if username is already taken by another user
     if (username && username !== user.username) {
-      const existing = await dbGet(
+      const existing = await dbGet<AdminUserRow>(
         'SELECT * FROM admin_users WHERE username = ? AND id != ?',
         [username, id]
       );
@@ -272,7 +279,7 @@ router.delete('/users/:id', verifySession, verifyAdmin, async (req: AuthRequest,
       return;
     }
 
-    const user = await dbGet('SELECT * FROM admin_users WHERE id = ?', [id]);
+    const user = await dbGet<AdminUserRow>('SELECT * FROM admin_users WHERE id = ?', [id]);
     
     if (!user) {
       res.status(404).json({ error: 'User not found' });
@@ -305,7 +312,7 @@ router.put('/users/:id/password', verifySession, async (req: AuthRequest, res: R
       return;
     }
 
-    const user = await dbGet('SELECT * FROM admin_users WHERE id = ?', [id]);
+    const user = await dbGet<AdminUserRow>('SELECT * FROM admin_users WHERE id = ?', [id]);
     
     if (!user) {
       res.status(404).json({ error: 'User not found' });
@@ -339,7 +346,7 @@ router.put('/users/:id/password', verifySession, async (req: AuthRequest, res: R
 // Get current user profile
 router.get('/profile', verifySession, async (req: AuthRequest, res: Response) => {
   try {
-    const user = await dbGet(
+    const user = await dbGet<AdminUserRow>(
       'SELECT id, username, full_name, role, created_at FROM admin_users WHERE id = ?',
       [req.userId]
     );
@@ -349,13 +356,7 @@ router.get('/profile', verifySession, async (req: AuthRequest, res: Response) =>
       return;
     }
 
-    res.json({
-      id: user.id,
-      username: user.username,
-      fullName: user.full_name,
-      role: user.role || 'admin',
-      createdAt: user.created_at,
-    });
+    res.json(mapAdminUser(user));
   } catch (error) {
     logger.error({ err: error }, 'Error fetching profile');
     res.status(500).json({ error: 'Failed to fetch profile' });
@@ -373,7 +374,7 @@ router.put('/devices/:id', verifySession, verifyAdmin, async (req: AuthRequest, 
       leadershipRole,
     } = req.body;
 
-    const device = await dbGet('SELECT * FROM devices WHERE id = ?', [id]);
+    const device = await dbGet<DeviceRow>('SELECT * FROM devices WHERE id = ?', [id]);
     
     if (!device) {
       res.status(404).json({ error: 'Device not found' });
@@ -413,7 +414,7 @@ router.patch('/emergencies/:id', verifySession, async (req: AuthRequest, res: Re
     const { id } = req.params;
     const { active } = req.body;
 
-    const emergency = await dbGet('SELECT * FROM emergencies WHERE id = ?', [id]);
+    const emergency = await dbGet<EmergencyRow>('SELECT * FROM emergencies WHERE id = ?', [id]);
     if (!emergency) {
       res.status(404).json({ error: 'Emergency not found' });
       return;
@@ -434,21 +435,24 @@ router.patch('/emergencies/:id', verifySession, async (req: AuthRequest, res: Re
 // Get emergency history with pagination
 router.get('/emergencies', verifySession, async (req: AuthRequest, res: Response) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
-    const offset = (page - 1) * limit;
+    const { page, limit, offset } = parsePagination(
+      req.query.page as string | undefined,
+      req.query.limit as string | undefined,
+      100,
+      20
+    );
 
     // Get total count
-    const countResult = await dbGet('SELECT COUNT(*) as total FROM emergencies', []);
+    const countResult = await dbGet<{ total: number }>('SELECT COUNT(*) as total FROM emergencies', []);
     const total = countResult.total;
 
     // Get paginated emergencies
-    const rows = await dbAll(
+    const rows = await dbAll<EmergencyRow>(
       'SELECT * FROM emergencies ORDER BY created_at DESC LIMIT ? OFFSET ?',
       [limit, offset]
     );
 
-    const emergencies = rows.map((row: EmergencyRow) => mapEmergencyRow(row));
+    const emergencies = rows.map((row) => mapEmergencyRow(row));
 
     res.json({
       emergencies,
@@ -479,7 +483,7 @@ router.get('/emergencies/:id', verifySession, async (req: AuthRequest, res: Resp
     }
 
     // Get all responses with responder details
-    const responseRows = await dbAll(
+    const responseRows = await dbAll<AdminEmergencyResponseJoinRow>(
       `SELECT r.*, d.platform, d.first_name, d.last_name,
               d.qual_machinist, d.qual_agt, d.qual_paramedic, d.leadership_role
        FROM responses r
@@ -489,18 +493,7 @@ router.get('/emergencies/:id', verifySession, async (req: AuthRequest, res: Resp
       [id]
     );
 
-    const responses = responseRows.map((row: DeviceRow & any) => ({
-      id: row.id,
-      deviceId: row.device_id,
-      platform: row.platform,
-      participating: row.participating === 1,
-      respondedAt: row.responded_at,
-      responder: mapResponderDetails(row as DeviceRow),
-    }));
-
-    // Count participants
-    const participantsCount = responses.filter(r => r.participating).length;
-    const nonParticipantsCount = responses.filter(r => !r.participating).length;
+    const responses = mapEmergencyResponses(responseRows);
 
     // Aggregate delivery summary from notification_outbox
     const outboxSummary = await dbGet<{
@@ -519,17 +512,8 @@ router.get('/emergencies/:id', verifySession, async (req: AuthRequest, res: Resp
     res.json({
       emergency: mapEmergencyRow(emergency),
       responses,
-      summary: {
-        totalResponses: responses.length,
-        participants: participantsCount,
-        nonParticipants: nonParticipantsCount,
-      },
-      notificationSummary: {
-        total: outboxSummary?.total ?? 0,
-        delivered: outboxSummary?.delivered ?? 0,
-        failed: outboxSummary?.failed ?? 0,
-        pending: outboxSummary?.pending ?? 0,
-      },
+      summary: buildEmergencySummary(responses),
+      notificationSummary: withNotificationSummaryDefaults(outboxSummary),
     });
   } catch (error) {
     logger.error({ err: error }, 'Error fetching emergency details');

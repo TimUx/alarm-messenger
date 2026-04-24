@@ -28,6 +28,9 @@ Eine plattformübergreifende mobile App für das Alarm Messenger System, entwick
 
 ## 🚀 Entwicklung
 
+> Linux/Android Build- und Test-Setup (inkl. Emulator/KVM) ist im
+> [Developer Guide fuer Linux](../docs/DEVELOPER_GUIDE_MOBILE_LINUX.md) dokumentiert.
+
 ### Voraussetzungen
 
 - Flutter SDK 3.27.1 oder höher

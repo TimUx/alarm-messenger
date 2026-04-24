@@ -42,4 +42,8 @@ export const UpdatePushTokenSchema = z.object({
   deviceToken: z.string().min(1),
   fcmToken: z.string().optional().nullable(),
   apnsToken: z.string().optional().nullable(),
-});
+}).refine(
+  (data) => data.fcmToken !== undefined && data.fcmToken !== null
+    || data.apnsToken !== undefined && data.apnsToken !== null,
+  { message: 'At least one of fcmToken or apnsToken is required' }
+);

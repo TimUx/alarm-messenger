@@ -6,6 +6,8 @@ import { decodeSecret, resolveSecret } from '../utils/secrets';
 import { dbGet } from '../services/database';
 import { isBlacklisted } from '../services/token-blacklist';
 import logger from '../utils/logger';
+import { enforceSecretPolicy } from './auth/secret-policy';
+import { AdminUserRow } from '../models/db-types';
 
 declare module 'express-session' {
   interface SessionData {
@@ -18,35 +20,18 @@ export const JWT_SECRET = resolveSecret('JWT_SECRET') || 'change-this-secret-in-
 const VALID_API_KEY = decodeSecret(process.env.API_SECRET_KEY) || 'change-me-in-production';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
-if (JWT_SECRET === 'change-this-secret-in-production') {
-  const message = '⚠️  WARNING: JWT_SECRET is using default value. Set a secure JWT_SECRET in your .env file for production!';
-  logger.error(message);
-  if (IS_PRODUCTION) {
-    throw new Error('JWT_SECRET must be set to a secure value in production environments');
-  }
-} else if (JWT_SECRET.length < 32) {
-  const message = '⚠️  WARNING: JWT_SECRET is too short (minimum 32 characters). Set a longer JWT_SECRET in your .env file!';
-  logger.error(message);
-  if (IS_PRODUCTION) {
-    logger.error('[FATAL] JWT_SECRET is missing or too short (minimum 32 characters). Exiting.');
-    process.exit(1);
-  }
-}
-
-if (VALID_API_KEY === 'change-me-in-production') {
-  const message = '⚠️  WARNING: API_SECRET_KEY is using default value. Set a secure API_SECRET_KEY in your .env file for production!';
-  logger.error(message);
-  if (IS_PRODUCTION) {
-    throw new Error('API_SECRET_KEY must be set to a secure value in production environments');
-  }
-} else if (VALID_API_KEY.length < 32) {
-  const message = '⚠️  WARNING: API_SECRET_KEY is too short (minimum 32 characters). Set a longer API_SECRET_KEY in your .env file!';
-  logger.error(message);
-  if (IS_PRODUCTION) {
-    logger.error('[FATAL] API_SECRET_KEY is missing or too short (minimum 32 characters). Exiting.');
-    process.exit(1);
-  }
-}
+enforceSecretPolicy({
+  envName: 'JWT_SECRET',
+  value: JWT_SECRET,
+  defaultValue: 'change-this-secret-in-production',
+  isProduction: IS_PRODUCTION,
+});
+enforceSecretPolicy({
+  envName: 'API_SECRET_KEY',
+  value: VALID_API_KEY,
+  defaultValue: 'change-me-in-production',
+  isProduction: IS_PRODUCTION,
+});
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -56,6 +41,17 @@ export interface AuthRequest extends Request {
 
 export interface DeviceRequest extends Request {
   device?: { id: string };
+}
+
+interface DeviceAuthRow {
+  id: string;
+  active: number;
+}
+
+interface JwtAdminPayload {
+  userId: string;
+  username: string;
+  role: string;
 }
 
 // Middleware to verify JWT token
@@ -79,7 +75,7 @@ export const verifyToken = async (req: AuthRequest, res: Response, next: NextFun
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; username: string; role: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtAdminPayload;
     req.userId = decoded.userId;
     req.username = decoded.username;
     req.userRole = decoded.role;
@@ -154,7 +150,10 @@ export const verifySession = async (req: AuthRequest, res: Response, next: NextF
   }
 
   try {
-    const user = await dbGet('SELECT id, username, role FROM admin_users WHERE id = ?', [userId]);
+    const user = await dbGet<Pick<AdminUserRow, 'id' | 'username' | 'role'>>(
+      'SELECT id, username, role FROM admin_users WHERE id = ?',
+      [userId],
+    );
 
     if (!user) {
       res.status(401).json({ error: 'Session invalid' });
@@ -203,7 +202,7 @@ export const verifyDeviceToken = async (req: Request, res: Response, next: NextF
   }
 
   try {
-    const device = await dbGet('SELECT id, active FROM devices WHERE device_token = ?', [deviceToken]);
+    const device = await dbGet<DeviceAuthRow>('SELECT id, active FROM devices WHERE device_token = ?', [deviceToken]);
 
     if (!device || device.active !== 1) {
       res.status(401).json({ error: 'Invalid or inactive device token' });

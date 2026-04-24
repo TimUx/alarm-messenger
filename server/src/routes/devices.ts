@@ -3,16 +3,42 @@ import crypto from 'crypto';
 import QRCode from 'qrcode';
 import rateLimit from 'express-rate-limit';
 import { dbRun, dbGet, dbAll } from '../services/database';
-import { verifyToken, verifyAdmin, verifySession, AuthRequest, verifyDeviceToken, generateDeviceToken } from '../middleware/auth';
+import { verifyToken, verifyAdmin, verifySession, AuthRequest, DeviceRequest, verifyDeviceToken, generateDeviceToken } from '../middleware/auth';
 import { Device } from '../models/types';
 import { DeviceRow } from '../models/db-types';
 import { mapDeviceRow, mapGroupRow } from '../mappers';
 import { GroupRow } from '../models/db-types';
 import { validateBody } from '../middleware/validate';
-import { DeviceRegistrationSchema } from '../validation/schemas';
+import { DeviceRegistrationSchema, UpdatePushTokenSchema } from '../validation/schemas';
 import logger from '../utils/logger';
+import {
+  parseDevicesPagination,
+  buildGroupCodes,
+  buildRegistrationDevicePayload,
+  buildPushTokenUpdatePlan,
+} from './devices/helpers';
 
 const router = Router();
+
+interface DevicesCountRow {
+  total: number;
+}
+
+interface DeviceIdRow {
+  id: string;
+}
+
+interface DeviceTokenRow {
+  device_token: string;
+}
+
+interface DeviceGroupCodeRow {
+  group_code: string;
+}
+
+function ensureAuthenticatedDeviceAccess(req: Request, targetDeviceId: string): boolean {
+  return (req as DeviceRequest).device?.id === targetDeviceId;
+}
 
 const registrationRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -21,7 +47,7 @@ const registrationRateLimiter = rateLimit({
 });
 
 // Generate a registration QR code
-router.post('/registration-token', registrationRateLimiter, async (req: Request, res: Response) => {
+router.post('/registration-token', verifySession, verifyAdmin, registrationRateLimiter, async (req: Request, res: Response) => {
   try {
     const deviceToken = crypto.randomUUID();
     
@@ -81,7 +107,7 @@ router.post('/register', registrationRateLimiter, validateBody(DeviceRegistratio
     } = req.body;
 
     // Check if device token already exists
-    const existing = await dbGet(
+    const existing = await dbGet<DeviceRow>(
       'SELECT * FROM devices WHERE device_token = ?',
       [deviceToken]
     );
@@ -135,18 +161,17 @@ router.post('/register', registrationRateLimiter, validateBody(DeviceRegistratio
       ]
     );
 
-    const device: Device = {
-      id: existing.id,
+    const device: Device = buildRegistrationDevicePayload({
+      existingId: existing.id,
       deviceToken,
       registrationToken,
       platform,
       registeredAt: existing.registered_at,
-      active: true,
       firstName,
       lastName,
       qualifications,
-      leadershipRole: leadershipRole || 'none',
-    };
+      leadershipRole,
+    });
 
     // Issue a WebSocket JWT so the device can authenticate the /ws connection
     const wsToken = generateDeviceToken(existing.id);
@@ -159,23 +184,14 @@ router.post('/register', registrationRateLimiter, validateBody(DeviceRegistratio
 });
 
 // Update push notification tokens (FCM/APNs)
-router.post('/update-push-token', verifyDeviceToken, async (req: Request, res: Response) => {
+router.post('/update-push-token', verifyDeviceToken, validateBody(UpdatePushTokenSchema), async (req: Request, res: Response) => {
   try {
     const { deviceToken, fcmToken, apnsToken } = req.body;
-
-    if (!deviceToken) {
-      res.status(400).json({ error: 'deviceToken is required' });
-      return;
-    }
-
-    if (!fcmToken && !apnsToken) {
-      res.status(400).json({ error: 'At least one of fcmToken or apnsToken is required' });
-      return;
-    }
+    const authenticatedDeviceId = (req as DeviceRequest).device?.id;
 
     // Check if device exists
-    const existing = await dbGet(
-      'SELECT * FROM devices WHERE device_token = ?',
+    const existing = await dbGet<DeviceIdRow>(
+      'SELECT id FROM devices WHERE device_token = ?',
       [deviceToken]
     );
 
@@ -183,20 +199,12 @@ router.post('/update-push-token', verifyDeviceToken, async (req: Request, res: R
       res.status(404).json({ error: 'Device not found' });
       return;
     }
+    if (!authenticatedDeviceId || existing.id !== authenticatedDeviceId) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
 
-    // Update push tokens
-    const updates = [];
-    const params = [];
-    
-    if (fcmToken !== undefined && fcmToken !== null) {
-      updates.push('fcm_token = ?');
-      params.push(fcmToken);
-    }
-    
-    if (apnsToken !== undefined && apnsToken !== null) {
-      updates.push('apns_token = ?');
-      params.push(apnsToken);
-    }
+    const { updates, params } = buildPushTokenUpdatePlan(fcmToken, apnsToken);
     
     // If no tokens to update, return success without DB call
     if (updates.length === 0) {
@@ -233,11 +241,12 @@ router.post('/update-push-token', verifyDeviceToken, async (req: Request, res: R
 // Get all registered devices (with pagination)
 router.get('/', verifySession, async (req: Request, res: Response) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
-    const offset = (page - 1) * limit;
+    const { page, limit, offset } = parseDevicesPagination(
+      req.query.page as string | undefined,
+      req.query.limit as string | undefined
+    );
 
-    const countResult = await dbGet('SELECT COUNT(*) as total FROM devices WHERE active = 1', []);
+    const countResult = await dbGet<DevicesCountRow>('SELECT COUNT(*) as total FROM devices WHERE active = 1', []);
     const total = countResult?.total || 0;
 
     const rows = await dbAll<DeviceRow>(
@@ -245,7 +254,7 @@ router.get('/', verifySession, async (req: Request, res: Response) => {
       [limit, offset]
     );
 
-    const devices = rows.map((row: DeviceRow) => mapDeviceRow(row, false));
+    const devices = rows.map((row) => mapDeviceRow(row, false));
 
     res.json({
       data: devices,
@@ -266,6 +275,10 @@ router.get('/', verifySession, async (req: Request, res: Response) => {
 router.get('/:id', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    if (!ensureAuthenticatedDeviceAccess(req, id)) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
     const row = await dbGet<DeviceRow>('SELECT * FROM devices WHERE id = ?', [id]);
 
     if (!row) {
@@ -274,11 +287,11 @@ router.get('/:id', verifyDeviceToken, async (req: Request, res: Response) => {
     }
 
     // Get assigned groups
-    const groupRows = await dbAll(
+    const groupRows = await dbAll<DeviceGroupCodeRow>(
       'SELECT group_code FROM device_groups WHERE device_id = ?',
       [id]
     );
-    const rowWithGroups: DeviceRow = { ...row, group_codes: groupRows.map((g: any) => g.group_code).join(',') || null };
+    const rowWithGroups: DeviceRow = { ...row, group_codes: buildGroupCodes(groupRows) };
 
     res.json(mapDeviceRow(rowWithGroups, true));
   } catch (error) {
@@ -291,6 +304,10 @@ router.get('/:id', verifyDeviceToken, async (req: Request, res: Response) => {
 router.get('/:id/details', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    if (!ensureAuthenticatedDeviceAccess(req, id)) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
     const row = await dbGet<DeviceRow>('SELECT * FROM devices WHERE id = ?', [id]);
 
     if (!row) {
@@ -307,7 +324,7 @@ router.get('/:id/details', verifyDeviceToken, async (req: Request, res: Response
       [id]
     );
 
-    const rowWithGroups: DeviceRow = { ...row, group_codes: groupRows.map((g) => g.code).join(',') || null };
+    const rowWithGroups: DeviceRow = { ...row, group_codes: buildGroupCodes(groupRows) };
     const device = mapDeviceRow(rowWithGroups, true);
     const assignedGroups = groupRows.map(mapGroupRow);
 
@@ -325,7 +342,11 @@ router.get('/:id/details', verifyDeviceToken, async (req: Request, res: Response
 router.get('/:id/qr-code', verifyDeviceToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const row = await dbGet('SELECT device_token FROM devices WHERE id = ?', [id]);
+    if (!ensureAuthenticatedDeviceAccess(req, id)) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    const row = await dbGet<DeviceTokenRow>('SELECT device_token FROM devices WHERE id = ?', [id]);
 
     if (!row) {
       res.status(404).json({ error: 'Device not found' });
@@ -356,7 +377,7 @@ router.delete('/:id', verifyToken, verifyAdmin, async (req: AuthRequest, res: Re
   try {
     const { id } = req.params;
     
-    const device = await dbGet('SELECT * FROM devices WHERE id = ?', [id]);
+    const device = await dbGet<DeviceRow>('SELECT * FROM devices WHERE id = ?', [id]);
     if (!device) {
       res.status(404).json({ error: 'Device not found' });
       return;

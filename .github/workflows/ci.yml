@@ -24,8 +24,14 @@ jobs:
           cache-dependency-path: server/package-lock.json
       - name: Install dependencies
         run: npm ci
-      - name: Run tests
-        run: npx jest --forceExit
+      - name: Run unit tests
+        run: npm run test:unit
+      - name: Run integration tests
+        run: npm run test:integration
+      - name: Run e2e tests
+        run: npm run test:e2e
+      - name: Run critical coverage gate
+        run: npm run test:coverage:critical
       - name: Build TypeScript
         run: npm run build
 
@@ -41,7 +47,7 @@ jobs:
         run: docker build -t alarm-messenger-server ./server
 
   flutter-analyze:
-    name: Flutter – Analyze
+    name: Flutter – Analyze & Test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -56,4 +62,10 @@ jobs:
         working-directory: mobile
       - name: Analyze Flutter code
         run: flutter analyze
+        working-directory: mobile
+      - name: Run Flutter unit/widget tests
+        run: flutter test
+        working-directory: mobile
+      - name: Run Flutter integration tests
+        run: flutter test integration_test
         working-directory: mobile
