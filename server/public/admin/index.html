@@ -6,6 +6,14 @@
     <title>Alarm Messenger - Admin Dashboard</title>
     <link rel="stylesheet" href="/admin/styles.css">
     <script src="/admin/theme.js"></script>
+    <link rel="manifest" href="/admin/manifest.webmanifest">
+    <meta name="theme-color" content="#c62828">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Alarm Admin">
+    <link rel="apple-touch-icon" href="/admin/icons/icon-192.png">
+    <script src="/admin/pwa-register.js" defer></script>
 </head>
 <body>
     <div class="dashboard-container">
@@ -39,6 +47,15 @@
                         <img id="qr-code-image" alt="QR Code">
                         <div class="qr-code-info">
                             <p><strong>Device Token:</strong> <span id="device-token"></span></p>
+                            <p><strong>Registrierungs-Link:</strong></p>
+                            <p class="registration-link-wrap"><a id="registration-link" href="#" target="_blank" rel="noopener"></a></p>
+                            <button class="btn btn-secondary" id="copy-link-btn">Link kopieren</button>
+                            <button class="btn btn-secondary" id="copy-json-btn">JSON kopieren</button>
+                            <div class="email-invite-row">
+                                <label for="invite-email">Einladung per E-Mail</label>
+                                <input type="email" id="invite-email" placeholder="feuerwehr@example.com" autocomplete="email">
+                                <button class="btn btn-secondary" id="send-invite-email-btn">Senden</button>
+                            </div>
                             <button class="btn btn-secondary" id="copy-token-btn">Token kopieren</button>
                             <button class="btn btn-secondary" id="download-qr-btn">QR-Code herunterladen</button>
                         </div>
