@@ -299,7 +299,7 @@ QR-Codes werden in der Datenbank gespeichert und können jederzeit erneut abgeru
 - **Docker & Docker Compose** (empfohlen) ODER
 - **Node.js 18+** und npm/yarn für native Installation
 - Für Mobile App Entwicklung:
-  - Flutter SDK 3.27.1+
+  - Flutter SDK 3.41.7+ (Dart 3.10+; required by `app_links` ^7)
   - Xcode (iOS)
   - Android Studio (Android)
 
