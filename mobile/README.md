@@ -33,7 +33,7 @@ Eine plattformübergreifende mobile App für das Alarm Messenger System, entwick
 
 ### Voraussetzungen
 
-- Flutter SDK 3.27.1 oder höher
+- Flutter SDK 3.41.7 oder höher (Dart 3.10+, z. B. wegen `app_links` ^7)
 - Dart 3.5.0 oder höher
 - Android Studio / Xcode (für native Entwicklung)
 - Java 17+ (für Android)
