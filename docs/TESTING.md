@@ -63,7 +63,7 @@ Critical flows implemented as integration/E2E tests:
 - `mobile/test/widget`
   - `theme_provider_widget_test.dart`
 - `mobile/integration_test`
-  - `app_smoke_test.dart`
+  - `app_smoke_test.dart` – Modell-/String-Smoketests, Registrierungs-UI (nicht angemeldet) und `AppTheme`-Material-3-Check; benötigt Linux-Desktop-Target (lokal ggf. `xvfb-run -a` ohne Display)
 
 ## 4) Local CLI Execution
 
