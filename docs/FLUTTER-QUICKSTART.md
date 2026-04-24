@@ -4,7 +4,7 @@ Schnellanleitung zum Einrichten und Bauen der Flutter Mobile App.
 
 ## Voraussetzungen
 
-- **Flutter SDK 3.27.1+** - [Installation Guide](https://docs.flutter.dev/get-started/install)
+- **Flutter SDK 3.41.7+** (Dart 3.10+; required by `app_links` ^7) - [Installation Guide](https://docs.flutter.dev/get-started/install)
 - **Android Studio** (für Android) - [Download](https://developer.android.com/studio)
 - **Xcode** (für iOS, nur macOS) - [Download](https://developer.apple.com/xcode/)
 
