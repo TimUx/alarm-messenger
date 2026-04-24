@@ -590,9 +590,9 @@ participants.forEach(p => {
 - `POST /api/emergencies/:id/responses` - Rückmeldung absenden (Mobile App)
 
 **Geräte:**
-- `POST /api/devices/registration-token` - QR-Code generieren (benötigt JWT)
+- `POST /api/devices/registration-token` - QR-Code generieren (benötigt Admin-Session + CSRF)
 - `POST /api/devices/register` - Gerät registrieren (Mobile App)
-- `GET /api/devices` - Alle Geräte abrufen (benötigt JWT)
+- `GET /api/devices` - Alle Geräte abrufen (benötigt Session)
 - `PUT /api/admin/devices/:id` - Geräte-/Einsatzkraft-Informationen aktualisieren (benötigt JWT + Admin-Rolle)
 - `DELETE /api/devices/:id` - Gerät deaktivieren (benötigt JWT + Admin-Rolle)
 
