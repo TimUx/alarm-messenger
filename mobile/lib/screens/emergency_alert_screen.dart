@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
 import '../models/models.dart';
 import '../providers/app_state.dart';
-import 'package:intl/intl.dart';
 
 class EmergencyAlertScreen extends StatefulWidget {
   final Emergency emergency;
@@ -36,6 +37,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       await appState.submitResponse(participating);
 
       if (mounted) {
+        final scheme = Theme.of(context).colorScheme;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -44,16 +46,19 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                   ? '✓ Rückmeldung: Nehme teil'
                   : '✓ Rückmeldung: Kann nicht teilnehmen',
             ),
-            backgroundColor: participating ? Colors.green : Colors.orange,
+            backgroundColor: participating
+                ? scheme.primaryContainer
+                : scheme.tertiaryContainer,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
+        final scheme = Theme.of(context).colorScheme;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Fehler: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: scheme.error,
           ),
         );
       }
@@ -65,16 +70,17 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final dateFormat = DateFormat('dd.MM.yyyy HH:mm');
     final date = DateTime.parse(widget.emergency.emergencyDate);
 
     return Scaffold(
       backgroundColor: widget.isHistoric
           ? null
-          : Theme.of(context).colorScheme.errorContainer,
+          : scheme.errorContainer,
       appBar: AppBar(
-        backgroundColor: widget.isHistoric ? null : Colors.red,
-        foregroundColor: widget.isHistoric ? null : Colors.white,
+        backgroundColor: widget.isHistoric ? null : scheme.error,
+        foregroundColor: widget.isHistoric ? null : scheme.onError,
         title: Text(widget.isHistoric ? 'Einsatz-Details' : 'ALARM!'),
         centerTitle: true,
       ),
@@ -87,13 +93,14 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (!widget.isHistoric)
+                    if (!widget.isHistoric) ...[
                       Icon(
                         Icons.notifications_active,
                         size: 80,
-                        color: Colors.red[700],
+                        color: scheme.error,
                       ),
-                    if (!widget.isHistoric) const SizedBox(height: 16),
+                      const SizedBox(height: 16),
+                    ],
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -101,30 +108,35 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildInfoRow(
+                              context,
                               Icons.label,
                               'Einsatznummer',
                               widget.emergency.emergencyNumber,
                             ),
                             const Divider(height: 24),
                             _buildInfoRow(
+                              context,
                               Icons.access_time,
                               'Datum/Zeit',
                               dateFormat.format(date),
                             ),
                             const Divider(height: 24),
                             _buildInfoRow(
+                              context,
                               Icons.warning_amber,
                               'Stichwort',
                               widget.emergency.emergencyKeyword,
                             ),
                             const Divider(height: 24),
                             _buildInfoSection(
+                              context,
                               Icons.description,
                               'Beschreibung',
                               widget.emergency.emergencyDescription,
                             ),
                             const Divider(height: 24),
                             _buildInfoSection(
+                              context,
                               Icons.location_on,
                               'Einsatzort',
                               widget.emergency.emergencyLocation,
@@ -132,6 +144,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                             if (widget.emergency.groups != null) ...[
                               const Divider(height: 24),
                               _buildInfoRow(
+                                context,
                                 Icons.group,
                                 'Gruppen',
                                 widget.emergency.groups!,
@@ -149,10 +162,10 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
+                  color: scheme.surface,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: scheme.shadow.withValues(alpha: 0.12),
                       blurRadius: 8,
                       offset: const Offset(0, -2),
                     ),
@@ -170,30 +183,30 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: ElevatedButton.icon(
+                          child: FilledButton.icon(
                             onPressed: _isSubmitting
                                 ? null
                                 : () => _submitResponse(false),
                             icon: const Icon(Icons.close),
                             label: const Text('NEIN'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              foregroundColor: Colors.white,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: scheme.tertiary,
+                              foregroundColor: scheme.onTertiary,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: ElevatedButton.icon(
+                          child: FilledButton.icon(
                             onPressed: _isSubmitting
                                 ? null
                                 : () => _submitResponse(true),
                             icon: const Icon(Icons.check),
                             label: const Text('JA'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: scheme.primary,
+                              foregroundColor: scheme.onPrimary,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                             ),
                           ),
@@ -214,11 +227,17 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildInfoRow(
+    BuildContext context,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
+        Icon(icon, size: 20, color: scheme.onSurfaceVariant),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -227,7 +246,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
               Text(
                 label,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
+                      color: scheme.onSurfaceVariant,
                     ),
               ),
               const SizedBox(height: 4),
@@ -244,18 +263,24 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
     );
   }
 
-  Widget _buildInfoSection(IconData icon, String label, String value) {
+  Widget _buildInfoSection(
+    BuildContext context,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icon, size: 20, color: Colors.grey[600]),
+            Icon(icon, size: 20, color: scheme.onSurfaceVariant),
             const SizedBox(width: 12),
             Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey[600],
+                    color: scheme.onSurfaceVariant,
                   ),
             ),
           ],

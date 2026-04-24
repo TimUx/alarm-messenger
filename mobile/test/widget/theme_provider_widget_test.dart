@@ -42,5 +42,9 @@ void main() {
     await tester.tap(find.text('toggle'));
     await tester.pump();
     expect(find.text('mode:dark'), findsOneWidget);
+
+    await tester.tap(find.text('toggle'));
+    await tester.pump();
+    expect(find.text('mode:system'), findsOneWidget);
   });
 }

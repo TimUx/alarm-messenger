@@ -11,7 +11,7 @@ pubget:
 	$(FLUTTER) pub get
 
 test:
-	$(FLUTTER) test
+	$(FLUTTER) test test/unit test/widget
 
 test-integration:
 	$(FLUTTER) test integration_test
