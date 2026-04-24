@@ -1,15 +1,29 @@
 import { Server as HTTPServer } from 'http';
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocketServer, WebSocket, RawData } from 'ws';
 import jwt from 'jsonwebtoken';
 import { redisPubSubService } from './redis-pubsub';
 import { dbGet } from './database';
 import { JWT_SECRET } from '../middleware/auth';
 import logger from '../utils/logger';
+import { PushNotificationData } from './push-notification';
 
 interface Client {
   ws: WebSocket;
   deviceId: string;
   isAlive: boolean;
+}
+
+interface WebSocketAuthPayload {
+  deviceId?: string;
+}
+
+interface DeviceActiveRow {
+  id: string;
+  active: number;
+}
+
+interface WebSocketIncomingMessage {
+  type?: unknown;
 }
 
 class WebSocketService {
@@ -25,7 +39,7 @@ class WebSocketService {
       try {
         const token = new URL(req.url || '?', 'http://localhost').searchParams.get('token');
         if (!token) throw new Error('No token');
-        const payload = jwt.verify(token, JWT_SECRET) as { deviceId?: string };
+        const payload = jwt.verify(token, JWT_SECRET) as WebSocketAuthPayload;
         if (!payload.deviceId) throw new Error('Missing deviceId in token');
         deviceId = payload.deviceId;
       } catch {
@@ -35,7 +49,7 @@ class WebSocketService {
 
       // Verify the device is active in the database
       try {
-        const device = await dbGet('SELECT id, active FROM devices WHERE id = ?', [deviceId]);
+        const device = await dbGet<DeviceActiveRow>('SELECT id, active FROM devices WHERE id = ?', [deviceId]);
         if (!device || device.active !== 1) {
           ws.close(4001, 'Unauthorized');
           return;
@@ -79,9 +93,12 @@ class WebSocketService {
         }
       });
 
-      ws.on('message', async (message: string) => {
+      ws.on('message', async (message: RawData) => {
         try {
-          const data = JSON.parse(message.toString());
+          const parsed: unknown = JSON.parse(message.toString());
+          const data = (typeof parsed === 'object' && parsed !== null)
+            ? parsed as WebSocketIncomingMessage
+            : {};
           logger.debug({ type: data.type, deviceId }, 'WebSocket message received');
         } catch (error) {
           logger.error({ err: error }, 'Error processing WebSocket message');
@@ -117,7 +134,7 @@ class WebSocketService {
     deviceId: string,
     title: string,
     body: string,
-    data: any
+    data: PushNotificationData
   ): Promise<boolean> {
     const client = this.clients.get(deviceId);
     
@@ -140,7 +157,7 @@ class WebSocketService {
         emergencyKeyword: data.emergencyKeyword,
         emergencyDescription: data.emergencyDescription,
         emergencyLocation: data.emergencyLocation,
-        groups: data.groups || '',
+        groups: data.groups,
       };
 
       client.ws.send(JSON.stringify(message));
@@ -156,7 +173,7 @@ class WebSocketService {
     deviceIds: string[],
     title: string,
     body: string,
-    data: any
+    data: PushNotificationData
   ): Promise<void> {
     const promises = deviceIds.map((deviceId) =>
       this.sendNotification(deviceId, title, body, data)

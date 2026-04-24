@@ -35,13 +35,36 @@ export interface PushNotificationData {
   emergencyKeyword: string;
   emergencyDescription: string;
   emergencyLocation: string;
-  groups?: string;
+  groups: string;
 }
 
 export interface FCMTokenResult {
   token: string;
   success: boolean;
   errorCode?: string;
+}
+
+interface ApnsSendFailure {
+  response?: {
+    reason?: string;
+  };
+}
+
+interface ApnsSendResult {
+  failed: ApnsSendFailure[];
+}
+
+interface FcmMulticastResponseItem {
+  success: boolean;
+  error?: {
+    code?: string;
+  };
+}
+
+interface FcmMulticastResult {
+  successCount: number;
+  failureCount: number;
+  responses: FcmMulticastResponseItem[];
 }
 
 /**
@@ -162,14 +185,22 @@ class PushNotificationService {
         return;
       }
 
-      if (!fs.existsSync(keyPath)) {
-        logger.warn(`⚠️  APNs key file not found: ${keyPath}`);
+      // Restrict key file access to the mounted config directory.
+      const resolvedKeyPath = path.resolve(keyPath);
+      const allowedDir = path.resolve('/app/config');
+      if (!resolvedKeyPath.startsWith(allowedDir + path.sep)) {
+        logger.error('[FATAL] APNS_KEY_PATH is outside allowed directory (/app/config). Exiting.');
+        process.exit(1);
+      }
+
+      if (!fs.existsSync(resolvedKeyPath)) {
+        logger.warn(`⚠️  APNs key file not found: ${resolvedKeyPath}`);
         return;
       }
 
       this.apnsProvider = new Provider({
         token: {
-          key: keyPath,
+          key: resolvedKeyPath,
           keyId: keyId,
           teamId: teamId,
         },
@@ -210,7 +241,7 @@ class PushNotificationService {
           emergencyKeyword: data.emergencyKeyword,
           emergencyDescription: data.emergencyDescription,
           emergencyLocation: data.emergencyLocation,
-          groups: data.groups || '',
+          groups: data.groups,
         },
         android: {
           priority: 'high' as const,
@@ -269,7 +300,7 @@ class PushNotificationService {
         emergencyKeyword: data.emergencyKeyword,
         emergencyDescription: data.emergencyDescription,
         emergencyLocation: data.emergencyLocation,
-        groups: data.groups || '',
+        groups: data.groups,
       };
       
       // Set topic (bundle identifier)
@@ -282,7 +313,7 @@ class PushNotificationService {
       notification.priority = 10;
 
       const provider = this.apnsProvider;
-      const result = await retryWithBackoff(
+      const result = await retryWithBackoff<ApnsSendResult>(
         () => provider.send(notification, apnsToken),
         isApnsTransient,
       );
@@ -362,7 +393,7 @@ class PushNotificationService {
             emergencyKeyword: data.emergencyKeyword,
             emergencyDescription: data.emergencyDescription,
             emergencyLocation: data.emergencyLocation,
-            groups: data.groups || '',
+            groups: data.groups,
           },
           android: {
             priority: 'high' as const,
@@ -374,7 +405,7 @@ class PushNotificationService {
             },
           },
         };
-        const result = await retryWithBackoff(
+        const result = await retryWithBackoff<FcmMulticastResult>(
           () => admin.messaging().sendEachForMulticast(message),
           isFcmTransient,
         );
