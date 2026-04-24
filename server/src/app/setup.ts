@@ -11,6 +11,7 @@ import deviceRoutes from '../routes/devices';
 import adminRoutes from '../routes/admin';
 import groupRoutes from '../routes/groups';
 import infoRoutes from '../routes/info';
+import registrationPublicRouter from '../routes/registration-public';
 import { decodeSecret } from '../utils/secrets';
 import { errorHandler } from '../middleware/errorHandler';
 import logger from '../utils/logger';
@@ -78,6 +79,7 @@ function applySecurityMiddleware(app: Application) {
         formAction: ["'self'"],
         frameAncestors: ["'self'"],
         scriptSrcAttr: ["'none'"],
+        workerSrc: ["'self'"],
       },
     },
     hsts: false,
@@ -105,6 +107,8 @@ function applySessionMiddleware(app: Application, sessionSecret: string, isProdu
 }
 
 function applyRoutes(app: Application) {
+  app.use(registrationPublicRouter);
+
   app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/storage_service.dart';
@@ -11,6 +12,9 @@ import '../services/notification_service.dart';
 import '../l10n/strings.dart';
 
 class AppState extends ChangeNotifier {
+  /// Pending deep-link invite: [server] origin + invite [token] (JWT).
+  ({String server, String token})? _pendingInvite;
+
   bool _isRegistered = false;
   Emergency? _currentEmergency;
   bool _showAlarmDialog = false;
@@ -21,6 +25,7 @@ class AppState extends ChangeNotifier {
   DeviceDetails? _deviceDetails;
   bool _isInitializing = true;
   bool _isOffline = false;
+  StreamSubscription<PushNotificationData>? _wsEmergencySub;
 
   AppState() {
     _checkRegistration();
@@ -37,6 +42,24 @@ class AppState extends ChangeNotifier {
   DeviceDetails? get deviceDetails => _deviceDetails;
   bool get isInitializing => _isInitializing;
   bool get isOffline => _isOffline;
+
+  void setPendingRegistrationInvite({required String server, required String token}) {
+    if (_isRegistered) {
+      return;
+    }
+    _pendingInvite = (server: server.trim(), token: token.trim());
+    notifyListeners();
+  }
+
+  /// Returns and clears a pending invite from a deep link (single consumption).
+  ({String server, String token})? takePendingInvite() {
+    final v = _pendingInvite;
+    _pendingInvite = null;
+    if (v != null) {
+      notifyListeners();
+    }
+    return v;
+  }
 
   void clearError() {
     _errorMessage = null;
@@ -128,12 +151,17 @@ class AppState extends ChangeNotifier {
       final deviceToken = StorageService.getDeviceToken();
       if (serverUrl != null && deviceToken != null) {
         WebSocketService().connect(serverUrl, deviceToken);
-        
-        // Listen for incoming emergencies
-        WebSocketService().messageStream?.listen((notification) {
-          handleEmergencyNotification(notification);
-        });
+        _bindWebSocketEmergencyListener();
       }
+    }
+  }
+
+  void _bindWebSocketEmergencyListener() {
+    _wsEmergencySub?.cancel();
+    _wsEmergencySub = null;
+    final stream = WebSocketService().messageStream;
+    if (stream != null) {
+      _wsEmergencySub = stream.listen(handleEmergencyNotification);
     }
   }
 
@@ -163,11 +191,7 @@ class AppState extends ChangeNotifier {
       
       // Connect WebSocket using deviceToken
       WebSocketService().connect(serverUrl, deviceToken);
-      
-      // Listen for incoming emergencies
-      WebSocketService().messageStream?.listen((notification) {
-        handleEmergencyNotification(notification);
-      });
+      _bindWebSocketEmergencyListener();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -274,6 +298,8 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await _wsEmergencySub?.cancel();
+    _wsEmergencySub = null;
     await StorageService.clear();
     WebSocketService().disconnect();
     _isRegistered = false;
@@ -287,6 +313,8 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _wsEmergencySub?.cancel();
+    _wsEmergencySub = null;
     WebSocketService().disconnect();
     AlarmService.dispose();
     super.dispose();

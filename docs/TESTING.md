@@ -88,9 +88,11 @@ Run from `mobile/`:
 
 ```bash
 flutter pub get
-flutter test
+make test
 flutter test integration_test
 ```
+
+(`make test` runs `flutter test test/unit test/widget` so alle Unit-Tests zuverlässig mitlaufen.)
 
 ## 5) CI Execution
 
@@ -102,7 +104,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs:
 4. `npm run test:coverage:critical`
 5. `npm run build`
 6. `flutter analyze` (mobile)
-7. `flutter test` (mobile)
+7. `flutter test test/unit test/widget` (mobile)
 8. `flutter test integration_test` (mobile)
 
 This enforces layered correctness and a critical-path coverage gate on each push/PR.

@@ -44,11 +44,18 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleTheme() {
-    if (_themeMode == ThemeMode.light) {
-      setThemeMode(ThemeMode.dark);
-    } else {
-      setThemeMode(ThemeMode.light);
+  /// Cycles **system → light → dark → system** so „System“-Modus wieder erreichbar ist.
+  Future<void> toggleTheme() async {
+    switch (_themeMode) {
+      case ThemeMode.system:
+        await setThemeMode(ThemeMode.light);
+        break;
+      case ThemeMode.light:
+        await setThemeMode(ThemeMode.dark);
+        break;
+      case ThemeMode.dark:
+        await setThemeMode(ThemeMode.system);
+        break;
     }
   }
 }

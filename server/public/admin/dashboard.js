@@ -20,6 +20,9 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logout-btn').addEventListener('click', logout);
     document.getElementById('generate-qr-btn').addEventListener('click', generateQRCode);
     document.getElementById('copy-token-btn').addEventListener('click', copyToken);
+    document.getElementById('copy-link-btn').addEventListener('click', copyRegistrationLink);
+    document.getElementById('copy-json-btn').addEventListener('click', copyRegistrationJson);
+    document.getElementById('send-invite-email-btn').addEventListener('click', sendInviteEmail);
     document.getElementById('download-qr-btn').addEventListener('click', downloadQRCode);
     document.getElementById('refresh-stats-btn').addEventListener('click', loadStatistics);
     
@@ -46,6 +49,14 @@ async function generateQRCode() {
         // Display QR code
         document.getElementById('qr-code-image').src = data.qrCode;
         document.getElementById('device-token').textContent = data.deviceToken;
+        const linkEl = document.getElementById('registration-link');
+        if (data.registrationLink) {
+            linkEl.href = data.registrationLink;
+            linkEl.textContent = data.registrationLink;
+        } else {
+            linkEl.removeAttribute('href');
+            linkEl.textContent = '—';
+        }
         document.getElementById('qr-code-display').style.display = 'block';
         
         // Scroll to QR code
@@ -60,6 +71,60 @@ function copyToken() {
     navigator.clipboard.writeText(token).then(() => {
         alert('Token in die Zwischenablage kopiert!');
     });
+}
+
+function copyRegistrationLink() {
+    if (!currentQRData || !currentQRData.registrationLink) return;
+    navigator.clipboard.writeText(currentQRData.registrationLink).then(() => {
+        alert('Registrierungs-Link kopiert!');
+    });
+}
+
+function copyRegistrationJson() {
+    if (!currentQRData || !currentQRData.registrationData) return;
+    const json = JSON.stringify(currentQRData.registrationData);
+    navigator.clipboard.writeText(json).then(() => {
+        alert('JSON kopiert!');
+    });
+}
+
+async function sendInviteEmail() {
+    if (!currentQRData) {
+        alert('Bitte zuerst einen QR-Code / Token erzeugen.');
+        return;
+    }
+    const emailInput = document.getElementById('invite-email');
+    const email = (emailInput && emailInput.value || '').trim();
+    if (!email) {
+        alert('Bitte eine E-Mail-Adresse eingeben.');
+        return;
+    }
+    try {
+        const response = await apiRequest(`${API_BASE}/devices/registration-token/email`, {
+            method: 'POST',
+            body: JSON.stringify({ email, deviceToken: currentQRData.deviceToken })
+        });
+        if (!response || !response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || 'Versand fehlgeschlagen');
+        }
+        const data = await response.json();
+        currentQRData = data;
+        document.getElementById('qr-code-image').src = data.qrCode;
+        document.getElementById('device-token').textContent = data.deviceToken;
+        const linkEl = document.getElementById('registration-link');
+        if (data.registrationLink) {
+            linkEl.href = data.registrationLink;
+            linkEl.textContent = data.registrationLink;
+        }
+        if (data.email && data.email.sent) {
+            showToast('Einladung wurde per E-Mail gesendet.', 'success');
+        } else {
+            showToast('Gerät angelegt, aber E-Mail nicht versendet (SMTP nicht konfiguriert?). Link in der UI nutzen.', 'error');
+        }
+    } catch (error) {
+        alert('Fehler: ' + error.message);
+    }
 }
 
 function downloadQRCode() {

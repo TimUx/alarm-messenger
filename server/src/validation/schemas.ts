@@ -11,10 +11,16 @@ export const CreateEmergencySchema = z.object({
   groups: z.string().optional(),
 });
 
+export const RegistrationInviteEmailSchema = z.object({
+  email: z.string().email(),
+  /** If set, send the invite for this existing pending device instead of creating a new one. */
+  deviceToken: z.string().uuid().optional(),
+});
+
 export const DeviceRegistrationSchema = z.object({
   deviceToken: z.string().min(1),
   registrationToken: z.string().min(1),
-  platform: z.enum(['ios', 'android']),
+  platform: z.enum(['ios', 'android', 'linux']),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   qualifications: z.object({

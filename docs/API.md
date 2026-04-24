@@ -394,9 +394,69 @@ Generiert einen QR-Code für die Geräteregistrierung.
   "registrationData": {
     "token": "generated-uuid",
     "serverUrl": "http://localhost:3000"
-  }
+  },
+  "registrationLink": "http://localhost:3000/register?token=…"
 }
 ```
+
+- `registrationLink` – Öffnet eine Hilfsseite mit Kopier-JSON und Deep-Link `alarm-messenger://register?…` für die Mobile-App (JWT, typischerweise 48h gültig).
+
+---
+
+### Registrierungs-Einladung per E-Mail
+
+Erzeugt wie der QR-Endpunkt ein vorgemerktes Gerät **oder** versendet die Einladung erneut für ein **bereits** erzeugtes `deviceToken`.
+
+**Endpunkt:** `POST /api/devices/registration-token/email`
+
+🔒 **Authentifizierung erforderlich:** Admin-Session + CSRF-Header `X-CSRF-Token`
+
+**Request Body:**
+```json
+{
+  "email": "einsatzkraft@feuerwehr.example",
+  "deviceToken": "optional-uuid-wenn-bereits-generiert"
+}
+```
+
+- Ohne `deviceToken`: neues pending Device wie `POST /api/devices/registration-token`, plus E-Mail-Versuch.
+- Mit `deviceToken`: gleiches Gerät; nützlich, um nach QR-Erzeugung nur die E-Mail nachzusenden.
+
+**Antwort:** `200 OK` — wie Token-Generierung, zusätzlich:
+```json
+{
+  "email": { "sent": true }
+}
+```
+Ist SMTP nicht konfiguriert, ist `sent` false (`reason`: `smtp_not_configured`); `registrationLink` und `registrationData` sind trotzdem nutzbar.
+
+**Fehler:** `400` (ungültige E-Mail), `404` (unbekanntes `deviceToken` oder bereits aktiv), `410` (Einladung abgelaufen).
+
+---
+
+### Einladungs-JWT auflösen (öffentlich)
+
+Liefert die gleichen Daten wie im QR-JSON, ohne Admin-Session. Zum Aufruf aus der Mobile-App nach Link/E-Mail.
+
+**Endpunkt:** `GET /api/registration/resolve?token=<jwt>`
+
+**Antwort:** `200 OK`
+```json
+{
+  "serverUrl": "https://alarm.example",
+  "token": "generated-uuid"
+}
+```
+
+**Fehler:** `400` (fehlend/ungültig/abgelaufen).
+
+---
+
+### Registrierungs-Webseite (Browser)
+
+**Endpunkt:** `GET /register?token=<jwt>`
+
+HTML-Hilfeseite: kopierbares JSON, Link „In der App öffnen“. Ohne `token`: statische Kurzinfo.
 
 ---
 
@@ -428,7 +488,7 @@ Registriert ein mobiles Gerät beim Server. Der `deviceToken` muss zuvor über d
 **Parameter:**
 - `deviceToken` – Token vom QR-Code (Pflichtfeld)
 - `registrationToken` – Eindeutige Geräte-ID für WebSocket-Verbindung (Pflichtfeld)
-- `platform` – Entweder `"ios"` oder `"android"` (Pflichtfeld)
+- `platform` – `"ios"`, `"android"` oder `"linux"` (Pflichtfeld; Linux-Desktop-Clients)
 - `firstName`, `lastName` – Optionaler Name der Einsatzkraft
 - `qualifications` – Optionale Qualifikationen (`machinist`, `agt`, `paramedic`)
 - `leadershipRole` – Optionale Führungsrolle: `"none"`, `"groupLeader"`, `"commandLeader"`

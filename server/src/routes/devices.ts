@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import crypto from 'crypto';
 import QRCode from 'qrcode';
+import { signRegistrationInvite } from '../services/registration-invite';
 import rateLimit from 'express-rate-limit';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { verifyToken, verifyAdmin, verifySession, AuthRequest, DeviceRequest, verifyDeviceToken, generateDeviceToken } from '../middleware/auth';
@@ -9,7 +9,11 @@ import { DeviceRow } from '../models/db-types';
 import { mapDeviceRow, mapGroupRow } from '../mappers';
 import { GroupRow } from '../models/db-types';
 import { validateBody } from '../middleware/validate';
-import { DeviceRegistrationSchema, UpdatePushTokenSchema } from '../validation/schemas';
+import {
+  DeviceRegistrationSchema,
+  RegistrationInviteEmailSchema,
+  UpdatePushTokenSchema,
+} from '../validation/schemas';
 import logger from '../utils/logger';
 import {
   parseDevicesPagination,
@@ -17,6 +21,8 @@ import {
   buildRegistrationDevicePayload,
   buildPushTokenUpdatePlan,
 } from './devices/helpers';
+import { createPendingRegistrationDevice } from '../services/pending-device-registration';
+import { sendRegistrationInviteEmail, isMailConfigured } from '../services/mail';
 
 const router = Router();
 
@@ -49,47 +55,104 @@ const registrationRateLimiter = rateLimit({
 // Generate a registration QR code
 router.post('/registration-token', verifySession, verifyAdmin, registrationRateLimiter, async (req: Request, res: Response) => {
   try {
-    const deviceToken = crypto.randomUUID();
-    
-    // Generate QR code data URL
-    const registrationData = {
-      token: deviceToken,
-      serverUrl: process.env.SERVER_URL || 'http://localhost:3000',
-    };
-    
-    const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(registrationData));
-    
-    // Store the device token with QR code in database (not yet registered)
-    // This allows later retrieval of the QR code
-    const id = crypto.randomUUID();
-    const registeredAt = new Date().toISOString();
-    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-    
-    await dbRun(
-      `INSERT INTO devices (
-        id, device_token, registration_token, platform, registered_at, active, registration_expires_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        deviceToken,
-        '', // Empty registration token until registered
-        'android', // Default platform, will be updated on registration
-        registeredAt,
-        0, // Not active until registered
-        expiresAt,
-      ]
-    );
-    
+    const pending = await createPendingRegistrationDevice();
+
     res.json({
-      deviceToken,
-      qrCode: qrCodeDataUrl,
-      registrationData,
+      deviceToken: pending.deviceToken,
+      qrCode: pending.qrCodeDataUrl,
+      registrationData: pending.registrationData,
+      registrationLink: pending.registrationLink,
     });
   } catch (error) {
     logger.error({ err: error }, 'Error generating registration token');
     res.status(500).json({ error: 'Failed to generate registration token' });
   }
 });
+
+// Create pending device and email registration link (optional SMTP)
+router.post(
+  '/registration-token/email',
+  verifySession,
+  verifyAdmin,
+  registrationRateLimiter,
+  validateBody(RegistrationInviteEmailSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { email, deviceToken: existingDeviceToken } = req.body as {
+        email: string;
+        deviceToken?: string;
+      };
+
+      let pending: Awaited<ReturnType<typeof createPendingRegistrationDevice>>;
+
+      if (existingDeviceToken) {
+        const row = await dbGet<DeviceRow>(
+          'SELECT * FROM devices WHERE device_token = ? AND active = 0',
+          [existingDeviceToken],
+        );
+        if (!row) {
+          res.status(404).json({ error: 'Device token not found or already registered' });
+          return;
+        }
+        if (row.registration_expires_at) {
+          const exp = new Date(row.registration_expires_at).getTime();
+          if (Number.isFinite(exp) && exp < Date.now()) {
+            res.status(410).json({ error: 'Registration invite expired' });
+            return;
+          }
+        }
+        const serverUrl = (process.env.SERVER_URL || 'http://localhost:3000').replace(/\/$/, '');
+        const registrationData = { token: existingDeviceToken, serverUrl };
+        const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(registrationData));
+        const registrationInviteToken = signRegistrationInvite(existingDeviceToken, serverUrl);
+        const registrationLink = `${serverUrl}/register?token=${encodeURIComponent(registrationInviteToken)}`;
+        pending = {
+          id: row.id,
+          deviceToken: existingDeviceToken,
+          qrCodeDataUrl,
+          registrationData,
+          registrationLink,
+          registrationInviteToken,
+        };
+      } else {
+        pending = await createPendingRegistrationDevice();
+      }
+
+      const registrationJson = JSON.stringify(pending.registrationData);
+
+      let emailResult: { sent: boolean; reason?: string } = { sent: false, reason: 'smtp_not_configured' };
+      if (isMailConfigured()) {
+        const subject = 'Alarm Messenger — Geräteregistrierung';
+        const text = [
+          'Sie wurden eingeladen, ein Gerät in Alarm Messenger zu registrieren.',
+          '',
+          `Registrierungs-Link (48h gültig): ${pending.registrationLink}`,
+          '',
+          'Alternativ können Sie diese JSON-Daten in der App unter „Manuelle Registrierung“ einfügen:',
+          registrationJson,
+        ].join('\n');
+
+        const html = `<p>Sie wurden eingeladen, ein Gerät in <strong>Alarm Messenger</strong> zu registrieren.</p>
+<p><a href="${pending.registrationLink}">Registrierung im Browser öffnen</a> (48&nbsp;Stunden gültig)</p>
+<p>Alternativ JSON in der App unter „Manuelle Registrierung“ einfügen:</p>
+<pre style="white-space:pre-wrap">${registrationJson.replace(/</g, '&lt;')}</pre>`;
+
+        emailResult = await sendRegistrationInviteEmail(email, { subject, text, html });
+      }
+
+      res.json({
+        deviceToken: pending.deviceToken,
+        qrCode: pending.qrCodeDataUrl,
+        registrationData: pending.registrationData,
+        registrationLink: pending.registrationLink,
+        email: emailResult,
+      });
+    } catch (error) {
+      logger.error({ err: error }, 'Error generating registration token email');
+      res.status(500).json({ error: 'Failed to generate registration invite email' });
+    }
+  },
+);
 
 // Register a device
 router.post('/register', registrationRateLimiter, validateBody(DeviceRegistrationSchema), async (req: Request, res: Response) => {

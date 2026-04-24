@@ -176,6 +176,8 @@ Das Admin-Interface bietet fünf Hauptbereiche:
 
 Das Admin-Interface ist unter `https://ihr-server/admin/` erreichbar und bietet alle Verwaltungsfunktionen in einem übersichtlichen Design.
 
+**Progressive Web App (PWA):** Unter `/admin/` stehen ein Web-App-Manifest, Service Worker und Start-Icons bereit. In Chromium-basierten Browsern (Chrome, Edge) und auf Android können Sie die Oberfläche über das Menü „App installieren“ / „Zum Startbildschirm hinzufügen“ wie eine eigenständige Anwendung nutzen. Die API bleibt online; ohne Netzwerk sind nur zuvor geladene statische Admin-Dateien eingeschränkt nutzbar.
+
 #### Login
 
 | Hell-Modus | Dunkel-Modus |
