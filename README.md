@@ -515,11 +515,32 @@ Für zuverlässige Hintergrund-Benachrichtigungen:
 
 Die Mobile App funktioniert standardmäßig im WebSocket-only-Modus. Für Push Notifications siehe [mobile/PUSH-NOTIFICATIONS.md](mobile/PUSH-NOTIFICATIONS.md).
 
+### Alternative: WebSocket + ntfy Eskalation (ohne FCM/APNs)
+
+Wenn Sie keine FCM/APNs-Integration nutzen möchten, können Sie eine zweite Alarmierungsstufe über eine eigene ntfy-Instanz aktivieren.  
+Die Stufe 2 wird automatisch ausgelöst, wenn nach einer konfigurierbaren Zeit keine Rückmeldung vorliegt.
+
+```bash
+# .env (Server)
+ENABLE_NTFY_ESCALATION=true
+NTFY_BASE_URL=https://ntfy.example.com
+NTFY_AUTH_TOKEN=<token-oder-leer>
+NTFY_TOPIC_TEMPLATE=alarm-{deviceId}
+NTFY_STAGE2_DELAY_SECONDS=25
+NTFY_RETRY_SCHEDULE_SECONDS=20,60
+```
+
+Hinweise:
+- Stufe 1 bleibt WebSocket (sofort bei Einsatzerstellung)
+- Stufe 2 sendet an ntfy-App (pro Gerätetopic via `{deviceId}`)
+- Erfolgs-/Fehlerwerte sind über `/api/info/dispatch-metrics` sichtbar
+
 ### Features
 
 - ✅ **Lokal gehostet**: Credentials bleiben auf Ihrem Server
 - ✅ **Keine Cloud-Abhängigkeit**: FCM/APNs nur als Zustellmechanismus
 - ✅ **Optional**: Funktioniert auch ohne - nur WebSocket
+- ✅ **Optionale Eskalation**: Stage-2-Fallback über eigenen ntfy-Host
 - ✅ **Graceful Fallback**: Automatischer Wechsel zu WebSocket wenn Push nicht verfügbar
 - ✅ **Redundanz**: Beide Wege parallel für doppelte Absicherung
 - ✅ **Kostenlos**: FCM ist kostenlos, APNs erfordert Apple Developer Account ($99/Jahr)
@@ -691,6 +712,8 @@ Alle Dokumentation ist im `/docs` Verzeichnis verfügbar:
 
 ### Konfiguration
 - [SERVER-KONFIGURATION.md](docs/SERVER-KONFIGURATION.md) - Server-URL und Umgebungsvariablen
+- [PUSH-NOTIFICATIONS.md](docs/PUSH-NOTIFICATIONS.md) - Detaillierte FCM/APNs Server-Einrichtung (Schritt-für-Schritt)
+- [mobile/PUSH-NOTIFICATIONS.md](mobile/PUSH-NOTIFICATIONS.md) - Detaillierte FCM/APNs Mobile-App-Einrichtung (Android/iOS)
 - [BASE64-SECRETS.md](docs/BASE64-SECRETS.md) - Base64-Kodierung für Secrets
 - [QUALIFIKATIONEN.md](docs/QUALIFIKATIONEN.md) - Qualifikationen und Führungsrollen
 
