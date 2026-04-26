@@ -549,6 +549,7 @@ Hinweise:
 
 - **[docs/PUSH-NOTIFICATIONS.md](docs/PUSH-NOTIFICATIONS.md)** - Server-seitige Konfiguration
 - **[mobile/PUSH-NOTIFICATIONS.md](mobile/PUSH-NOTIFICATIONS.md)** - Mobile App Konfiguration
+- **[docs/NTFY-ESCALATION.md](docs/NTFY-ESCALATION.md)** - Stage-2-Eskalation mit eigener ntfy-Instanz
 
 ## API-Integration
 

@@ -2,12 +2,15 @@ import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import QRCode from 'qrcode';
 import rateLimit from 'express-rate-limit';
 import { dbRun, dbGet, dbAll } from '../services/database';
 import { generateToken, verifyAdmin, verifySession, generateCsrfToken, AuthRequest } from '../middleware/auth';
 import { addToBlacklist } from '../services/token-blacklist';
+import { ntfyNotificationService } from '../services/ntfy-notification';
 import { mapEmergencyRow } from '../mappers';
 import { EmergencyRow, AdminUserRow, DeviceRow } from '../models/db-types';
+import { PushNotificationData } from '../services/push-notification';
 import { validateBody } from '../middleware/validate';
 import { LoginSchema } from '../validation/schemas';
 import { addSseClient, removeSseClient } from '../services/sse';
@@ -26,6 +29,14 @@ const router = Router();
 
 interface CountRow {
   count: number;
+}
+
+const ntfyTestThrottle = new Map<string, number>();
+const NTFY_TEST_COOLDOWN_MS = Number(process.env.NTFY_TEST_COOLDOWN_MS || 30000);
+
+function buildNtfyTopic(deviceId: string): string {
+  const template = process.env.NTFY_TOPIC_TEMPLATE || 'alarm-{deviceId}';
+  return template.replace('{deviceId}', deviceId);
 }
 
 const loginRateLimiter = rateLimit({
@@ -405,6 +416,101 @@ router.put('/devices/:id', verifySession, verifyAdmin, async (req: AuthRequest, 
   } catch (error) {
     logger.error({ err: error }, 'Error updating device');
     res.status(500).json({ error: 'Failed to update device' });
+  }
+});
+
+// Get ntfy provisioning data for a specific device (admin only)
+router.get('/devices/:id/ntfy-config', verifySession, verifyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const baseUrl = (process.env.NTFY_BASE_URL || '').replace(/\/$/, '');
+
+    if (!baseUrl) {
+      res.status(400).json({ error: 'NTFY_BASE_URL is not configured' });
+      return;
+    }
+
+    const device = await dbGet<DeviceRow>('SELECT id FROM devices WHERE id = ? AND active = 1', [id]);
+    if (!device) {
+      res.status(404).json({ error: 'Device not found' });
+      return;
+    }
+
+    const topic = buildNtfyTopic(id);
+    const subscribeUrl = `${baseUrl}/${encodeURIComponent(topic)}`;
+    const qrCode = await QRCode.toDataURL(subscribeUrl);
+
+    res.json({
+      deviceId: id,
+      topic,
+      subscribeUrl,
+      qrCode,
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Error fetching ntfy config for device');
+    res.status(500).json({ error: 'Failed to fetch ntfy config' });
+  }
+});
+
+// Send a test ntfy message for a specific device (admin only)
+router.post('/devices/:id/ntfy-test', verifySession, verifyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const cooldownKey = `${req.userId ?? 'unknown'}:${id}`;
+    const nowMs = Date.now();
+    const lastSentMs = ntfyTestThrottle.get(cooldownKey) ?? 0;
+    const elapsedMs = nowMs - lastSentMs;
+    if (elapsedMs < NTFY_TEST_COOLDOWN_MS) {
+      const retryAfterSec = Math.ceil((NTFY_TEST_COOLDOWN_MS - elapsedMs) / 1000);
+      res.setHeader('Retry-After', String(retryAfterSec));
+      res.status(429).json({
+        error: `Bitte warten (${retryAfterSec}s), bevor Sie erneut einen ntfy-Test senden.`,
+      });
+      return;
+    }
+
+    if (!ntfyNotificationService.isEnabled()) {
+      res.status(400).json({ error: 'ntfy escalation is not enabled or configured' });
+      return;
+    }
+
+    const device = await dbGet<DeviceRow>('SELECT id FROM devices WHERE id = ? AND active = 1', [id]);
+    if (!device) {
+      res.status(404).json({ error: 'Device not found' });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const testData: PushNotificationData = {
+      emergencyId: crypto.randomUUID(),
+      emergencyNumber: `TEST-${now.substring(0, 19).replace(/[:T-]/g, '')}`,
+      emergencyDate: now,
+      emergencyKeyword: 'NTFY TEST',
+      emergencyDescription: 'Dies ist eine Testnachricht aus dem Admin-Interface.',
+      emergencyLocation: 'Alarm Messenger',
+      groups: '',
+    };
+
+    const topic = buildNtfyTopic(id);
+    const sent = await ntfyNotificationService.sendEmergencyNotification(
+      {
+        topic,
+        title: 'EINSATZ TEST: NTFY',
+        message: 'Testalarm aus Alarm Messenger Admin',
+      },
+      testData,
+    );
+
+    if (!sent) {
+      res.status(502).json({ error: 'Failed to publish ntfy test message' });
+      return;
+    }
+
+    ntfyTestThrottle.set(cooldownKey, nowMs);
+    res.json({ success: true, topic });
+  } catch (error) {
+    logger.error({ err: error }, 'Error sending ntfy test message');
+    res.status(500).json({ error: 'Failed to send ntfy test message' });
   }
 });
 
