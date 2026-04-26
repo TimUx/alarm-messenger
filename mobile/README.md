@@ -171,20 +171,21 @@ Details siehe: [Flutter iOS Deployment Guide](https://docs.flutter.dev/deploymen
 
 ## 🤖 CI/CD
 
-Die App wird automatisch über GitHub Actions gebaut:
+Mobile Builds werden ueber GitHub Actions **nur manuell** gestartet.
 
 ### Workflow: `.github/workflows/flutter-mobile-build.yml`
 
-- **Bei jedem Push**: Debug APK wird gebaut
-- **Bei Tags `mobile-v*`**: Release APK und AAB werden gebaut und auf GitHub Releases hochgeladen
-- **iOS**: Debug Build ohne Code Signing
+- Trigger: nur `workflow_dispatch` (Run workflow)
+- Plattformen:
+  - Linux Desktop (Ubuntu Runner)
+  - Android APK/AAB (Ubuntu Runner)
+  - iOS IPA (macOS Runner)
+- Optional: Upload der signed IPA zu TestFlight
 
-### Artifacts
-
-Nach jedem Build werden folgende Artifacts erstellt:
-- `app-debug`: Debug APK
-- `app-release`: Release APK (nur bei Tags)
-- `app-release-bundle`: Release AAB (nur bei Tags)
+Details zu Inputs, Secrets und Build-Szenarien:
+- [`docs/MOBILE-CI.md`](../docs/MOBILE-CI.md)
+- TestFlight-Upload und Installation auf iPhone/iPad:
+  - Abschnitt **"IPA nach TestFlight hochladen"** in [`docs/MOBILE-CI.md`](../docs/MOBILE-CI.md)
 
 ## 📱 App-Verwendung
 

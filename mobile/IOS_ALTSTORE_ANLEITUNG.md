@@ -20,7 +20,7 @@ Dieser Workflow erstellt eine IPA-Datei, die mit AltStore/AltServer auf iOS-Ger√
 
 ### Schritt 1: IPA herunterladen
 1. Gehe zu GitHub Actions in diesem Repository
-2. Starte den "Flutter Mobile Build" Workflow manuell (workflow_dispatch)
+2. Starte den Workflow **"Mobile App Build (Manual)"** manuell (`workflow_dispatch`)
 3. Warte bis der Build abgeschlossen ist
 4. Lade das Artifact `alarm-messenger-unsigned.ipa` herunter
 

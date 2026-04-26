@@ -114,15 +114,15 @@ Das Admin-Interface bietet fünf Hauptbereiche:
 
 **📱 Mobile App Build:**
 - 📖 [Flutter Mobile App Dokumentation](mobile/README.md) - Setup, Entwicklung & Deployment
-- 🔨 [Legacy React Native Build-Anleitung](docs/BUILD-ANLEITUNG-LINUX.md) - Schritt-für-Schritt Android APK erstellen
-- 📖 [Legacy Mobile Dokumentation](docs/MOBILE.md) - iOS & Android, GitHub Actions
-- ⚙️ Automatische Builds via GitHub Actions bei Code-Änderungen
+- ⚙️ [Mobile CI/CD (manuelle Builds)](docs/MOBILE-CI.md) - Linux, Android, iOS (macOS) und TestFlight
+- 🐧 Linux Desktop, 🤖 Android APK/AAB und 🍎 iOS IPA werden über einen gemeinsamen Workflow gebaut
+- ✋ Alle Mobile Builds werden manuell per `workflow_dispatch` gestartet
 
 **🚀 Releases:**
 - 📦 [Release-Dokumentation](docs/RELEASE.md) - Releases erstellen mit Mobile App Builds
-- 🏷️ Automatischer Release-Workflow bei Version-Tags (z.B., `v1.0.0`)
+- ✋ Release-Workflow wird manuell gestartet (`.github/workflows/release.yml`)
 - 📱 Inkludiert Android APK/AAB und iOS Builds
-- 🐳 Docker Images automatisch auf GitHub Container Registry
+- 🐳 Docker Images werden weiterhin automatisch auf GitHub Container Registry gebaut
 
 ## Architektur
 
@@ -679,9 +679,9 @@ Alle Dokumentation ist im `/docs` Verzeichnis verfügbar:
 - [SETUP.md](docs/SETUP.md) - Native Installation und Konfiguration
 - [DOCKER.md](docs/DOCKER.md) - Docker-Deployment mit Caddy/Nginx
 - [RELEASE.md](docs/RELEASE.md) - Release-Prozess und Versionierung
-- [mobile/README.md](mobile/README.md) - 🆕 Flutter Mobile App Setup und Entwicklung
-- [MOBILE.md](docs/MOBILE.md) - Legacy React Native Mobile App Dokumentation
-- [BUILD-ANLEITUNG-LINUX.md](docs/BUILD-ANLEITUNG-LINUX.md) - Legacy Android Build unter Linux
+- [mobile/README.md](mobile/README.md) - Flutter Mobile App Setup und Entwicklung
+- [MOBILE-CI.md](docs/MOBILE-CI.md) - Manueller Mobile Build-Workflow inkl. TestFlight
+- [DEVELOPER_GUIDE_MOBILE_LINUX.md](docs/DEVELOPER_GUIDE_MOBILE_LINUX.md) - Linux/Android Entwicklungs- und Test-Setup
 
 ### API & Integration
 - [API.md](docs/API.md) - Vollständige API-Referenz
@@ -782,20 +782,21 @@ Ja für zuverlässige Hintergrund-Benachrichtigungen:
 
 **F: Wie baue ich die Mobile App unter Linux?**
 
-A: Vollständige Schritt-für-Schritt-Anleitung in [docs/BUILD-ANLEITUNG-LINUX.md](docs/BUILD-ANLEITUNG-LINUX.md). Android APK kann komplett unter Linux gebaut werden.
+A: Für lokale Entwicklung und Tests siehe [docs/DEVELOPER_GUIDE_MOBILE_LINUX.md](docs/DEVELOPER_GUIDE_MOBILE_LINUX.md). Android APK/AAB kann über den manuellen CI-Workflow gebaut werden; Linux-Desktop-Artifact ebenfalls. Details in [docs/MOBILE-CI.md](docs/MOBILE-CI.md).
 
 **F: Kann ich iOS Apps unter Linux bauen?**
 
-A: Nein, iOS benötigt macOS und Xcode. Nutze GitHub Actions für automatische iOS-Builds auf macOS-Runnern.
+A: Nein, iOS benötigt macOS und Xcode. Nutze den manuellen GitHub-Workflow `.github/workflows/flutter-mobile-build.yml`, der auf macOS-Runnern IPA-Dateien erzeugt (optional mit TestFlight-Upload).
 
-**F: Wie funktionieren automatische Builds mit GitHub Actions?**
+**F: Wie funktionieren die Mobile Builds mit GitHub Actions?**
 
-A: Der Workflow `.github/workflows/flutter-mobile-build.yml` baut automatisch:
-- Debug APK bei jedem Push in `mobile/`
-- Release APK/AAB bei Git Tags (z.B. `mobile-v1.0.0`)
-- GitHub Release mit Download-Links
+A: Mobile Builds laufen manuell über **Run workflow** (`workflow_dispatch`) und unterstützen:
+- Linux Desktop Build (Artifact)
+- Android Debug APK sowie Release APK/AAB (mit Signing-Secrets)
+- iOS IPA auf macOS-Runner (signed/unsigned)
+- Optionalen Upload einer signed IPA zu TestFlight
 
-**Mehr Details:** [mobile/README.md](mobile/README.md)
+**Mehr Details:** [docs/MOBILE-CI.md](docs/MOBILE-CI.md) und [mobile/README.md](mobile/README.md)
 
 **F: Welche Betriebssysteme werden unterstützt?**
 
@@ -857,21 +858,18 @@ alarm-messenger/
 │   └── data/                  # SQLite-Datenbank
 │
 ├── mobile/                     # Mobile App
-│   ├── src/
-│   │   ├── App.tsx            # Haupt-App-Komponente
-│   │   ├── screens/           # UI-Screens
-│   │   │   ├── RegistrationScreen.tsx
-│   │   │   ├── HomeScreen.tsx
-│   │   │   └── EmergencyAlertScreen.tsx
-│   │   ├── services/          # Services
-│   │   │   ├── api.ts         # API-Client
-│   │   │   ├── notifications.ts # WebSocket-Client
-│   │   │   └── storage.ts     # Lokale Speicherung
-│   │   ├── context/           # React Context
-│   │   │   └── ThemeContext.tsx
-│   │   └── types/             # TypeScript-Typen
+│   ├── lib/                    # Flutter/Dart Quellcode
+│   │   ├── main.dart           # App-Einstiegspunkt
+│   │   ├── screens/            # UI-Screens
+│   │   ├── services/           # API, Storage, WebSocket, Alarm
+│   │   ├── providers/          # State Management
+│   │   ├── models/             # Datenmodelle
+│   │   └── widgets/            # Wiederverwendbare Widgets
 │   ├── android/               # Android-spezifischer Code
-│   └── ios/                   # iOS-spezifischer Code
+│   ├── ios/                   # iOS-spezifischer Code
+│   ├── linux/                 # Linux Desktop Runner
+│   ├── test/                  # Unit/Widget Tests
+│   └── integration_test/      # Integrationstests
 │
 ├── docs/                       # Dokumentation
 │   ├── API.md
@@ -908,9 +906,10 @@ MIT License - Siehe [LICENSE](LICENSE) Datei für Details.
 cd server
 npm run dev
 
-# Mobile App (mit Metro Bundler)
+# Mobile App (Flutter)
 cd mobile
-npm start
+flutter pub get
+flutter run
 ```
 
 ## Credits

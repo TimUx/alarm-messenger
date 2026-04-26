@@ -1,5 +1,12 @@
 # Mobile App Build-Anleitung für Linux
 
+> **Legacy-Hinweis:**
+> Diese Anleitung enthaelt historische Teile aus der React-Native-Zeit.
+> Fuer den aktuellen Flutter-Stand bitte primär nutzen:
+> - [`docs/DEVELOPER_GUIDE_MOBILE_LINUX.md`](./DEVELOPER_GUIDE_MOBILE_LINUX.md)
+> - [`docs/MOBILE-CI.md`](./MOBILE-CI.md)
+> - [`mobile/README.md`](../mobile/README.md)
+
 Eine Schritt-für-Schritt-Anleitung zum Kompilieren und Erstellen der Alarm Messenger Mobile App für Android und iOS unter Linux.
 
 ## Inhaltsverzeichnis

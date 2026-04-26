@@ -1,5 +1,14 @@
 # Mobile App - Build und Installation Guide
 
+> **Legacy-Hinweis (React Native):**
+> Diese Datei beschreibt den frueheren React-Native-Stand und wird nur noch als Referenz gepflegt.
+> Die aktuelle Mobile App basiert auf Flutter.
+>
+> Bitte primär diese Dokumente nutzen:
+> - [`mobile/README.md`](../mobile/README.md)
+> - [`docs/MOBILE-CI.md`](./MOBILE-CI.md)
+> - [`docs/DEVELOPER_GUIDE_MOBILE_LINUX.md`](./DEVELOPER_GUIDE_MOBILE_LINUX.md)
+
 Dieses Dokument erklärt detailliert, wie die Android und iOS Apps kompiliert, installiert und über GitHub Actions als Release bereitgestellt werden können.
 
 ## Inhaltsverzeichnis
@@ -399,6 +408,9 @@ Gehe zu: Repository → Settings → Secrets and variables → Actions → New r
 | `ANDROID_KEY_PASSWORD` | `<dein-passwort>` | Key Passwort |
 
 ### Build-Artifacts herunterladen
+
+> Hinweis: Die folgenden Artifact-Namen/Trigger beschreiben den damaligen Legacy-Workflow.
+> Fuer den aktuellen Stand siehe `docs/MOBILE-CI.md`.
 
 Nach jedem Build findet man die APK-Dateien unter:
 - GitHub → Actions → Workflow Run auswählen → "Artifacts" Section

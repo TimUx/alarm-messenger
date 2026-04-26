@@ -1,9 +1,6 @@
 name: Create Release with Mobile Builds
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       version:
