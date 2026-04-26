@@ -59,8 +59,8 @@ export interface NotificationOutboxRow {
   id: string;
   emergency_id: string;
   device_id: string;
-  channel: 'fcm' | 'apns' | 'websocket';
-  status: 'pending' | 'delivered' | 'failed';
+  channel: 'fcm' | 'apns' | 'websocket' | 'ntfy';
+  status: 'pending' | 'delivered' | 'failed' | 'failed_final';
   retry_count: number;
   last_error: string | null;
   created_at: string;

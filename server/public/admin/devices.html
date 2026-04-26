@@ -128,6 +128,26 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ntfy Provisioning Modal -->
+            <div id="ntfy-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>ntfy Subscription für Gerät</h3>
+                        <button class="close-btn" id="close-ntfy-modal-btn" aria-label="Schließen">&times;</button>
+                    </div>
+                    <div class="qr-code-card">
+                        <img id="ntfy-modal-image" alt="ntfy Subscription QR Code" style="max-width: 100%; height: auto;">
+                        <div class="qr-code-info">
+                            <p><strong>Topic:</strong> <span id="ntfy-modal-topic"></span></p>
+                            <p><strong>Link:</strong> <span id="ntfy-modal-link"></span></p>
+                            <button type="button" class="btn btn-secondary" id="copy-ntfy-topic-btn">Topic kopieren</button>
+                            <button type="button" class="btn btn-secondary" id="copy-ntfy-link-btn">Link kopieren</button>
+                            <button type="button" class="btn btn-secondary" id="download-ntfy-modal-btn">QR-Code herunterladen</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
     <script src="/admin/api-client.js"></script>

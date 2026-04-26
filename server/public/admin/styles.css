@@ -1157,6 +1157,27 @@ body {
     font-weight: 500;
 }
 
+.ntfy-status-badge {
+    margin-left: 8px;
+    padding: 2px 8px;
+    font-size: 0.75em;
+}
+
+.ntfy-status-ready {
+    background-color: #2d7a2d;
+    color: #fff;
+}
+
+.ntfy-status-disabled {
+    background-color: var(--btn-secondary-bg);
+    color: #fff;
+}
+
+.ntfy-status-error {
+    background-color: var(--accent-color);
+    color: #fff;
+}
+
 .role-admin {
     background-color: var(--accent-color);
     color: white;

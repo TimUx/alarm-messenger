@@ -1,5 +1,8 @@
 let currentDevices = [];
 let currentGroups = []; // Needed for device group assignment
+let ntfyStatusByDeviceId = {};
+const ntfyTestClientCooldownMs = 5000;
+const ntfyTestCooldownUntilByDeviceId = {};
 
 // Check authentication on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -36,6 +39,15 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('copy-qr-token-btn').addEventListener('click', copyQRToken);
     document.getElementById('download-qr-modal-btn').addEventListener('click', downloadQRCode);
+    document.getElementById('close-ntfy-modal-btn').addEventListener('click', closeNtfyModal);
+    document.getElementById('ntfy-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'ntfy-modal') {
+            closeNtfyModal();
+        }
+    });
+    document.getElementById('copy-ntfy-topic-btn').addEventListener('click', copyNtfyTopic);
+    document.getElementById('copy-ntfy-link-btn').addEventListener('click', copyNtfyLink);
+    document.getElementById('download-ntfy-modal-btn').addEventListener('click', downloadNtfyQRCode);
     
     // Load data
     refreshDevices();
@@ -50,7 +62,9 @@ async function refreshDevices() {
             throw new Error('Fehler beim Laden der Geräte');
         }
         
-        const devices = await response.json();
+        const payload = await response.json();
+        const devices = Array.isArray(payload) ? payload : (payload.data || []);
+        ntfyStatusByDeviceId = await loadNtfyProvisioningStatuses(devices);
         currentDevices = devices;
         displayDevices(devices);
     } catch (error) {
@@ -62,6 +76,28 @@ async function refreshDevices() {
         list.textContent = '';
         list.appendChild(p);
     }
+}
+
+async function loadNtfyProvisioningStatuses(devices) {
+    const statuses = {};
+    await Promise.all(devices.map(async (device) => {
+        try {
+            const response = await apiRequest(`${API_BASE}/admin/devices/${device.id}/ntfy-config`);
+            if (response && response.ok) {
+                statuses[device.id] = { kind: 'ready', label: 'ntfy bereit' };
+                return;
+            }
+            const errorBody = response ? await response.json().catch(() => ({})) : {};
+            if (response && response.status === 400 && String(errorBody.error || '').includes('NTFY_BASE_URL')) {
+                statuses[device.id] = { kind: 'disabled', label: 'ntfy aus' };
+            } else {
+                statuses[device.id] = { kind: 'error', label: 'ntfy Fehler' };
+            }
+        } catch (error) {
+            statuses[device.id] = { kind: 'error', label: 'ntfy Fehler' };
+        }
+    }));
+    return statuses;
 }
 
 function displayDevices(devices) {
@@ -115,6 +151,12 @@ function displayDevices(devices) {
         const nameStrong = document.createElement('strong');
         nameStrong.textContent = deviceName;
         nameCell.appendChild(nameStrong);
+        const ntfyStatus = ntfyStatusByDeviceId[device.id] || { kind: 'disabled', label: 'ntfy aus' };
+        const statusBadge = document.createElement('span');
+        statusBadge.className = `badge ntfy-status-badge ntfy-status-${ntfyStatus.kind}`;
+        statusBadge.textContent = ntfyStatus.label;
+        nameCell.appendChild(document.createTextNode(' '));
+        nameCell.appendChild(statusBadge);
         row.appendChild(nameCell);
 
         // Platform cell
@@ -210,6 +252,20 @@ function displayDevices(devices) {
         deactivateBtn.addEventListener('click', () => deactivateDevice(device.id));
         actionsCell.appendChild(deactivateBtn);
 
+        const ntfyBtn = document.createElement('button');
+        ntfyBtn.className = 'btn-icon';
+        ntfyBtn.title = 'ntfy Subscription';
+        ntfyBtn.textContent = '🔔';
+        ntfyBtn.addEventListener('click', () => showDeviceNtfyConfig(device.id));
+        actionsCell.appendChild(ntfyBtn);
+
+        const ntfyTestBtn = document.createElement('button');
+        ntfyTestBtn.className = 'btn-icon';
+        ntfyTestBtn.title = 'ntfy Test senden';
+        ntfyTestBtn.textContent = '🧪';
+        ntfyTestBtn.addEventListener('click', () => sendNtfyTest(device.id));
+        actionsCell.appendChild(ntfyTestBtn);
+
         row.appendChild(actionsCell);
         tbody.appendChild(row);
     });
@@ -245,6 +301,11 @@ function closeQRModal() {
     window.currentQRData = null;
 }
 
+function closeNtfyModal() {
+    document.getElementById('ntfy-modal').style.display = 'none';
+    window.currentNtfyData = null;
+}
+
 function copyQRToken() {
     const token = document.getElementById('qr-modal-token').textContent;
     navigator.clipboard.writeText(token).then(() => {
@@ -266,6 +327,101 @@ function downloadQRCode() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+
+async function showDeviceNtfyConfig(deviceId) {
+    try {
+        const response = await apiRequest(`${API_BASE}/admin/devices/${deviceId}/ntfy-config`);
+
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({}));
+            throw new Error(errorBody.error || 'Fehler beim Laden der ntfy-Konfiguration');
+        }
+
+        const data = await response.json();
+        document.getElementById('ntfy-modal-image').src = data.qrCode;
+        document.getElementById('ntfy-modal-topic').textContent = data.topic;
+        document.getElementById('ntfy-modal-link').textContent = data.subscribeUrl;
+        document.getElementById('ntfy-modal').style.display = 'flex';
+        window.currentNtfyData = data;
+    } catch (error) {
+        alert('Fehler beim Laden der ntfy-Konfiguration: ' + error.message);
+    }
+}
+
+function copyNtfyTopic() {
+    if (!window.currentNtfyData) {
+        alert('Keine ntfy-Daten geladen');
+        return;
+    }
+    navigator.clipboard.writeText(window.currentNtfyData.topic).then(() => {
+        alert('Topic in Zwischenablage kopiert!');
+    }).catch((err) => {
+        alert('Fehler beim Kopieren: ' + err.message);
+    });
+}
+
+function copyNtfyLink() {
+    if (!window.currentNtfyData) {
+        alert('Keine ntfy-Daten geladen');
+        return;
+    }
+    navigator.clipboard.writeText(window.currentNtfyData.subscribeUrl).then(() => {
+        alert('Link in Zwischenablage kopiert!');
+    }).catch((err) => {
+        alert('Fehler beim Kopieren: ' + err.message);
+    });
+}
+
+function downloadNtfyQRCode() {
+    if (!window.currentNtfyData) {
+        alert('Kein ntfy QR-Code geladen');
+        return;
+    }
+
+    const link = document.createElement('a');
+    link.href = window.currentNtfyData.qrCode;
+    link.download = `ntfy-${window.currentNtfyData.deviceId.substring(0, 8)}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+async function sendNtfyTest(deviceId) {
+    const now = Date.now();
+    const localCooldownUntil = ntfyTestCooldownUntilByDeviceId[deviceId] || 0;
+    if (localCooldownUntil > now) {
+        const sec = Math.ceil((localCooldownUntil - now) / 1000);
+        showToast(`Bitte ${sec}s warten, bevor erneut ein Test gesendet wird`, 'warning');
+        return;
+    }
+
+    if (!confirm('Testnachricht an dieses Gerät via ntfy senden?')) {
+        return;
+    }
+    try {
+        ntfyTestCooldownUntilByDeviceId[deviceId] = Date.now() + ntfyTestClientCooldownMs;
+        const response = await apiRequest(`${API_BASE}/admin/devices/${deviceId}/ntfy-test`, {
+            method: 'POST',
+            body: JSON.stringify({}),
+        });
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({}));
+            if (response.status === 429) {
+                const retryAfterHeader = response.headers.get('Retry-After');
+                const retryAfterSec = Number.parseInt(retryAfterHeader || '0', 10);
+                if (Number.isFinite(retryAfterSec) && retryAfterSec > 0) {
+                    ntfyTestCooldownUntilByDeviceId[deviceId] = Date.now() + retryAfterSec * 1000;
+                }
+            } else {
+                ntfyTestCooldownUntilByDeviceId[deviceId] = 0;
+            }
+            throw new Error(errorBody.error || 'Testnachricht fehlgeschlagen');
+        }
+        showToast('ntfy Testnachricht erfolgreich gesendet', 'success');
+    } catch (error) {
+        showToast(`ntfy Test fehlgeschlagen: ${error.message}`, 'error');
+    }
 }
 
 function editDevice(deviceId) {

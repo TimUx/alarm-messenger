@@ -3,6 +3,7 @@ import { Application } from 'express';
 import { initializeDatabase, getDatabase } from '../services/database';
 import { websocketService } from '../services/websocket';
 import { emergencyScheduler } from '../services/emergency-scheduler';
+import { notificationEscalationService } from '../services/notification-escalation';
 import { redisPubSubService } from '../services/redis-pubsub';
 import logger from '../utils/logger';
 
@@ -18,6 +19,7 @@ export async function startRuntime(app: Application, port: number): Promise<Serv
   const server = http.createServer(app);
   websocketService.initialize(server);
   emergencyScheduler.start();
+  notificationEscalationService.start();
 
   server.listen(port, () => {
     logger.info(`Alarm Messenger Server running on port ${port}`);
@@ -40,6 +42,7 @@ export async function shutdownRuntime(server: http.Server, signal: string): Prom
     clearTimeout(hardKillTimer);
     try {
       emergencyScheduler.stop();
+      notificationEscalationService.stop();
       await redisPubSubService.disconnect();
       getDatabase().close();
       logger.info('Graceful shutdown complete');

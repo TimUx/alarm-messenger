@@ -3,8 +3,8 @@ import { dbRun, dbAll } from './database';
 import { NotificationOutboxRow } from '../models/db-types';
 import logger from '../utils/logger';
 
-type NotificationChannel = 'fcm' | 'apns' | 'websocket';
-type OutboxStatus = 'pending' | 'delivered' | 'failed';
+type NotificationChannel = 'fcm' | 'apns' | 'websocket' | 'ntfy';
+type OutboxStatus = 'pending' | 'delivered' | 'failed' | 'failed_final';
 
 export async function insertOutboxEntry(
   emergencyId: string,
