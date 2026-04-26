@@ -375,9 +375,9 @@ sudo ufw allow from 192.168.1.0/24 to any port 3000
 
 6. ✓ **Mobile App Logs prüfen:**
    ```bash
-   # React Native
-   npx react-native log-android
-   npx react-native log-ios
+   # Flutter (angeschlossenes Gerät/Emulator)
+   cd mobile
+   flutter logs
    ```
 
 ### Problem: WebSocket-Verbindung schlägt fehl

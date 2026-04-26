@@ -1,283 +1,152 @@
 # Release-Prozess
 
-Diese Dokumentation beschreibt, wie neue Releases für das Alarm Messenger System erstellt werden.
+Diese Dokumentation beschreibt den aktuellen Release-Prozess fuer das Alarm Messenger System.
 
-## Übersicht
+## Uebersicht
 
-Das Alarm Messenger System verwendet einen automatisierten Release-Workflow, der bei jedem neuen Version-Tag ausgelöst wird und folgende Komponenten erstellt:
+Der Release-Prozess besteht aus zwei getrennten Workflows:
 
-- **Server Docker Image** - Automatisch gebaut und zu GitHub Container Registry gepusht
-- **Android APK (Debug & Release)** - Für direkte Installation
-- **Android App Bundle (AAB)** - Für Google Play Store
-- **iOS Build** - Ohne Code-Signatur (muss manuell signiert werden)
+- `/.github/workflows/release.yml`
+  - startet **nur manuell** (`workflow_dispatch`)
+  - erstellt/aktualisiert ein GitHub Release
+  - baut Mobile Release-Artefakte (Android; iOS Build-Info)
+- `/.github/workflows/build-and-push.yml`
+  - baut/pusht das Server-Docker-Image nach GHCR
+  - kann separat ausgefuehrt werden (manuell oder ueber seine eigenen Trigger)
 
-## Release erstellen
+Fuer signierte iOS-IPA und optionalen TestFlight-Upload wird der dedizierte Workflow verwendet:
 
-### 1. Version vorbereiten
+- `/.github/workflows/flutter-mobile-build.yml` (manuell)
 
-Vor dem Erstellen eines Releases sollten die Versionsnummern in den Dateien aktualisiert werden:
+Siehe dazu auch: [`docs/MOBILE-CI.md`](./MOBILE-CI.md)
 
-**Server-Version (`server/package.json`):**
-```json
-{
-  "version": "1.0.0"
-}
-```
+## Release erstellen (manuell)
 
-**Mobile App Version (`mobile/pubspec.yaml`):**
+### 1) Version vorbereiten
+
+Vor dem Release Versionsnummern aktualisieren:
+
+- `server/package.json` (Server-Version)
+- `mobile/pubspec.yaml` (Mobile Version im Format `MAJOR.MINOR.PATCH+BUILD`)
+
+Beispiel:
+
 ```yaml
-version: 1.0.0+1
+version: 1.2.0+12
 ```
 
-> **Format:** `MAJOR.MINOR.PATCH+BUILDNUMBER`
-> - MAJOR.MINOR.PATCH = Semantische Version
-> - BUILDNUMBER = Build-Nummer (wird bei jedem Build erhöht)
-
-### 2. Änderungen committen
+### 2) Aenderungen committen und pushen
 
 ```bash
 git add server/package.json mobile/pubspec.yaml
-git commit -m "chore: bump version to 1.0.0"
+git commit -m "chore: bump version to v1.2.0"
 git push origin main
 ```
 
-### 3. Tag erstellen
+### 3) Release-Workflow starten
 
-```bash
-# Version-Tag erstellen
-git tag -a v1.0.0 -m "Release v1.0.0"
+1. GitHub -> **Actions**
+2. Workflow **Create Release with Mobile Builds** waehlen
+3. **Run workflow** klicken
+4. Input `version` setzen (z. B. `v1.2.0`)
+5. Starten
 
-# Tag zu GitHub pushen
-git push origin v1.0.0
-```
+## Was der Release-Workflow erzeugt
 
-### 4. Automatischer Build
+`release.yml` erzeugt im Regelfall:
 
-Nach dem Pushen des Tags:
+- GitHub Release mit Tag `vX.Y.Z`
+- Android `app-debug.apk`
+- Android `app-release.apk` (wenn Signing verfuegbar)
+- Android `app-release.aab` (wenn Signing verfuegbar)
+- iOS Build-Info-Datei (kein automatisch signiertes IPA in diesem Workflow)
 
-1. **Release-Workflow startet automatisch** (`.github/workflows/release.yml`)
-   - Erstellt GitHub Release
-   - Baut Android APK (Debug & Release)
-   - Baut Android App Bundle (AAB)
-   - Baut iOS App (ohne Code-Signatur)
-   - Lädt alle Artifacts zum Release hoch
+## iOS Distribution (IPA/TestFlight)
 
-2. **Docker-Build-Workflow startet** (`.github/workflows/build-and-push.yml`)
-   - Baut Server Docker Image
-   - Pusht zu GitHub Container Registry
-   - Taggt mit Version und `latest`
+Fuer iOS-Distribution nutze den manuellen Workflow:
 
-### 5. Release bearbeiten (optional)
+- `/.github/workflows/flutter-mobile-build.yml`
 
-Nach Abschluss der Workflows:
+Empfohlene Inputs:
 
-1. Gehe zu GitHub Releases (Repository → Releases Tab)
-2. Öffne das neu erstellte Release
-3. Bearbeite die Release Notes:
-   - Beschreibe neue Features
-   - Liste Breaking Changes auf
-   - Erwähne wichtige Bugfixes
-   - Füge Upgrade-Hinweise hinzu
+- `build_ios=true`
+- optional `upload_to_testflight=true`
 
-## Manueller Release (Workflow Dispatch)
+Der Workflow erstellt auf macOS:
 
-Falls nötig, kann ein Release auch manuell über GitHub Actions ausgelöst werden:
+- signed IPA (wenn iOS Signing konfiguriert ist), oder
+- unsigned IPA (Fallback)
 
-1. Gehe zu Actions (Repository → Actions Tab)
-2. Wähle "Create Release with Mobile Builds"
-3. Klicke auf "Run workflow"
-4. Gib die Version ein (z.B., `v1.0.0`)
-5. Klicke auf "Run workflow"
+Optional kann eine signed IPA direkt nach TestFlight hochgeladen werden.
+
+Details inkl. Secrets und Device-Installation:
+
+- [`docs/MOBILE-CI.md`](./MOBILE-CI.md)  
+  (Abschnitte **"IPA nach TestFlight hochladen"** und **"Installation auf dem Geraet"**)
 
 ## Android Signing Secrets
 
-Für signierte Android-Releases müssen folgende GitHub Secrets konfiguriert sein:
+Fuer signierte Android-Artefakte:
 
-- `ANDROID_KEYSTORE_BASE64` - Base64-kodierter Android Keystore
-- `ANDROID_KEY_ALIAS` - Key Alias aus dem Keystore
-- `ANDROID_STORE_PASSWORD` - Keystore-Passwort
-- `ANDROID_KEY_PASSWORD` - Key-Passwort
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_STORE_PASSWORD`
+- `ANDROID_KEY_PASSWORD`
 
-### Keystore erstellen
+Keystore-Beispiel:
 
 ```bash
-# Neuen Keystore erstellen
 keytool -genkey -v -keystore alarm-messenger.keystore \
   -alias alarm-messenger -keyalg RSA -keysize 2048 -validity 10000
-
-# Zu Base64 konvertieren für GitHub Secret
 base64 -w 0 alarm-messenger.keystore > keystore.base64
 ```
 
-### Secrets konfigurieren
-
-1. Gehe zu Repository Settings > Secrets and variables > Actions
-2. Füge die Secrets hinzu:
-   - `ANDROID_KEYSTORE_BASE64`: Inhalt von `keystore.base64`
-   - `ANDROID_KEY_ALIAS`: Key Alias (z.B., `alarm-messenger`)
-   - `ANDROID_STORE_PASSWORD`: Keystore-Passwort
-   - `ANDROID_KEY_PASSWORD`: Key-Passwort
-
-> **⚠️ Sicherheitshinweis:** 
-> - Keystore-Datei sicher aufbewahren (Backup!)
-> - Passwörter nie im Code speichern
-> - Secrets nur über GitHub Actions Secrets verwenden
-
-## iOS Code-Signatur
-
-iOS Builds werden ohne Code-Signatur erstellt. Für iOS Distribution:
-
-1. Öffne das Projekt in Xcode
-2. Konfiguriere Signing & Capabilities
-3. Wähle dein Developer Team
-4. Erstelle ein Provisioning Profile
-5. Archive und exportiere IPA für Distribution
-
-**Alternativen:**
-- Fastlane für automatisiertes iOS Signing
-- GitHub Actions macOS Runner mit Signing Certificates
-
-Siehe [Flutter iOS Deployment Guide](https://docs.flutter.dev/deployment/ios) für Details.
-
-## Versionierungs-Schema
-
-Das Projekt folgt [Semantic Versioning](https://semver.org/):
-
-```
-MAJOR.MINOR.PATCH
-
-MAJOR: Breaking Changes (API-Änderungen, Datenbankschema-Änderungen)
-MINOR: Neue Features (rückwärtskompatibel)
-PATCH: Bugfixes (rückwärtskompatibel)
-```
-
-**Beispiele:**
-- `1.0.0` - Erste stabile Version
-- `1.1.0` - Neue Features hinzugefügt
-- `1.1.1` - Bugfixes
-- `2.0.0` - Breaking Changes
-
 ## Docker Image Deployment
 
-Nach einem erfolgreichen Release:
+Beispiel fuer GHCR Pull:
 
 ```bash
-# Image mit spezifischer Version pullen
-# Format: ghcr.io/<github-username>/<repository-name>:<version>
-docker pull ghcr.io/timux/alarm-messenger:v1.0.0
-
-# Oder latest Version
+docker pull ghcr.io/timux/alarm-messenger:v1.2.0
 docker pull ghcr.io/timux/alarm-messenger:latest
-
-# In docker-compose.yml verwenden
-services:
-  server:
-    image: ghcr.io/timux/alarm-messenger:v1.0.0
-    # ... weitere Konfiguration
 ```
 
-> **Hinweis für Forks:** Ersetze `timux/alarm-messenger` mit `<your-username>/<your-repository-name>`.
+Hinweis fuer Forks: `timux/alarm-messenger` durch `<owner>/<repo>` ersetzen.
 
-## Mobile App Distribution
+## Checkliste
 
-### Android
-
-**APK (Direct Install):**
-1. Download `alarm-messenger-v1.0.0-release.apk` von GitHub Release
-2. Übertrage auf Android-Gerät
-3. Installiere (erfordert "Unbekannte Quellen" in Einstellungen)
-
-**Google Play Store:**
-1. Download `alarm-messenger-v1.0.0-release.aab` von GitHub Release
-2. Login zu [Google Play Console](https://play.google.com/console)
-3. Gehe zu App > Release > Production
-4. Erstelle neues Release
-5. Lade AAB-Datei hoch
-6. Füge Release Notes hinzu
-7. Review und Rollout
-
-### iOS
-
-iOS Deployment erfordert:
-1. Apple Developer Account ($99/Jahr)
-2. Code-Signatur-Zertifikate
-3. Xcode auf macOS
-
-**TestFlight Distribution:**
-1. In Xcode: Product > Archive
-2. Distribute App > App Store Connect
-3. Upload zu App Store Connect
-4. Konfiguriere TestFlight
-5. Lade Tester ein
-
-**App Store Release:**
-1. Wie TestFlight, aber als "App Store" Distribution
-2. Füge Screenshots und Metadaten hinzu
-3. Submit für Review
-4. Nach Approval: Release
-
-## Workflow-Dateien
-
-**Release-Workflow:** `.github/workflows/release.yml`
-- Erstellt GitHub Releases
-- Baut Mobile Apps
-- Lädt Artifacts hoch
-
-**Docker-Build:** `.github/workflows/build-and-push.yml`
-- Baut Server Docker Image
-- Pusht zu GitHub Container Registry
-
-**Mobile-Build:** `.github/workflows/flutter-mobile-build.yml`
-- Kontinuierliche Builds bei Code-Änderungen
-- Separate Workflow für Development-Builds
-
-## Checkliste für Releases
-
-- [ ] Versionsnummern in `server/package.json` und `mobile/pubspec.yaml` aktualisiert
-- [ ] Alle Tests laufen erfolgreich
-- [ ] CHANGELOG.md aktualisiert (falls vorhanden)
-- [ ] Breaking Changes dokumentiert
-- [ ] Tag erstellt und gepusht
-- [ ] Workflows erfolgreich abgeschlossen
-- [ ] Release Notes ausgefüllt
-- [ ] Docker Image verifiziert
-- [ ] Mobile Apps getestet (mindestens auf einem Gerät)
-- [ ] Dokumentation aktualisiert (falls nötig)
+- [ ] Version in `server/package.json` aktualisiert
+- [ ] Version in `mobile/pubspec.yaml` aktualisiert
+- [ ] Tests erfolgreich
+- [ ] Release-Workflow manuell gestartet
+- [ ] GitHub Release und Artefakte geprueft
+- [ ] Android Artefakte getestet
+- [ ] iOS bei Bedarf ueber `flutter-mobile-build.yml` (inkl. TestFlight) gebaut/getestet
+- [ ] Doku aktualisiert
 
 ## Troubleshooting
 
-### Workflow schlägt fehl
+### Workflow fehlgeschlagen
 
-1. Prüfe Workflow-Logs in GitHub Actions
-2. Häufige Probleme:
-   - Fehlende Signing Secrets (Android)
-   - Flutter Version inkompatibel
-   - Build-Fehler im Code
+- Logs im jeweiligen GitHub-Action-Run pruefen
+- Typische Ursachen:
+  - fehlende Android Signing-Secrets
+  - Build-Fehler im Code
+  - inkonsistente Versionsangaben
 
-### Release-Tag existiert bereits
+### Android Release-Artefakte fehlen
 
-```bash
-# Tag lokal löschen
-git tag -d v1.0.0
+- Pruefen, ob Android Signing-Secrets gesetzt sind
+- Ohne Signing wird ggf. nur Debug-Artefakt bereitgestellt
 
-# Tag remote löschen
-git push origin :refs/tags/v1.0.0
+### iOS IPA fehlt im Release-Workflow
 
-# Neuen Tag erstellen
-git tag -a v1.0.0 -m "Release v1.0.0"
-git push origin v1.0.0
-```
-
-### Docker Image nicht verfügbar
-
-- Warte bis `build-and-push` Workflow abgeschlossen ist
-- Prüfe GitHub Container Registry Permissions
-- Verifiziere GITHUB_TOKEN Permissions
+- Erwartetes Verhalten: `release.yml` erzeugt keine vollstaendig signierte IPA-Pipeline
+- Fuer IPA/TestFlight den Workflow `flutter-mobile-build.yml` verwenden
 
 ## Weitere Ressourcen
 
 - [GitHub Releases Dokumentation](https://docs.github.com/en/repositories/releasing-projects-on-github)
-- [Flutter Deployment Guide](https://docs.flutter.dev/deployment)
+- [Flutter Deployment](https://docs.flutter.dev/deployment)
 - [Semantic Versioning](https://semver.org/)
 - [Android App Signing](https://developer.android.com/studio/publish/app-signing)
-- [iOS App Distribution](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases)
+- [Apple TestFlight](https://developer.apple.com/testflight/)
